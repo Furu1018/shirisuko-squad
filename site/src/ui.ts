@@ -831,7 +831,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <div class="section-heading compact"><div><h2 id="timeline-heading">전투 타임라인</h2></div></div>
         <div data-timeline-body></div>
       </section>
-      <footer><p>비공식 팬 제작 도구 · 실제 전투 환경과 차이가 있을 수 있습니다.</p><a href="https://github.com/Moris-kr/nikke-calc" target="_blank" rel="noreferrer">SOURCE / GITHUB ↗</a></footer>
+      <footer><p>비공식 팬 제작 도구 · 실제 전투 환경과 차이가 있을 수 있습니다.</p><a href="https://github.com/Furu1018/shirisuko-squad" target="_blank" rel="noreferrer">SOURCE / GITHUB ↗</a></footer>
 
       <div class="custom-modal" data-history-modal hidden>
         <div class="custom-card roster-card" role="dialog" aria-label="계산 기록">
@@ -2643,7 +2643,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         enemyCode: battle.enemyCode,
         corePx: battle.coreEnabled ? battle.corePx : 0,
         hasParts: battle.hasParts,
-        siteUrl: 'moris-kr.github.io/nikke-calc',
+        siteUrl: 'furu1018.github.io/shirisuko-squad',
       };
       const canvas = renderReport(batch, meta, portraits);
       reportBlob = await canvasToBlob(canvas);

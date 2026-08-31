@@ -1159,7 +1159,7 @@ describe('calculator UI', () => {
     expect(root.querySelectorAll('[data-squad-slot]')).toHaveLength(0);
     expect(root.querySelectorAll('[data-slot-pick]')).toHaveLength(0);
     expect(root.querySelectorAll('[data-roster-search]')).toHaveLength(1);
-    expect(root.querySelector<HTMLAnchorElement>('footer a')?.href).toBe('https://github.com/Moris-kr/nikke-calc');
+    expect(root.querySelector<HTMLAnchorElement>('footer a')?.href).toBe('https://github.com/Furu1018/shirisuko-squad');
   });
 
   it('marks the slot the picker is aiming at, and moves on after a pick', () => {
