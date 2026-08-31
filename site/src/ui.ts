@@ -1,3 +1,4 @@
+import { labelFor } from './display-name';
 import { ResultCache, type StorageLike, type StorageSource } from './cache';
 import { renderCharacterSettings, type CharPanelKind } from './character-settings';
 import {
@@ -221,7 +222,7 @@ function renderCharacterRows(
     const head = document.createElement('p');
     head.className = 'result-row-name';
     head.append(
-      createText('b', name),
+      createText('b', labelFor(name)),
       createText('span', `${share.toFixed(1)}% · ${fmt.dps(value / entry.result.duration)}`),
     );
     const track = document.createElement('div');
@@ -277,7 +278,7 @@ function renderCharacterCards(
     if (rank) portrait.append(createText('b', `${rank}위`, 'result-rank-badge'));
     card.append(portrait);
 
-    card.append(createText('h3', name));
+    card.append(createText('h3', labelFor(name)));
     card.append(createText('span', `${share.toFixed(1)}% 기여`, 'result-card-share'));
     card.append(createText('strong', fmt.dmg(value)));
     card.append(createText('small', fmt.dps(value / entry.result.duration)));
@@ -1302,7 +1303,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const buffOrderModal = element<HTMLElement>(root, '[data-buff-order-modal]');
   const showBuffOrder = (caster: string, row: BuffTargetRow) => {
     element<HTMLElement>(root, '[data-buff-order-title]').textContent =
-      `${caster} · ${row.label}`;
+      `${labelFor(caster)} · ${row.label}`;
     element<HTMLElement>(root, '[data-buff-order-desc]').textContent =
       row.targets.length > 1
         ? `${row.buff} — ${row.count}회 발동. 대상이 ${row.targets.length}명 사이에서 갈립니다.`
@@ -1324,7 +1325,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         shot.append(img);
       }
       item.append(shot);
-      item.append(createText('strong', step.target));
+      item.append(createText('strong', labelFor(step.target)));
       item.append(createText('span', `${step.t.toFixed(2)}초`));
       list.append(item);
     }
@@ -1408,7 +1409,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const placeCharPanel = (panel: HTMLElement, name: string, label: string) => {
     panel.hidden = false;
     charPanelBody.replaceChildren(panel);
-    charPanelTitle.textContent = `${name} · ${label}`;
+    charPanelTitle.textContent = `${labelFor(name)} · ${label}`;
     charPanelModal.hidden = false;
   };
   const closeCharPanel = () => {
@@ -1472,7 +1473,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       // 한 덱에 같은 니케를 두 번 넣을 수 없다 — 누르는 길에서 막는 것과 같은 규칙이다.
       const already = deck.squad.indexOf(name);
       if (already >= 0 && already !== index) {
-        showErrors([`${name}은(는) 이미 ${already + 1}번 칸에 있습니다.`]);
+        showErrors([`${labelFor(name)}은(는) 이미 ${already + 1}번 칸에 있습니다.`]);
         return;
       }
       pickCharacter(name, index);
@@ -1550,7 +1551,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (char?.image) {
         const image = document.createElement('img');
         image.src = `${import.meta.env.BASE_URL}${char.image}`;
-        image.alt = `${char.name} 초상화`;
+        image.alt = `${labelFor(char.name)} 초상화`;
         image.loading = 'lazy';
         portrait.append(image);
       }
@@ -1565,7 +1566,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       choose.className = 'slot-choose';
       choose.dataset.slotChoose = String(index);
       choose.setAttribute('aria-pressed', String(activeSlot === index));
-      choose.append(createText('strong', char ? char.name : '빈 칸'));
+      choose.append(createText('strong', char ? labelFor(char.name) : '빈 칸'));
       choose.append(createText(
         'span',
         char ? `B${char.burstStage} · ${char.elementCode} · ${char.weaponType}` : '눌러서 이 칸에 넣기',
@@ -2137,7 +2138,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         || custom.growthStage > (characterDefaults?.maxGrowthStage ?? -1)
       )) {
         messages.push(
-          `덱 ${deck.id} · ${name}: 돌파 단계는 0~${characterDefaults?.maxGrowthStage ?? 0} 정수여야 합니다.`,
+          `덱 ${deck.id} · ${labelFor(name)}: 돌파 단계는 0~${characterDefaults?.maxGrowthStage ?? 0} 정수여야 합니다.`,
         );
       }
       if (custom.skillLevels) {
@@ -2146,33 +2147,33 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           && keys.every((key) => key === '1' || key === '2' || key === '3');
         const values = Object.values(custom.skillLevels);
         if (!hasExactKeys || values.some((value) => !Number.isInteger(value) || value < 1 || value > 10)) {
-          messages.push(`덱 ${deck.id} · ${name}: 스킬 레벨은 1~10 정수여야 합니다.`);
+          messages.push(`덱 ${deck.id} · ${labelFor(name)}: 스킬 레벨은 1~10 정수여야 합니다.`);
         } else if (characterDefaults?.skillLevelsLocked
           && values.some((value) => value !== 10)) {
-          messages.push(`덱 ${deck.id} · ${name}: 수치 미공개 캐릭터는 스킬 Lv10만 사용할 수 있습니다.`);
+          messages.push(`덱 ${deck.id} · ${labelFor(name)}: 수치 미공개 캐릭터는 스킬 Lv10만 사용할 수 있습니다.`);
         }
       }
       for (const [key, value] of Object.entries(custom.overload ?? {})) {
         const meta = settings.overloadFields[key];
         if (!meta || !Number.isFinite(value) || value < meta.min || value > meta.max) {
-          messages.push(`덱 ${deck.id} · ${name}: ${meta?.label ?? key} 값이 허용 범위를 벗어났습니다.`);
+          messages.push(`덱 ${deck.id} · ${labelFor(name)}: ${meta?.label ?? key} 값이 허용 범위를 벗어났습니다.`);
         }
       }
       if (custom.cube && (!settings.cubes[custom.cube.name] || !Number.isInteger(custom.cube.level)
         || custom.cube.level < 1 || custom.cube.level > 15)) {
-        messages.push(`덱 ${deck.id} · ${name}: 큐브 설정을 확인해 주세요.`);
+        messages.push(`덱 ${deck.id} · ${labelFor(name)}: 큐브 설정을 확인해 주세요.`);
       }
       if (custom.weaponModeSwapAt !== undefined && (
         !Number.isFinite(custom.weaponModeSwapAt)
         || custom.weaponModeSwapAt < 0
         || custom.weaponModeSwapAt > 180
       )) {
-        messages.push(`덱 ${deck.id} · ${name}: 저격 모드 변경 시점은 0~180초여야 합니다.`);
+        messages.push(`덱 ${deck.id} · ${labelFor(name)}: 저격 모드 변경 시점은 0~180초여야 합니다.`);
       }
       for (const [key, value] of Object.entries(custom.manualStats ?? {})) {
         const meta = settings.manualStats[key];
         if (!meta || !Number.isFinite(value) || value < meta.min || value > meta.max) {
-          messages.push(`덱 ${deck.id} · ${name}: ${meta?.label ?? key} 값이 허용 범위를 벗어났습니다.`);
+          messages.push(`덱 ${deck.id} · ${labelFor(name)}: ${meta?.label ?? key} 값이 허용 범위를 벗어났습니다.`);
         }
       }
     }
@@ -2353,7 +2354,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       for (const deck of entry.decks) {
         row.append(createText(
           'p',
-          `덱 ${deck.id} · ${formatDamage(deck.total)} — ${deck.squad.join(', ') || '빈 덱'}`,
+          `덱 ${deck.id} · ${formatDamage(deck.total)} — ${deck.squad.map(labelFor).join(', ') || '빈 덱'}`,
           'history-deck',
         ));
       }
@@ -2511,7 +2512,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderSquad();
       showErrors([]);
       const missing = skipped.length > 0
-        ? ` · 목록에 없는 니케 ${skipped.length}명 제외(${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? '…' : ''})`
+        ? ` · 목록에 없는 니케 ${skipped.length}명 제외(${skipped.slice(0, 3).map(labelFor).join(', ')}${skipped.length > 3 ? '…' : ''})`
         : '';
       // 5덱짜리를 한 칸에 받았으면 나머지가 어디 갔는지 반드시 말해 준다.
       const carried = payload.decks.filter((deck) => deck.squad.some((n) => n.trim() !== '')).length;
@@ -3015,7 +3016,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         el('span', `burst-now-stage stage-${step.stage}`, `${step.stage}버`),
       );
       const picked = burstPicks[stepKey(step)];
-      head.append(el('span', 'burst-now-pick', picked ? `→ ${picked}` : '→ 자동'));
+      head.append(el('span', 'burst-now-pick', picked ? `→ ${labelFor(picked)}` : '→ 자동'));
       burstNow.append(head);
 
       const candidates = burstCandidates(step.stage);
@@ -3037,9 +3038,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           img.loading = 'lazy';
           face.append(img);
         } else {
-          face.textContent = name.slice(0, 2);
+          face.textContent = labelFor(name).slice(0, 2);
         }
-        button.append(face, el('span', 'burst-pick-name', name));
+        button.append(face, el('span', 'burst-pick-name', labelFor(name)));
         if (key) button.append(el('b', 'burst-pick-key', key));
         button.addEventListener('click', () => pickBurst(name));
         burstPicksBox.append(button);
@@ -3079,13 +3080,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           if (image) {
             const img = document.createElement('img');
             img.src = `${import.meta.env.BASE_URL}${image}`;
-            img.alt = name;
+            img.alt = labelFor(name);
             img.loading = 'lazy';
             face.append(img);
           } else {
-            face.textContent = name.slice(0, 2);
+            face.textContent = labelFor(name).slice(0, 2);
           }
-          slot.title = `${cycleNo}번째 ${stage}버 — ${name}`;
+          slot.title = `${cycleNo}번째 ${stage}버 — ${labelFor(name)}`;
         } else {
           slot.title = `${cycleNo}번째 ${stage}버 — 아직 안 정함(자동)`;
         }
@@ -3412,7 +3413,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     Object.values(picked).reduce((sum, set) => sum + set.size, 0);
 
   function sortRoster(list: CharacterMeta[]): void {
-    const byName = (a: CharacterMeta, b: CharacterMeta) => a.name.localeCompare(b.name, 'ko');
+    const byName = (a: CharacterMeta, b: CharacterMeta) => labelFor(a.name).localeCompare(labelFor(b.name), 'ja');
     const flip = sortDesc ? -1 : 1;
     if (sortKey === 'name') { list.sort((a, b) => flip * byName(a, b)); return; }
     const scoreOf = (char: CharacterMeta): number => {
@@ -3545,7 +3546,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   const renderRosterGrid = () => {
     // 직접 추가한 니케까지 포함해 지금 고를 수 있는 전체를 보여준다.
-    const all = [...catalogByName.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    const all = [...catalogByName.values()].sort((a, b) => labelFor(a.name).localeCompare(labelFor(b.name), 'ja'));
     const narrowed = all.filter((char) => {
       const meta = settings.characters[char.name];
       const hit = (key: FilterKey, value: string | undefined) =>
@@ -3601,7 +3602,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       cell.append(
         portrait,
-        createText('strong', char.preview ? `${char.name} (임시)` : char.name),
+        createText('strong', char.preview ? `${labelFor(char.name)} (임시)` : labelFor(char.name)),
         createText('span', [char.elementCode, char.weaponType, char.className].filter(Boolean).join(' · ')),
       );
       cell.addEventListener('click', () => pickCharacter(char.name));
@@ -3669,7 +3670,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     renderRosterGrid();
     // (임시) 캐릭터는 넣는 순간 바로 알린다 — 결과까지 가서야 알면 이미 늦다.
     if (catalogByName.get(name)?.preview) {
-      status.textContent = `${name}은(는) 아직 (임시) 등록입니다 — 스킬이 공개되지 않아 `
+      status.textContent = `${labelFor(name)}은(는) 아직 (임시) 등록입니다 — 스킬이 공개되지 않아 `
         + '임의로 창작한 값으로 계산합니다. 실제 성능과 무관하니 참고용으로만 봐 주세요.';
     }
   };
@@ -3680,7 +3681,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const filled = deck.squad.filter(Boolean).length;
     const current = deck.squad[activeSlot];
     rosterDesc.textContent = current
-      ? `${activeSlot + 1}번 칸을 ${current} 대신 채웁니다 · ${filled}/5명`
+      ? `${activeSlot + 1}번 칸을 ${labelFor(current)} 대신 채웁니다 · ${filled}/5명`
       : `${activeSlot + 1}번 빈 칸을 채웁니다 · ${filled}/5명`;
   };
 

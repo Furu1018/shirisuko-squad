@@ -1,3 +1,4 @@
+import { labelFor } from './display-name';
 import type { ShareItem, ShareKind, ShareServer, VoteValue } from './share-server';
 
 // 공유 모달의 서버 쪽 판. 전투 조건과 조합이 같은 구조를 쓰므로 여기 한 번만 쓴다.
@@ -86,14 +87,14 @@ export function squadPreview(
       if (source) {
         const image = el('img', 'share-portrait');
         image.src = source;
-        image.alt = name;
-        image.title = name;
+        image.alt = labelFor(name);
+        image.title = labelFor(name);
         image.loading = 'lazy';
         row.append(image);
       } else {
         // 초상화가 없는 니케(직접 추가한 커스텀 등)는 이름 조각으로 자리를 지킨다.
-        const chip = el('span', 'share-portrait-empty', name.slice(0, 4));
-        chip.title = name;
+        const chip = el('span', 'share-portrait-empty', labelFor(name).slice(0, 4));
+        chip.title = labelFor(name);
         row.append(chip);
       }
     }

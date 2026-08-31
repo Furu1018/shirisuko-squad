@@ -190,6 +190,7 @@ export function customToMeta(custom: CustomCharacter): CharacterMeta {
   const n = custom.nikke;
   return {
     name: custom.name,
+    displayName: custom.name,   // 自作ニケは入力名がそのまま表示名
     burstStage: String(n.burst_stage ?? ''),
     elementCode: String(n.element_code ?? ''),
     weaponType: String(n.weapon_type ?? ''),

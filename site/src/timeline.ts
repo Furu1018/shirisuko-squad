@@ -1,3 +1,4 @@
+import { labelFor } from './display-name';
 import { formatDamage } from './model';
 import { statText } from './stat-names';
 import { spanTargets } from './types';
@@ -581,7 +582,7 @@ class TimelineChart {
         ctx.font = '700 10px ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(pin.name.slice(0, 1), x, cy);
+        ctx.fillText(labelFor(pin.name).slice(0, 1), x, cy);
       }
       ctx.restore();
 
@@ -641,7 +642,7 @@ class TimelineChart {
     const total = rows.reduce((sum, row) => sum + row.value, 0);
     const lines = rows.map((row) =>
       `<div class="tl-tip-row"><span class="tl-dot" style="background:${row.color}"></span>` +
-      `<span class="tl-name">${row.name}</span><span class="tl-val">${formatDamage(row.value)}</span></div>`,
+      `<span class="tl-name">${labelFor(row.name)}</span><span class="tl-val">${formatDamage(row.value)}</span></div>`,
     ).join('');
     this.tooltip.innerHTML =
       `<div class="tl-tip-time">${formatSpan(index, this.series.bucket)}</div>${lines}` +
@@ -665,13 +666,13 @@ class TimelineChart {
       const url = this.portraits.get(name)?.src;
       const dot = `<span class="tl-dot" style="background:${this.series.colors[name] ?? '#8394a6'}"></span>`;
       return url
-        ? `<img class="tl-face" src="${url}" alt="${name}" title="${name}" />`
-        : `<span class="tl-face tl-face-none" title="${name}">${dot}</span>`;
+        ? `<img class="tl-face" src="${url}" alt="${labelFor(name)}" title="${labelFor(name)}" />`
+        : `<span class="tl-face tl-face-none" title="${labelFor(name)}">${dot}</span>`;
     }).join('');
     const rows: string[] = [
       `<div class="tl-tip-row"><span class="tl-name">지속</span>` +
       `<span class="tl-val">${seconds(from)} → ${seconds(to)} (${seconds(to - from)})</span></div>`,
-      `<div class="tl-tip-row"><span class="tl-name">건 사람</span><span class="tl-val">${track.caster}</span></div>`,
+      `<div class="tl-tip-row"><span class="tl-name">건 사람</span><span class="tl-val">${labelFor(track.caster)}</span></div>`,
     ];
     if (track.stat) {
       // 엔진 키는 영어다 — 화면에는 한글로 적고, 원래 키는 마우스를 올리면 나온다.
@@ -860,7 +861,7 @@ export function createTimelineBlock(
     const dot = document.createElement('span');
     dot.className = 'tl-dot';
     dot.style.background = series.colors[name]!;
-    item.append(dot, textSpan(name, 'tl-name'), textSpan(formatDamage(series.totals[name] ?? 0), 'tl-total'));
+    item.append(dot, textSpan(labelFor(name), 'tl-name'), textSpan(formatDamage(series.totals[name] ?? 0), 'tl-total'));
     item.addEventListener('click', () => {
       const off = item.classList.toggle('is-off');
       chart.setHidden(name, off);

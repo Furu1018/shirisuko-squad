@@ -1,3 +1,4 @@
+import { labelFor } from './display-name';
 import type { CharacterMeta } from './types';
 
 // 니케 이름 검색. 고르는 판이 늘 펼쳐져 있으므로 «친 이름이 맨 앞에 오는가»가
@@ -94,6 +95,6 @@ export function filterByQuery<T>(
   }
   scored.sort((a, b) => a.rank - b.rank
     || a.length - b.length
-    || a.name.localeCompare(b.name, 'ko'));
+    || labelFor(a.name).localeCompare(labelFor(b.name), 'ja'));
   return scored.map((entry) => entry.item);
 }

@@ -16,6 +16,7 @@
  * 그대로 쓰면 유니온원끼리 세팅을 주고받기도 쉽고, 이 탭이 편집기를 새로 만들지 않아도 된다.
  */
 
+import { labelFor } from './display-name';
 import {
   decodeBattleCode, decodeShareCode, decodeUnionCode, encodeUnionCode,
   type UnionShare,
@@ -1436,7 +1437,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
           if (row.damage !== undefined) {
             line.append(el('b', 'union-report-damage', DAMAGE.format(Math.round(row.damage))));
           } else if (row.missing) {
-            line.append(el('span', 'union-report-skip', `미보유 · ${row.missing.join(', ')}`));
+            line.append(el('span', 'union-report-skip', `미보유 · ${row.missing.map(labelFor).join(', ')}`));
           } else {
             line.append(el('span', 'union-report-skip', row.error ?? '계산 실패'));
           }

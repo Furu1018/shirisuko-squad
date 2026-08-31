@@ -1,3 +1,4 @@
+import { labelFor } from './display-name';
 import type {
   BuffTargetRow,
   CharacterControl,
@@ -55,7 +56,7 @@ export function defaultCharacterOverrides(
   catalog: SettingsCatalog,
 ): CharacterOverrides {
   const defaults = catalog.characters[name];
-  if (!defaults) throw new Error(`${name}: 기본 장비 설정을 찾을 수 없습니다.`);
+  if (!defaults) throw new Error(`${labelFor(name)}: 기본 장비 설정을 찾을 수 없습니다.`);
   return {
     growthStage: defaults.growthStage,
     skillLevels: { ...defaults.skillLevels },
@@ -136,7 +137,7 @@ export function recommendedControlText(
     const who = rule.withMembers.find((member) => roster.has(member));
     if (!who) { unresolved = unresolved || squad === undefined; continue; }
     for (const key of Object.keys(rule.control)) {
-      names.push(`${controlName(key)}(${who}와 함께라서)`);
+      names.push(`${controlName(key)}(${labelFor(who)}와 함께라서)`);
     }
   }
   const head = names.length ? `현재 기본 추천: ${names.join(' · ')}` : '현재 기본 추천: 자동 사격';
@@ -184,7 +185,7 @@ export function controlRuleNotes(
   return (defaults.conditionalControl ?? []).map((rule) => {
     const names = Object.keys(rule.control).map(controlName).join(' · ');
     const here = rule.withMembers.find((member) => roster.has(member));
-    const who = here ?? rule.withMembers.join(' 또는 ');
+    const who = here ? labelFor(here) : rule.withMembers.map(labelFor).join(' 또는 ');
     const subject = withParticle(names, '이', '가');
     return {
       active: Boolean(here),
@@ -374,7 +375,7 @@ export function renderCharacterSettings(
     // 도는 동안은 그렇다고 적는다.
     who.textContent = row.pending ? '[계산중]'
       : special ? '[특이케이스]'
-        : `[${row.targets.join(', ')}]`;
+        : `[${row.targets.map(labelFor).join(', ')}]`;
     if (row.pending) box.classList.add('is-pending');
     box.append(who);
     box.title = row.pending

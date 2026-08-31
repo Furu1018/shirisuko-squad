@@ -8,6 +8,7 @@
 //   1덱  → 세로 카드: 총딜을 머리에 세우고 캐릭터별 기여도와 평타/스킬 분해
 //   5덱  → 합계 헤드라인 + 덱 5열: 전체 합계가 주인공이고 25명 개별딜을 모두 싣는다
 
+import { labelFor } from './display-name';
 import { formatDamage, formatDps } from './model';
 import type { BatchResult, CharacterMeta, DeckResultEntry } from './types';
 
@@ -63,7 +64,7 @@ export const reportRows = (
     const damage = entry.result.charTotals[name] ?? 0;
     const breakdown = entry.result.charBreakdown?.[name];
     return {
-      name,
+      name: labelFor(name),   // PNG は表示専用 — 内部キー参照 (charTotals/portraits) は上で済ませてある
       damage,
       share: entry.result.squadTotal > 0 ? damage / entry.result.squadTotal * 100 : 0,
       normal: breakdown?.normal ?? 0,
