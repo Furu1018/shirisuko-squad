@@ -223,7 +223,7 @@ describe('buildSeries', () => {
     // 1초 버킷은 정수로, 0.1초 버킷은 소수 한 자리로 적는다.
     expect(formatSpan(12, 1)).toBe('12–13秒');
     expect(formatSpan(123, 0.1)).toBe('12.3–12.4秒');
-    expect(formatSpan(0, 0.25)).toBe('0.00–0.25초');
+    expect(formatSpan(0, 0.25)).toBe('0.00–0.25秒');
   });
 
   it('returns null when there are no buckets or no matching members', () => {
