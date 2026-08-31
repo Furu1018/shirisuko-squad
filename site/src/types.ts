@@ -194,6 +194,9 @@ export interface CharacterMeta {
   nameCode: number | null;
   // enikk이 캐릭터를 부르는 번호(`resource_id`). 우리 스크랩 데이터의 `id`와 같다.
   resourceId: number | null;
+  // 日本語表示名 (しりすこスクワッド)。正本は data/name-map-ja.json。内部キーは name (韓国語) のまま、
+  // 画面に出すときは display-name.ts の labelFor() を通す
+  displayName?: string;
   // 유저가 부르는 별칭(`수니스`·`세이렌`). 정본은 `context/ALIASES.md`의 별칭 표다.
   // **찾을 때만 쓴다** — 화면에 나오는 이름은 언제나 정식 명칭이다.
   aliases: string[];

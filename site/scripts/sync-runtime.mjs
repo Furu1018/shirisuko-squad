@@ -131,6 +131,21 @@ const names = Object.keys(skills)
   .filter((name) => !name.startsWith('test_') && nikke[name])
   .sort(collator.compare);
 
+// 日本語表示名 (しりすこスクワッド)。正本は data/name-map-ja.json (韓国語キー → 日本語)。
+// 欠落・余剰・重複はここでビルドを落とす — 画面に韓国語キーが漏れる/別キャラが同名になる事故を仕組みで防ぐ
+const nameMapJa = JSON.parse(readFileSync(join(repoRoot, 'data', 'name-map-ja.json'), 'utf8'));
+{
+  const missingJa = names.filter((name) => !nameMapJa[name]);
+  if (missingJa.length) throw new Error(`name-map-ja.json に日本語名がありません: ${missingJa.join(', ')}`);
+  const strayJa = Object.keys(nameMapJa).filter((name) => !nikke[name]);
+  if (strayJa.length) throw new Error(`name-map-ja.json に未知のキーがあります (改名/削除?): ${strayJa.join(', ')}`);
+  const seenJa = new Map();
+  for (const [kr, ja] of Object.entries(nameMapJa)) {
+    if (seenJa.has(ja)) throw new Error(`name-map-ja.json の日本語名が重複しています: 「${ja}」 ← ${seenJa.get(ja)} と ${kr}`);
+    seenJa.set(ja, kr);
+  }
+}
+
 const catalog = names.map((name, index) => {
   const meta = nikke[name];
   const sourceImage = imageIndex.get(normalizeImageName(name));
@@ -151,7 +166,9 @@ const catalog = names.map((name, index) => {
     image,
     nameCode: nameCodeByCharacter.get(name) ?? null,
     resourceId: resourceByCharacter.get(name) ?? null,
-    aliases: aliasesByCharacter.get(name) ?? [],
+    // 日本語表示名 + 検索用に日本語名も別名へ (索引は name と aliases を引くので、これで日本語検索が通る)
+    displayName: nameMapJa[name],
+    aliases: [...(aliasesByCharacter.get(name) ?? []), nameMapJa[name]],
   };
 });
 

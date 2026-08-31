@@ -1,6 +1,7 @@
 import './styles.css';
 
 import { CalculatorPool } from './worker-client';
+import { setDisplayNames } from './display-name';
 import { mountCalculator } from './ui';
 import type { CharacterMeta, RuntimeManifest, SettingsCatalog } from './types';
 
@@ -20,6 +21,7 @@ async function start(): Promise<void> {
     throw new Error('캐릭터 데이터를 불러오지 못했습니다.');
   }
   const catalog = await catalogResponse.json() as CharacterMeta[];
+  setDisplayNames(catalog);   // 画面表示は labelFor() 経由で日本語に (内部キーは韓国語のまま)
   const manifest = await manifestResponse.json() as RuntimeManifest;
   const settings = await settingsResponse.json() as SettingsCatalog;
   const client = new CalculatorPool();
