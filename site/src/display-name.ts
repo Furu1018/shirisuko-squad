@@ -20,3 +20,13 @@ export function setDisplayNames(catalog: readonly CharacterMeta[]): void {
 export function labelFor(name: string): string {
   return map.get(name) ?? name;
 }
+
+// 属性コードの内部キーも韓国語のまま (エンジン契約・共有コードの索引)。表示だけここで変換する。
+const ELEMENT_LABELS: Record<string, string> = {
+  풍압: '風圧', 수냉: '水冷', 작열: '灼熱', 전격: '電撃', 철갑: '鉄甲',
+};
+
+/** 属性コード (内部キー) → 日本語表示。知らないコードはそのまま返す。 */
+export function elementLabel(code: string): string {
+  return ELEMENT_LABELS[code] ?? code;
+}

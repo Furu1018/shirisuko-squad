@@ -221,8 +221,8 @@ describe('buildSeries', () => {
 
   it('writes the hovered span from the bucket size', () => {
     // 1초 버킷은 정수로, 0.1초 버킷은 소수 한 자리로 적는다.
-    expect(formatSpan(12, 1)).toBe('12–13초');
-    expect(formatSpan(123, 0.1)).toBe('12.3–12.4초');
+    expect(formatSpan(12, 1)).toBe('12–13秒');
+    expect(formatSpan(123, 0.1)).toBe('12.3–12.4秒');
     expect(formatSpan(0, 0.25)).toBe('0.00–0.25초');
   });
 
@@ -248,7 +248,7 @@ describe('createTimelineBlock', () => {
     expect(block?.querySelector('canvas.timeline-canvas')).not.toBeNull();
     expect(block?.querySelectorAll('.timeline-btn').length).toBe(3);
     expect(block?.querySelectorAll('.timeline-legend-item').length).toBe(2);
-    expect(block?.querySelector('.timeline-heading')?.textContent).toContain('초당 대미지');
+    expect(block?.querySelector('.timeline-heading')?.textContent).toContain('秒間ダメージ');
   });
 
   it('toggles a series off when its legend item is clicked', () => {
