@@ -90,16 +90,16 @@ describe('share code round trip', () => {
   });
 
   it('rejects malformed codes with a readable message', () => {
-    expect(() => decodeShareCode('')).toThrow(/입력/);
-    expect(() => decodeShareCode('NK2-A')).toThrow(/짧|해석/);
-    expect(() => decodeShareCode('NIKKE1-!!!not-base64!!!')).toThrow(/해석/);
+    expect(() => decodeShareCode('')).toThrow(/入力/);
+    expect(() => decodeShareCode('NK2-A')).toThrow(/短|解釈/);
+    expect(() => decodeShareCode('NIKKE1-!!!not-base64!!!')).toThrow(/解釈/);
   });
 
   it('tells the user when a code was cut off mid-paste', () => {
     const decks = FIVE_DECKS.map((squad, i) => deck(i + 1, squad));
     const full = encodeShareCode(decks, true);
     const cut = full.slice(0, Math.floor(full.length * 0.6));
-    expect(() => decodeShareCode(cut, allNames)).toThrow(/잘렸|해석/);
+    expect(() => decodeShareCode(cut, allNames)).toThrow(/切れ|解釈/);
   });
 });
 
@@ -147,7 +147,7 @@ describe('applyShareToDecks', () => {
     const { applied, skipped } = applyShareToDecks(payload, decks, (n) => n === '리타');
 
     expect(applied).toBe(1);
-    expect(skipped).toEqual(['알 수 없는 니케']);
+    expect(skipped).toEqual(['不明なニケ']);
     expect(decks[0]!.squad).toEqual(['리타', '', '', '', '']);
   });
 
@@ -260,8 +260,8 @@ describe('전투 조건 공유 코드 (NK3)', () => {
   });
 
   it('빈 코드와 깨진 코드는 사람이 읽을 메시지로 막는다', () => {
-    expect(() => decodeBattleCode('   ')).toThrow(/입력해 주세요/);
-    expect(() => decodeBattleCode('NK3-@@@')).toThrow(/해석하지 못했습니다|올바르지 않습니다/);
+    expect(() => decodeBattleCode('   ')).toThrow(/入力してください/);
+    expect(() => decodeBattleCode('NK3-@@@')).toThrow(/解釈できませんでした|正しくありません/);
   });
 });
 
@@ -414,11 +414,11 @@ describe('유니온 레이드 판 코드 (NK4)', () => {
 
   it('다른 종류의 코드는 어느 칸에 넣을지 알려 주며 거절한다', () => {
     expect(() => decodeUnionCode(battle(180, '작열'))).toThrow(/NK4/);
-    expect(() => decodeUnionCode('')).toThrow(/입력/);
+    expect(() => decodeUnionCode('')).toThrow(/入力/);
   });
 
   it('중간에 잘린 코드는 끊겼다고 알린다', () => {
     const code = encodeUnionCode(sampleShare());
-    expect(() => decodeUnionCode(code.slice(0, code.length - 12))).toThrow(/끊겼|해석/);
+    expect(() => decodeUnionCode(code.slice(0, code.length - 12))).toThrow(/切れ|解釈/);
   });
 });

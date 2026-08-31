@@ -84,7 +84,7 @@ export function encodeShareCode(decks: DeckState[], fiveDeckMode: boolean): stri
  */
 export function decodeShareCode(code: string, catalogNames: string[] = []): SharePayload {
   const trimmed = code.trim();
-  if (!trimmed) throw new Error('공유 코드를 입력해 주세요.');
+  if (!trimmed) throw new Error('共有コードを入力してください。');
 
   if (trimmed.startsWith(LEGACY_PREFIX)) return decodeLegacy(trimmed.slice(LEGACY_PREFIX.length));
 
@@ -93,12 +93,12 @@ export function decodeShareCode(code: string, catalogNames: string[] = []): Shar
   try {
     bytes = fromBase64Url(body);
   } catch {
-    throw new Error('공유 코드를 해석하지 못했습니다. 코드 전체를 그대로 붙여넣었는지 확인해 주세요.');
+    throw new Error('共有コードを解釈できませんでした。コード全体をそのまま貼り付けたか確認してください。');
   }
   // 옛 형식을 접두사 없이 붙여넣는 경우가 있어, base64가 JSON이면 그쪽으로 넘긴다.
   if (bytes[0] === 0x7b) return decodeLegacy(body);
   if (bytes.length < 3) {
-    throw new Error('공유 코드가 너무 짧습니다. 코드 전체를 그대로 붙여넣었는지 확인해 주세요.');
+    throw new Error('共有コードが短すぎます。コード全体をそのまま貼り付けたか確認してください。');
   }
 
   const byHash = new Map<number, string>();
@@ -109,19 +109,19 @@ export function decodeShareCode(code: string, catalogNames: string[] = []): Shar
 
   const fiveDeckMode = (bytes[0]! & 1) === 1;
   const deckCount = bytes[1]!;
-  if (deckCount < 1 || deckCount > 5) throw new Error('공유 코드의 덱 수가 올바르지 않습니다.');
+  if (deckCount < 1 || deckCount > 5) throw new Error('共有コードのデッキ数が正しくありません。');
 
   const decks: Array<{ squad: string[] }> = [];
   let cursor = 2;
   for (let d = 0; d < deckCount; d += 1) {
-    if (cursor >= bytes.length) throw new Error('공유 코드가 중간에 잘렸습니다. 전체를 다시 복사해 주세요.');
+    if (cursor >= bytes.length) throw new Error('共有コードが途中で切れています。全体をもう一度コピーしてください。');
     const mask = bytes[cursor]!;
     cursor += 1;
     const squad: string[] = [];
     for (let slot = 0; slot < SLOTS; slot += 1) {
       if ((mask & (1 << slot)) === 0) { squad.push(''); continue; }
       if (cursor + 2 >= bytes.length) {
-        throw new Error('공유 코드가 중간에 잘렸습니다. 전체를 다시 복사해 주세요.');
+        throw new Error('共有コードが途中で切れています。全体をもう一度コピーしてください。');
       }
       const hash = (bytes[cursor]! << 16) | (bytes[cursor + 1]! << 8) | bytes[cursor + 2]!;
       cursor += 3;
@@ -138,14 +138,14 @@ function decodeLegacy(body: string): SharePayload {
   try {
     payload = JSON.parse(new TextDecoder().decode(fromBase64Url(body)));
   } catch {
-    throw new Error('공유 코드를 해석하지 못했습니다. 코드 전체를 그대로 붙여넣었는지 확인해 주세요.');
+    throw new Error('共有コードを解釈できませんでした。コード全体をそのまま貼り付けたか確認してください。');
   }
   if (typeof payload !== 'object' || payload === null) {
-    throw new Error('공유 코드 내용이 올바르지 않습니다.');
+    throw new Error('共有コードの内容が正しくありません。');
   }
   const decks = (payload as SharePayload).decks;
   if (!Array.isArray(decks) || decks.length === 0) {
-    throw new Error('공유 코드에 편성 정보가 없습니다.');
+    throw new Error('共有コードに編成情報がありません。');
   }
   return {
     fiveDeckMode: Boolean((payload as SharePayload).fiveDeckMode),
@@ -196,7 +196,7 @@ export function applyShareToDecks(
       const name = (shared.squad[slot] ?? '').trim();
       if (!name) return '';
       // 해시를 못 찾은 자리는 \u0000으로 표시해 뒀다 — 이름을 모르니 '알 수 없음'으로 센다.
-      if (name.startsWith('\u0000')) { skipped.push('알 수 없는 니케'); return ''; }
+      if (name.startsWith('\u0000')) { skipped.push('不明なニケ'); return ''; }
       if (!isKnown(name)) { skipped.push(name); return ''; }
       return name;
     });
@@ -243,6 +243,7 @@ const BATTLE_PREFIX = 'NK3-';
  */
 export type BattleShare = Omit<BattleSettings, 'console' | 'synchroLevel'>;
 
+// 属性リテラルは内部キー (共有コードの索引・エンジン契約)。翻訳厳禁 — 表示は element 対訳側で行う
 const CODES: BattleSettings['enemyCode'][] = ['', '풍압', '수냉', '작열', '전격', '철갑'];
 
 /** 안 실으면 이 값으로 친다. 인코딩·디코딩이 같은 표를 본다. */
@@ -338,7 +339,7 @@ const windowsOf = (raw: unknown, withCode: boolean): Array<PhaseWindow | Element
  */
 export function decodeBattleCode(code: string): BattleShare {
   const trimmed = code.trim();
-  if (!trimmed) throw new Error('전투 조건 코드를 입력해 주세요.');
+  if (!trimmed) throw new Error('戦闘条件コードを入力してください。');
   const body = trimmed.startsWith(BATTLE_PREFIX)
     ? trimmed.slice(BATTLE_PREFIX.length) : trimmed;
 
@@ -346,10 +347,10 @@ export function decodeBattleCode(code: string): BattleShare {
   try {
     raw = JSON.parse(new TextDecoder().decode(fromBase64Url(body))) as Record<string, unknown>;
   } catch {
-    throw new Error('전투 조건 코드를 해석하지 못했습니다. 코드 전체를 그대로 붙여넣었는지 확인해 주세요.');
+    throw new Error('戦闘条件コードを解釈できませんでした。コード全体をそのまま貼り付けたか確認してください。');
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new Error('전투 조건 코드의 내용이 올바르지 않습니다.');
+    throw new Error('戦闘条件コードの内容が正しくありません。');
   }
 
   const d = BATTLE_DEFAULTS;
@@ -472,22 +473,22 @@ export function encodeUnionCode(share: UnionShare): string {
 /** 유니온 판 코드를 읽는다. 잘린 코드는 «어디서 끊겼는지»가 아니라 한 줄로 알린다. */
 export function decodeUnionCode(code: string): UnionShare {
   const trimmed = code.trim();
-  if (!trimmed) throw new Error('유니온 판 코드를 입력해 주세요.');
+  if (!trimmed) throw new Error('ユニオン盤面コードを入力してください。');
   if (!trimmed.startsWith(UNION_PREFIX)) {
-    throw new Error('유니온 판 코드는 «NK4-»로 시작합니다. 조건 코드(NK3-)나 조합 코드(NK2-)는 각 칸에 따로 넣어 주세요.');
+    throw new Error('ユニオン盤面コードは「NK4-」で始まります。条件コード(NK3-)や編成コード(NK2-)は各枠に個別に貼り付けてください。');
   }
 
   let bytes: Uint8Array;
   try {
     bytes = fromBase64Url(trimmed.slice(UNION_PREFIX.length));
   } catch {
-    throw new Error('유니온 판 코드를 해석하지 못했습니다. 코드 전체를 그대로 붙여넣었는지 확인해 주세요.');
+    throw new Error('ユニオン盤面コードを解釈できませんでした。コード全体をそのまま貼り付けたか確認してください。');
   }
 
   let cursor = 0;
   const need = (count: number): void => {
     if (cursor + count > bytes.length) {
-      throw new Error('유니온 판 코드가 중간에 끊겼습니다. 코드 전체를 그대로 붙여넣었는지 확인해 주세요.');
+      throw new Error('ユニオン盤面コードが途中で切れています。コード全体をそのまま貼り付けたか確認してください。');
     }
   };
   const take = (count: number): Uint8Array => {

@@ -177,7 +177,7 @@ describe('보스·덱 칸', () => {
 
   it('빈 칸은 오류가 아니고, 망가진 코드는 이유를 남긴다', () => {
     expect(readBossCode({ name: '', code: '  ', enabled: true, decks: [] }).error).toBeUndefined();
-    expect(readBossCode({ name: '', code: 'NK3-쓰레기', enabled: true, decks: [] }).error).toMatch(/해석/);
+    expect(readBossCode({ name: '', code: 'NK3-쓰레기', enabled: true, decks: [] }).error).toMatch(/解釈/);
   });
 
   it('조합 코드에서 니케 다섯을 뽑는다', () => {
