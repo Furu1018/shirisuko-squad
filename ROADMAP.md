@@ -123,5 +123,8 @@ npm test -- --run  # vitest (513件)
 npm run build      # tsc --noEmit + vite build (prebuild で Python が要る)
 ```
 
+配色を変えたら `node scripts/check-contrast.mjs` を流す — 主要な文字色 × 背景の組み合わせを
+検算して、小文字の基準 (4.5:1) を下回るものが無いか機械で確かめる。
+
 見た目を確認したいときは `npm run build && npx vite preview --port 4173` を立てて、
 Playwright で各タブを撮ると早い (職場PCでは `scratchpad/squad-shots.mjs` を使った)。

@@ -19,8 +19,8 @@
   --surface-2: #f1f2f4;
   --surface-3: #e9ecef;
   --ink: #14161a;
-  --ink-2: #6b7178;
-  --ink-3: #6f747b;   /* 9〜11px の小文字にしか使わないので、白地で 4.5:1 を満たす濃さにする */
+  --ink-2: #63686f;   /* 淡い面 (#f1f2f4) の上でも 4.5:1 を満たす */
+  --ink-3: #676d74;   /* 補助の文字。9〜11px でしか使わないので淡い面の上を基準にする */
   --line: rgb(var(--line-rgb) / 0.14);
 
   /* ── 既存の宣言が参照している名前。値だけライトに向け替える ── */
@@ -39,10 +39,10 @@
   /* 覆い。面の色を流用すると背面が暗くならず、モーダルが浮いて見えない */
   --scrim: rgb(20 22 26 / .45);
   /* 琥珀は白地だと 2.15:1 しかない。**文字に使うときは**濃い側を使う */
-  --amber-text: #b45309;
+  --amber-text: #92400e;   /* 琥珀の淡い塗りの上に載ることがあるので、白地基準より濃くする */
   --danger: #d92c33;
   --danger-soft: #8a1b20;
-  --success: #128a4d;
+  --success: #0f7a44;
   --info: #6c42f0;
 
   color: var(--ink);
@@ -321,10 +321,10 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .slot-choose[aria-pressed="true"] span { color: var(--ink); }
 .slot-clear { position: absolute; top: 7px; right: 6px; width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border: 0; background: none; color: var(--muted); font-size: 12px; line-height: 1; cursor: pointer; border-radius: 4px; }
 .slot-clear:hover { background: rgb(var(--danger-rgb) / .16); color: var(--danger); }
-.squad-slot.is-preview::after { content: "임시 · 창작 스킬"; position: absolute; top: 8px; right: 8px; z-index: 3; padding: 3px 5px; background: var(--danger); color: var(--danger-soft); font-size: 8px; font-weight: 900; }
+.squad-slot.is-preview::after { content: "임시 · 창작 스킬"; position: absolute; top: 8px; right: 8px; z-index: 3; padding: 3px 5px; background: var(--danger); color: #fff; font-size: 8px; font-weight: 900; }
 /* 목록 칸의 (임시) 딱지 — 초상화 좌하단, 버스트 배지 맞은편. */
 .roster-temp { position: absolute; left: 4px; bottom: 4px; z-index: 2; padding: 2px 4px;
-  background: var(--danger); color: var(--danger-soft); font-size: 8px; font-style: normal; font-weight: 900;
+  background: var(--danger); color: #fff; font-size: 8px; font-style: normal; font-weight: 900;
   border-radius: 3px; }
 /* 돌파·코어 강화 스테퍼 — 초상화 우측하단. 별 + 진화 숫자로 명함~풀코를 보이고 −/+로 조절. */
 .growth-stepper { position: absolute; z-index: 2; right: 7px; bottom: 5px; display: flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 7px; background: rgb(var(--surface-rgb) / .78); backdrop-filter: blur(2px); }

@@ -504,7 +504,8 @@ class TimelineChart {
             for (const part of run.parts) {
               if (!buffTextPlan(part.x1 - part.x0, true).stack) continue;
               if (part.x1 - 4 < nameEnd) continue;
-              ctx.fillStyle = this.hoverSpan === part.span ? CANVAS.ink : color;
+              // 帯は系列色の淡い塗り。数字も濃い側に固定しないと 10px では読めない
+              ctx.fillStyle = CANVAS.ink;
               ctx.fillText(String(part.stack), part.x1 - 4, y + BUFF_H / 2);
             }
           }
