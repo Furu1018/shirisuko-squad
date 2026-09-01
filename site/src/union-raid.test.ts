@@ -58,8 +58,8 @@ describe('유니온 명단 읽기', () => {
   it('로그인이 풀린 응답은 그 사실을 말해 준다', () => {
     expect(() => parseMemberList('{"code":1303001,"msg":"user no bind role"}'))
       .toThrow(/user no bind role/);
-    expect(() => parseMemberList('   ')).toThrow(/비어 있습니다/);
-    expect(() => parseMemberList('아무 말이나')).toThrow(/알아보지 못했습니다/);
+    expect(() => parseMemberList('   ')).toThrow(/空です/);
+    expect(() => parseMemberList('아무 말이나')).toThrow(/認識できませんでした/);
   });
 });
 
@@ -145,9 +145,9 @@ describe('직접 긁기', () => {
   });
 
   it('잘려 온 자료와 빈 자료는 그 사실을 말해 준다', async () => {
-    await expect(parseDirectScan('NKU1-이건망가진것')).rejects.toThrow(/푸는 데 실패/);
-    await expect(parseDirectScan('  ')).rejects.toThrow(/비어 있습니다/);
-    await expect(parseDirectScan('{"members":[]}')).rejects.toThrow(/찾지 못했습니다/);
+    await expect(parseDirectScan('NKU1-이건망가진것')).rejects.toThrow(/展開に失敗/);
+    await expect(parseDirectScan('  ')).rejects.toThrow(/空です/);
+    await expect(parseDirectScan('{"members":[]}')).rejects.toThrow(/見つかりませんでした/);
   });
 
   it('스니펫이 프록시를 거치지 않고 직접 부른다', () => {
@@ -217,7 +217,7 @@ describe('돌릴 것 늘어놓기', () => {
 
   it('이름 없는 보스 칸에는 번호를 붙인다', () => {
     const jobs = buildJobs([member()], [bossWith({ name: '   ' })]);
-    expect(jobs[0]!.bossName).toBe('보스 1');
+    expect(jobs[0]!.bossName).toBe('ボス 1');
   });
 });
 
@@ -264,9 +264,9 @@ describe('시간 안내', () => {
   it('스캔 시간은 인원에 비례하고, 사람이 읽는 말로 적는다', () => {
     expect(estimateScanSeconds(0)).toBe(0);
     expect(estimateScanSeconds(32)).toBe(57);          // 둘씩 동시 + 간격 · 실측과 같은 자릿수
-    expect(humanSeconds(45)).toBe('45초');
-    expect(humanSeconds(80)).toBe('1분 20초');
-    expect(humanSeconds(120)).toBe('2분');
+    expect(humanSeconds(45)).toBe('45秒');
+    expect(humanSeconds(80)).toBe('1分20秒');
+    expect(humanSeconds(120)).toBe('2分');
   });
 
   it('남은 시간은 이미 돌린 것으로 어림한다', () => {

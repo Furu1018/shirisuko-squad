@@ -16,7 +16,7 @@
  * 그대로 쓰면 유니온원끼리 세팅을 주고받기도 쉽고, 이 탭이 편집기를 새로 만들지 않아도 된다.
  */
 
-import { labelFor } from './display-name';
+import { elementLabel, labelFor } from './display-name';
 import {
   decodeBattleCode, decodeShareCode, decodeUnionCode, encodeUnionCode,
   type UnionShare,
@@ -95,11 +95,11 @@ const COPY_BOX = `
   const head = document.createElement('div');
   head.setAttribute('style', 'display:flex;align-items:center;gap:10px;margin-bottom:8px;color:#cfeceb;font:700 13px system-ui,sans-serif');
   const title = document.createElement('span');
-  title.textContent = '계산기에 붙여넣을 내용 — Ctrl+A → Ctrl+C';
+  title.textContent = '計算機に貼り付ける内容 — Ctrl+A → Ctrl+C';
   const close = document.createElement('button');
   close.textContent = '✕';
   close.setAttribute('style', 'margin-left:auto;width:30px;height:30px;cursor:pointer;background:transparent;border:1px solid rgba(146,176,201,.4);color:#cfeceb;font:700 14px system-ui,sans-serif');
-  close.title = '닫기 (Esc)';
+  close.title = '閉じる (Esc)';
   head.appendChild(title); head.appendChild(close);
   const holder = document.createElement('textarea');
   holder.value = text;
@@ -125,18 +125,18 @@ export const MEMBER_SNIPPET = `await (async () => {
   const mine = await call('Game/GetMyGuildInfo', { latest: false });
   const box = mine.data || {};
   const info = box.card || box.guild_info || box.guild_detail || box;
-  if (!info.guild_id) { console.error('유니온을 찾지 못했습니다:', mine.msg || mine.code, '— 로그인한 채 유니온 스퀘어에서 실행해 주세요.'); return; }
+  if (!info.guild_id) { console.error('ユニオンが見つかりません:', mine.msg || mine.code, '— ログインした状態でユニオンスクエアで実行してください。'); return; }
   const members = await call('Game/GetGuildMembers', { guild_id: String(info.guild_id), nikke_area_id: String(info.nikke_area_id || '') });
   const items = (members.data || {}).items || [];
-  if (!items.length) { console.error('명단이 비어 있습니다:', members.msg || members.code); return; }
+  if (!items.length) { console.error('名簿が空です:', members.msg || members.code); return; }
   const text = JSON.stringify({ guild_name: info.guild_name, items: items });
-  const done = (how) => console.log(info.guild_name + ' · 유니온원 ' + items.length + '명 ' + how);
-  try { copy(text); done('을 클립보드에 담았습니다. 계산기에 붙여넣으세요.'); return; } catch (e) {}
-  try { await navigator.clipboard.writeText(text); done('을 클립보드에 담았습니다. 계산기에 붙여넣으세요.'); return; } catch (e) {}
+  const done = (how) => console.log(info.guild_name + ' · ユニオンメンバー ' + items.length + '名' + how);
+  try { copy(text); done('をクリップボードにコピーしました。計算機に貼り付けてください。'); return; } catch (e) {}
+  try { await navigator.clipboard.writeText(text); done('をクリップボードにコピーしました。計算機に貼り付けてください。'); return; } catch (e) {}
   // 클립보드가 둘 다 막히면(콘솔에 포커스가 있으면 그렇다) 페이지에 상자를 띄우고
   // 내용을 통째로 골라 둔다 — 브라우저마다 이름이 다른 우클릭 메뉴를 찾을 필요가 없다.
   ${COPY_BOX}
-  done('을 페이지 상자에 띄웠습니다. Ctrl+A → Ctrl+C로 복사해 계산기에 붙여넣고, ✕나 Esc로 닫으세요.');
+  done('をページ上のボックスに表示しました。Ctrl+A → Ctrl+C でコピーして計算機に貼り付け、✕か Esc で閉じてください。');
 })();`;
 
 /**
@@ -160,10 +160,10 @@ export const DIRECT_SNIPPET = `await (async () => {
   const mine = await call('Game/GetMyGuildInfo', { latest: false });
   const box0 = mine.data || {};
   const info = box0.card || box0.guild_info || box0.guild_detail || box0;
-  if (!info.guild_id) { console.error('유니온을 찾지 못했습니다:', mine.msg || mine.code); return; }
+  if (!info.guild_id) { console.error('ユニオンが見つかりません:', mine.msg || mine.code); return; }
   const list = await call('Game/GetGuildMembers', { guild_id: String(info.guild_id), nikke_area_id: String(info.nikke_area_id || '') });
   const roster = (list.data || {}).items || [];
-  if (!roster.length) { console.error('명단이 비어 있습니다:', list.msg || list.code); return; }
+  if (!roster.length) { console.error('名簿が空です:', list.msg || list.code); return; }
 
   const PARTS = ['head', 'torso', 'arm', 'leg'];
   const KEEP = ['name_code', 'skill1_lv', 'skill2_lv', 'ulti_skill_lv', 'favorite_item_tid',
@@ -218,7 +218,7 @@ export const DIRECT_SNIPPET = `await (async () => {
       }
     } catch (e) { row.state = 'error'; row.note = String(e).slice(0, 80); }
     members.push(row);
-    console.log((i + 1) + '/' + roster.length + ' ' + row.name + ' · ' + (row.state === 'public' ? '공개' : row.state === 'error' ? '오류' : '비공개'));
+    console.log((i + 1) + '/' + roster.length + ' ' + row.name + ' · ' + (row.state === 'public' ? '公開' : row.state === 'error' ? 'エラー' : '非公開'));
   }
 
   const packed = JSON.stringify({ v: 1, guild_name: info.guild_name, members: members });
@@ -231,11 +231,11 @@ export const DIRECT_SNIPPET = `await (async () => {
     text = 'NKU1-' + btoa(binary);
   }
   const open = members.filter((m) => m.state === 'public').length;
-  const done = (how) => console.log('유니온원 ' + members.length + '명(공개 ' + open + '명) ' + how);
-  try { copy(text); done('을 클립보드에 담았습니다. 계산기에 붙여넣으세요.'); return; } catch (e) {}
-  try { await navigator.clipboard.writeText(text); done('을 클립보드에 담았습니다. 계산기에 붙여넣으세요.'); return; } catch (e) {}
+  const done = (how) => console.log('ユニオンメンバー ' + members.length + '名(公開 ' + open + '名)' + how);
+  try { copy(text); done('をクリップボードにコピーしました。計算機に貼り付けてください。'); return; } catch (e) {}
+  try { await navigator.clipboard.writeText(text); done('をクリップボードにコピーしました。計算機に貼り付けてください。'); return; } catch (e) {}
   ${COPY_BOX}
-  done('을 페이지 상자에 띄웠습니다. Ctrl+A → Ctrl+C로 복사해 계산기에 붙여넣고, ✕나 Esc로 닫으세요.');
+  done('をページ上のボックスに表示しました。Ctrl+A → Ctrl+C でコピーして計算機に貼り付け、✕か Esc で閉じてください。');
 })();`;
 
 /** 직접 긁어 온 유니온원 한 명. `profile`은 `areaToOverrides`가 그대로 먹는 모양이다. */
@@ -253,7 +253,7 @@ export interface DirectMember {
 /** 직접 긁기 결과를 푼다. `NKU1-`은 gzip+base64, 아니면 날 JSON이다. */
 export async function parseDirectScan(text: string): Promise<DirectMember[]> {
   const trimmed = text.trim();
-  if (!trimmed) throw new Error('붙여넣은 내용이 비어 있습니다.');
+  if (!trimmed) throw new Error('貼り付けた内容が空です。');
   let json = trimmed;
   if (trimmed.startsWith('NKU1-')) {
     try {
@@ -263,14 +263,14 @@ export async function parseDirectScan(text: string): Promise<DirectMember[]> {
       const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
       json = await new Response(stream).text();
     } catch {
-      throw new Error('직접 긁은 자료를 푸는 데 실패했습니다. 복사가 중간에 잘리지 않았는지 확인해 주세요.');
+      throw new Error('直接取得したデータの展開に失敗しました。コピーが途中で切れていないか確認してください。');
     }
   }
   let box: { members?: unknown };
   try {
     box = JSON.parse(json) as { members?: unknown };
   } catch {
-    throw new Error('직접 긁은 자료를 알아보지 못했습니다. 스니펫이 준 내용을 통째로 붙여넣어 주세요.');
+    throw new Error('直接取得したデータを認識できませんでした。スニペットが出力した内容を丸ごと貼り付けてください。');
   }
   const rows = Array.isArray(box.members) ? box.members : [];
   const out: DirectMember[] = [];
@@ -291,7 +291,7 @@ export async function parseDirectScan(text: string): Promise<DirectMember[]> {
       profile: row.profile,
     });
   }
-  if (out.length === 0) throw new Error('직접 긁은 자료에서 유니온원을 찾지 못했습니다.');
+  if (out.length === 0) throw new Error('直接取得したデータからユニオンメンバーが見つかりませんでした。');
   return out;
 }
 
@@ -309,7 +309,7 @@ const num = (value: unknown, fallback = 0): number => {
  */
 export function parseMemberList(text: string): UnionMember[] {
   const trimmed = text.trim();
-  if (!trimmed) throw new Error('붙여넣은 내용이 비어 있습니다.');
+  if (!trimmed) throw new Error('貼り付けた内容が空です。');
 
   let items: unknown[] | null = null;
   try {
@@ -318,13 +318,13 @@ export function parseMemberList(text: string): UnionMember[] {
     else if (raw && typeof raw === 'object') {
       const box = raw as Record<string, any>;
       if (box.code !== undefined && box.code !== 0 && !box.data) {
-        throw new Error(`블라블라링크가 «${box.msg ?? box.code}»를 돌려줬습니다. 로그인한 채로 다시 떠 주세요.`);
+        throw new Error(`Blablalink が「${box.msg ?? box.code}」を返しました。ログインした状態でもう一度取得してください。`);
       }
       const found = box.data?.items ?? box.items ?? box.data?.members ?? box.members;
       if (Array.isArray(found)) items = found;
     }
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith('블라블라링크')) throw error;
+    if (error instanceof Error && error.message.startsWith('Blablalink')) throw error;
     items = null;                                  // JSON이 아니면 표로 읽어 본다
   }
 
@@ -339,7 +339,7 @@ export function parseMemberList(text: string): UnionMember[] {
         area: num(item.bind_area_id ?? item.nikke_area_id ?? item.area, 0),
       }))
       .filter((row) => row.name && /^\d+$/.test(row.openid));
-    if (rows.length === 0) throw new Error('명단에서 유니온원을 찾지 못했습니다. 스니펫이 알려 준 내용을 그대로 붙여넣어 주세요.');
+    if (rows.length === 0) throw new Error('名簿からユニオンメンバーが見つかりませんでした。スニペットが出力した内容をそのまま貼り付けてください。');
     return dedupe(rows);
   }
 
@@ -353,7 +353,7 @@ export function parseMemberList(text: string): UnionMember[] {
     rows.push({ name, openid, synchro: numbers[0] ?? 0, level: numbers[1] ?? 0, area: numbers[2] ?? 0 });
   }
   if (rows.length === 0) {
-    throw new Error('명단을 알아보지 못했습니다. 아래 스니펫을 유니온 스퀘어에서 실행한 결과를 붙여넣어 주세요.');
+    throw new Error('名簿を認識できませんでした。下のスニペットをユニオンスクエアで実行した結果を貼り付けてください。');
   }
   return dedupe(rows);
 }
@@ -377,10 +377,10 @@ export function estimateScanSeconds(count: number, concurrency = 2): number {
 /** 「1분 20초」처럼 읽히게. 초 단위는 1분 아래에서만 적는다. */
 export function humanSeconds(seconds: number): string {
   const total = Math.max(0, Math.round(seconds));
-  if (total < 60) return `${total}초`;
+  if (total < 60) return `${total}秒`;
   const minutes = Math.floor(total / 60);
   const rest = total % 60;
-  return rest === 0 ? `${minutes}분` : `${minutes}분 ${rest}초`;
+  return rest === 0 ? `${minutes}分` : `${minutes}分${rest}秒`;
 }
 
 /** 보스 칸 하나를 코드에서 읽는다. 빈 칸은 조용히 비운다 — 아직 안 채운 것뿐이다. */
@@ -409,7 +409,7 @@ export function readDeckCode(slot: DeckSlot, catalogNames: string[]): DeckSlot {
     const payload = decodeShareCode(code, catalogNames);
     const squad = (payload.decks[0]?.squad ?? []).map((name) => name.trim());
     const filled = squad.filter(Boolean);
-    if (filled.length === 0) return { ...slot, squad: undefined, error: '코드에 니케가 없습니다.' };
+    if (filled.length === 0) return { ...slot, squad: undefined, error: 'コードにニケがいません。' };
     return { ...slot, squad, error: undefined };
   } catch (error) {
     return { ...slot, squad: undefined, error: error instanceof Error ? error.message : String(error) };
@@ -500,7 +500,7 @@ export function buildJobs(members: MemberRow[], bosses: BossSlot[]): Job[] {
         jobs.push({
           member,
           bossIndex,
-          bossName: boss.name.trim() || `보스 ${bossIndex + 1}`,
+          bossName: boss.name.trim() || `ボス ${bossIndex + 1}`,
           deckIndex,
           squad: deck.squad,
           battle: boss.battle!,
@@ -636,7 +636,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 
 const pick = <T extends HTMLElement>(root: HTMLElement, selector: string): T => {
   const found = root.querySelector<T>(selector);
-  if (!found) throw new Error(`유니온 탭에 ${selector}가 없습니다.`);
+  if (!found) throw new Error(`ユニオンタブに ${selector} がありません。`);
   return found;
 };
 
@@ -680,7 +680,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
     members = [{
       name: me.name, openid: 'me', synchro: me.synchro, level: 0, area: 0,
       state: 'public', picked: true, owned: me.owned,
-      note: me.owned > 0 ? undefined : '가져온 스펙이 없어 기본 스펙으로 계산합니다',
+      note: me.owned > 0 ? undefined : '取り込んだスペックがないため既定スペックで計算します',
     }];
     rosters = new Map([['me', me.roster]]);
     consoles = new Map([['me', me.console]]);
@@ -728,10 +728,10 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
   copyButton.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(MEMBER_SNIPPET);
-      listStatus.textContent = '복사했습니다. 블라블라링크 유니온 스퀘어에서 콘솔(F12)에 붙여넣으세요.';
+      listStatus.textContent = 'コピーしました。Blablalink のユニオンスクエアでコンソール(F12)に貼り付けてください。';
     } catch {
       snippetBox.select();
-      listStatus.textContent = '복사가 막혀 있습니다 — 위 상자의 내용을 직접 복사하세요.';
+      listStatus.textContent = 'コピーがブロックされました — 上のボックスの内容を直接コピーしてください。';
     }
   });
 
@@ -743,8 +743,8 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       renderMembers();
       renderReport();
       showStep('2', true);
-      listStatus.textContent = `유니온원 ${members.length}명을 읽었습니다. `
-        + `공개여부 확인에 ${humanSeconds(estimateScanSeconds(members.length))}쯤 걸립니다.`;
+      listStatus.textContent = `ユニオンメンバー ${members.length}名を読み込みました。`
+        + `公開状況の確認に約 ${humanSeconds(estimateScanSeconds(members.length))} かかります。`;
     } catch (error) {
       listStatus.textContent = error instanceof Error ? error.message : String(error);
     }
@@ -770,13 +770,13 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
    * 딜 옆이 아니라 **사람 옆에** 적는다. 왜 이 사람 숫자만 덜 미더운지가 거기서 읽힌다.
    */
   const syncCell = (row: MemberRow): HTMLElement => {
-    if (row.synchro <= 0) return el('span', 'union-sync', '싱크로 ?');
-    const cell = el('span', 'union-sync', `싱크로 ${row.synchro}`);
+    if (row.synchro <= 0) return el('span', 'union-sync', 'シンクロ ?');
+    const cell = el('span', 'union-sync', `シンクロ ${row.synchro}`);
     if (row.synchro > SYNCHRO_MEASURED_MAX) {
       cell.classList.add('is-estimated');
-      cell.append(el('b', 'union-est', '추정'));
-      cell.title = `실측이 닿는 곳이 ${SYNCHRO_MEASURED_MAX}레벨까지입니다. `
-        + '그 위는 같은 성장 곡선을 이어 붙여 계산합니다.';
+      cell.append(el('b', 'union-est', '推定'));
+      cell.title = `実測データがあるのはレベル ${SYNCHRO_MEASURED_MAX} までです。`
+        + 'それ以上は同じ成長曲線を延長して計算します。';
     }
     return cell;
   };
@@ -796,7 +796,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       mark.type = 'checkbox';
       mark.checked = row.bossPicks?.[index] !== false;
       mark.dataset.unionBossPick = String(index);
-      const label = boss.name.trim() || `보스 ${index + 1}`;
+      const label = boss.name.trim() || `ボス ${index + 1}`;
       chip.title = `${row.name} — ${label}`;
       chip.classList.toggle('is-off', !mark.checked);
       mark.addEventListener('change', (event) => {
@@ -827,11 +827,11 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
         refreshRunGate();
       });
       const state = el('span', `union-state is-${row.state}`, {
-        unknown: '미확인', scanning: '확인 중', public: '공개', private: '비공개', error: '오류',
+        unknown: '未確認', scanning: '確認中', public: '公開', private: '非公開', error: 'エラー',
       }[row.state]);
       // 개인용은 «나» 한 줄뿐이다 — 고를 것도, 공개여부를 따질 것도 없어 아예 안 그린다
       // (`hidden`만으로는 격자 자리가 남아 줄이 어긋난다).
-      const owned = row.owned !== undefined && row.owned > 0 ? `니케 ${row.owned}종` : '';
+      const owned = row.owned !== undefined && row.owned > 0 ? `ニケ ${row.owned}種` : '';
       const note = el('span', 'union-note', [owned, row.note ?? ''].filter(Boolean).join(' · '));
       if (personal) {
         line.classList.add('is-personal');
@@ -848,8 +848,8 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
     ask.hidden = done.length !== members.length || members.length === 0;
     if (!ask.hidden) {
       askText.textContent = open.length > 0
-        ? `공개된 유니온원 ${open.length}명 대상으로 테스트를 해보시겠습니까?`
-        : '공개된 유니온원이 없습니다. 「나의 니케」를 공개로 바꾼 뒤 다시 스캔해 주세요.';
+        ? `公開中のユニオンメンバー ${open.length}名を対象にテストしますか?`
+        : '公開中のユニオンメンバーがいません。「マイニケ」を公開に変えてから再スキャンしてください。';
     }
     refreshRunGate();
   }
@@ -888,13 +888,13 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
           return scanOne(row, attempt + 1);
         }
         row.state = payload.reason === 'private' ? 'private' : 'error';
-        row.note = payload.reason === 'private' ? '니케 목록 비공개' : (payload.error ?? `조회 실패 (${response.status})`);
+        row.note = payload.reason === 'private' ? 'ニケ一覧が非公開' : (payload.error ?? `取得失敗 (${response.status})`);
         return;
       }
       const area = pickArea(payload, row.area > 0 ? row.area : undefined);
-      if (!area) { row.state = 'private'; row.note = '니케 목록이 비어 있습니다'; return; }
+      if (!area) { row.state = 'private'; row.note = 'ニケ一覧が空です'; return; }
       const { overrides, matched } = areaToOverrides(area, deps.settings, deps.catalog);
-      if (matched.length === 0) { row.state = 'private'; row.note = '계산기가 아는 니케가 없습니다'; return; }
+      if (matched.length === 0) { row.state = 'private'; row.note = '計算機が知っているニケがいません'; return; }
       rosters.set(row.openid, overrides);
       const levels = consoleFrom(area);
       if (levels) consoles.set(row.openid, levels);
@@ -902,7 +902,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       row.owned = matched.length;
       // 전초기지가 비공개면 콘솔을 모른다. 0으로 치고 계산하되, 그 사실을 줄에 적는다 —
       // 딜이 낮게 나온 이유가 스펙이 아니라 «못 본 값»일 수 있어서다.
-      row.note = levels ? undefined : '콘솔 비공개 · 0으로 계산';
+      row.note = levels ? undefined : 'コンソール非公開 · 0 として計算';
       row.picked = true;
     } catch (error) {
       if (attempt < BACKOFF_MS.length) {
@@ -930,7 +930,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
         await scanOne(row);
         done += 1;
         setBar(scanBar, done, total);
-        scanStatus.textContent = `${done}/${total} · 남은 시간 약 `
+        scanStatus.textContent = `${done}/${total} · 残り約 `
           + humanSeconds(remainingSeconds(done, total, Date.now() - started));
         renderMembers();
       }
@@ -943,8 +943,8 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
     scanStop.hidden = true;
     const open = members.filter((row) => row.state === 'public').length;
     scanStatus.textContent = cancelled
-      ? `중단했습니다 (${done}/${total} 확인).`
-      : `${total}명 확인 · 공개 ${open}명 · ${humanSeconds((Date.now() - started) / 1000)} 걸렸습니다.`;
+      ? `中断しました (${done}/${total} 確認済み)。`
+      : `${total}名を確認 · 公開 ${open}名 · 所要 ${humanSeconds((Date.now() - started) / 1000)}。`;
     renderMembers();
     if (open > 0) showStep('3', true);
   };
@@ -962,15 +962,15 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
   directCopy.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(DIRECT_SNIPPET);
-      directStatus.textContent = '복사했습니다. 블라블라링크에서 콘솔(F12)에 붙여넣으세요 — 32명이면 2~3분 걸립니다.';
+      directStatus.textContent = 'コピーしました。Blablalink のコンソール(F12)に貼り付けてください — 32名なら2〜3分かかります。';
     } catch {
       directSnippet.select();
-      directStatus.textContent = '복사가 막혀 있습니다 — 위 상자의 내용을 직접 복사하세요.';
+      directStatus.textContent = 'コピーがブロックされました — 上のボックスの内容を直接コピーしてください。';
     }
   });
 
   directRead.addEventListener('click', () => {
-    directStatus.textContent = '푸는 중…';
+    directStatus.textContent = '展開中…';
     void (async () => {
       try {
         const rows = await parseDirectScan(directPaste.value);
@@ -987,14 +987,14 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
           const seat = members[index]!;
           if (row.state !== 'public' || !row.profile) continue;
           const area = pickArea(row.profile as never, row.area > 0 ? row.area : undefined);
-          if (!area) { seat.state = 'private'; seat.note = '니케 목록이 비어 있습니다'; continue; }
+          if (!area) { seat.state = 'private'; seat.note = 'ニケ一覧が空です'; continue; }
           const { overrides, matched } = areaToOverrides(area, deps.settings, deps.catalog);
-          if (matched.length === 0) { seat.state = 'private'; seat.note = '계산기가 아는 니케가 없습니다'; continue; }
+          if (matched.length === 0) { seat.state = 'private'; seat.note = '計算機が知っているニケがいません'; continue; }
           rosters.set(seat.openid, overrides);
           const levels = consoleFrom(area);
           if (levels) consoles.set(seat.openid, levels);
           seat.owned = matched.length;
-          seat.note = levels ? undefined : '콘솔 비공개 · 0으로 계산';
+          seat.note = levels ? undefined : 'コンソール非公開 · 0 として計算';
           seat.picked = true;
           open += 1;
         }
@@ -1002,8 +1002,8 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
         renderReport();
         showStep('2', true);
         if (open > 0) showStep('3', true);
-        directStatus.textContent = `유니온원 ${members.length}명을 읽었습니다 · 공개 ${open}명. `
-          + '서버 스캔 없이 바로 고르실 수 있습니다.';
+        directStatus.textContent = `ユニオンメンバー ${members.length}名を読み込みました · 公開 ${open}名。`
+          + 'サーバースキャンなしでそのまま選べます。';
       } catch (error) {
         directStatus.textContent = error instanceof Error ? error.message : String(error);
       }
@@ -1054,7 +1054,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       const boss = bosses[shareTarget.boss];
       return {
         code: boss?.code ?? '',
-        auto: boss?.battle ? summarizeBattle(boss.battle) : '조건 없음',
+        auto: boss?.battle ? summarizeBattle(boss.battle) : '条件なし',
       };
     }
     if (kind === 'squad' && shareTarget.kind === 'squad') {
@@ -1073,7 +1073,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       bosses = readUnionCode(item.code, deps.catalogNames(), DEFAULT_SYNCHRO_LEVEL);
       renderBosses();
       renderMembers();
-      notifyShare(`«${item.name}» 판을 깔았습니다.`, true);
+      notifyShare(`「${item.name}」の盤面を展開しました。`, true);
       return;
     }
     if (kind === 'boss' && shareTarget.kind === 'boss') {
@@ -1084,7 +1084,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       const failed = bosses[at]!.error;
       renderBosses();
       if (failed) throw new Error(failed);
-      notifyShare(`보스 ${at + 1} 칸에 «${item.name}» 조건을 넣었습니다.`, true);
+      notifyShare(`ボス ${at + 1} の枠に「${item.name}」の条件を入れました。`, true);
       return;
     }
     if (kind === 'squad' && shareTarget.kind === 'squad') {
@@ -1095,7 +1095,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       const failed = boss.decks[deckAt]!.error;
       renderBosses();
       if (failed) throw new Error(failed);
-      notifyShare(`보스 ${at + 1}의 ${deckAt + 1}덱에 «${item.name}»을 넣었습니다.`, true);
+      notifyShare(`ボス ${at + 1} のデッキ ${deckAt + 1} に「${item.name}」を入れました。`, true);
     }
   };
 
@@ -1147,16 +1147,16 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
 
     const LABELS: Record<ShareKind, { title: string; desc: string }> = {
       boss: {
-        title: '보스 조건 고르기',
-        desc: '남들이 올린 <b>전투 조건</b>입니다. 고르면 이 보스 칸에 그대로 들어갑니다 — 싱크로와 콘솔은 담기지 않으므로 유니온원 각자의 값이 그대로 쓰입니다.',
+        title: 'ボス条件を選ぶ',
+        desc: 'みんなが投稿した<b>戦闘条件</b>です。選ぶとこのボス枠にそのまま入ります — シンクロとコンソールは含まれないため、各メンバー自身の値が使われます。',
       },
       squad: {
-        title: '조합 고르기',
-        desc: '남들이 올린 <b>조합</b>입니다. 고르면 이 덱 칸에 들어갑니다 — 누가 편성됐는지만 담기고, 수치는 유니온원 각자의 것을 씁니다.',
+        title: '編成を選ぶ',
+        desc: 'みんなが投稿した<b>編成</b>です。選ぶとこのデッキ枠に入ります — 誰を編成したかだけが含まれ、数値は各メンバー自身のものを使います。',
       },
       union: {
-        title: '유니온 레이드 판 고르기',
-        desc: '보스 다섯과 각 칸의 덱까지 <b>한 판을 통째로</b> 담은 것입니다. 고르면 지금 짜 둔 판을 덮어씁니다. <b>유니온원 명단은 담기지 않습니다.</b>',
+        title: 'ユニオンレイド盤面を選ぶ',
+        desc: 'ボス5体と各枠のデッキまで<b>盤面まるごと</b>を収めたものです。選ぶと今組んである盤面を上書きします。<b>ユニオンメンバーの名簿は含まれません。</b>',
       },
     };
 
@@ -1187,10 +1187,10 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
     setCode.value = code;
     try {
       await navigator.clipboard.writeText(code);
-      sayBoard('판 코드를 복사했습니다. 유니온방에 그대로 붙여넣으면 됩니다.', true);
+      sayBoard('盤面コードをコピーしました。ユニオンのチャットにそのまま貼り付けられます。', true);
     } catch {
       setCode.select();
-      sayBoard('자동 복사가 막혀 코드를 선택해 뒀습니다. Ctrl+C로 복사해 주세요.');
+      sayBoard('自動コピーがブロックされたため、コードを選択状態にしました。Ctrl+C でコピーしてください。');
     }
   });
 
@@ -1198,7 +1198,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
     setBox.hidden = false;
     setCode.value = '';
     setCode.focus();
-    sayBoard('받은 판 코드(NK4-…)를 붙여넣고 「이 판 적용」을 누르세요.');
+    sayBoard('受け取った盤面コード(NK4-…)を貼り付けて「この盤面を適用」を押してください。');
   });
 
   pick<HTMLButtonElement>(panel, '[data-union-set-apply]').addEventListener('click', () => {
@@ -1207,7 +1207,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       renderBosses();
       renderMembers();
       const live = bosses.filter((boss) => boss.enabled).length;
-      sayBoard(`판을 깔았습니다 — 보스 ${live}개.`, true);
+      sayBoard(`盤面を展開しました — ボス ${live}体。`, true);
       setBox.hidden = true;
     } catch (error) {
       sayBoard(error instanceof Error ? error.message : String(error));
@@ -1239,7 +1239,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       const toggle = document.createElement('input');
       toggle.type = 'checkbox';
       toggle.checked = boss.enabled;
-      toggle.title = '끄면 이 보스는 계산하지 않습니다';
+      toggle.title = 'オフにするとこのボスは計算しません';
       toggle.addEventListener('change', () => {
         boss.enabled = toggle.checked;
         renderBosses();
@@ -1248,14 +1248,14 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       const name = document.createElement('input');
       name.type = 'text';
       name.className = 'union-boss-name';
-      name.placeholder = `보스 ${index + 1} 이름`;
+      name.placeholder = `ボス ${index + 1} の名前`;
       name.value = boss.name;
       name.addEventListener('input', () => {
         boss.name = name.value;
         refreshRunGate();
         for (const chip of memberBox.querySelectorAll<HTMLElement>('.union-boss-chip')) {
           const at = Number(chip.querySelector<HTMLInputElement>('[data-union-boss-pick]')?.dataset.unionBossPick);
-          if (at === index) chip.title = `${chip.title.split(' — ')[0]} — ${boss.name.trim() || `보스 ${index + 1}`}`;
+          if (at === index) chip.title = `${chip.title.split(' — ')[0]} — ${boss.name.trim() || `ボス ${index + 1}`}`;
         }
       });
       head.append(toggle, name, el('span', 'union-boss-summary', battleSummary(boss)));
@@ -1265,16 +1265,16 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       const code = document.createElement('input');
       code.type = 'text';
       code.className = 'union-code';
-      code.placeholder = '전투 조건 코드 (NK3-…)';
+      code.placeholder = '戦闘条件コード (NK3-…)';
       code.value = boss.code;
       code.addEventListener('input', () => {
         bosses[index] = { ...readBossCode({ ...boss, code: code.value }), decks: boss.decks };
         boss = bosses[index]!;
         renderBosses();
       });
-      const grab = el('button', 'roster-import', '지금 조건');
+      const grab = el('button', 'roster-import', '今の条件');
       (grab as HTMLButtonElement).type = 'button';
-      grab.title = '계산기에 잡아 둔 전투 조건을 그대로 가져옵니다';
+      grab.title = '計算機に設定してある戦闘条件をそのまま取り込みます';
       grab.addEventListener('click', () => {
         bosses[index] = { ...readBossCode({ ...boss, code: deps.currentBattleCode() }), decks: boss.decks };
         renderBosses();
@@ -1282,9 +1282,9 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       codeRow.append(code, grab);
       if (openSharePicker) {
         const open = openSharePicker;
-        const fromShare = el('button', 'roster-import', '공유에서');
+        const fromShare = el('button', 'roster-import', '共有から');
         (fromShare as HTMLButtonElement).type = 'button';
-        fromShare.title = '남들이 올린 보스 조건 목록에서 고릅니다';
+        fromShare.title = 'みんなが投稿したボス条件一覧から選びます';
         fromShare.addEventListener('click', () => open({ kind: 'boss', boss: index }));
         codeRow.append(fromShare);
       }
@@ -1297,15 +1297,15 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'union-code';
-        input.placeholder = `덱 ${deckIndex + 1} 조합 코드 (NK2-…)`;
+        input.placeholder = `デッキ ${deckIndex + 1} 編成コード (NK2-…)`;
         input.value = deck.code;
         input.addEventListener('input', () => {
           boss.decks[deckIndex] = readDeckCode({ code: input.value }, deps.catalogNames());
           renderBosses();
         });
-        const take = el('button', 'roster-import', `지금 ${deckIndex + 1}덱`);
+        const take = el('button', 'roster-import', `今のデッキ ${deckIndex + 1}`);
         (take as HTMLButtonElement).type = 'button';
-        take.title = '지금 계산기에 짜 둔 이 번호의 덱을 그대로 가져옵니다';
+        take.title = '今計算機に組んであるこの番号のデッキをそのまま取り込みます';
         take.addEventListener('click', () => {
           boss.decks[deckIndex] = readDeckCode({ code: deps.currentDeckCode(deckIndex) }, deps.catalogNames());
           renderBosses();
@@ -1313,9 +1313,9 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
         row.append(input, take);
         if (openSharePicker) {
           const open = openSharePicker;
-          const fromShare = el('button', 'roster-import', '공유에서');
+          const fromShare = el('button', 'roster-import', '共有から');
           (fromShare as HTMLButtonElement).type = 'button';
-          fromShare.title = '남들이 올린 조합 목록에서 고릅니다';
+          fromShare.title = 'みんなが投稿した編成一覧から選びます';
           fromShare.addEventListener('click', () =>
             open({ kind: 'squad', boss: index, deck: deckIndex }));
           row.append(fromShare);
@@ -1331,11 +1331,11 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
   }
 
   const battleSummary = (boss: BossSlot): string => {
-    if (!boss.battle) return '조건 없음';
-    const parts = [`${boss.battle.duration}초`, boss.battle.enemyCode || '무속성',
-      `방어 ${DAMAGE.format(boss.battle.enemyDef)}`];
+    if (!boss.battle) return '条件なし';
+    const parts = [`${boss.battle.duration}秒`, boss.battle.enemyCode ? elementLabel(boss.battle.enemyCode) : '無属性',
+      `防御 ${DAMAGE.format(boss.battle.enemyDef)}`];
     const decks = boss.decks.filter((deck) => deck.squad).length;
-    parts.push(decks > 0 ? `덱 ${decks}개` : '덱 없음');
+    parts.push(decks > 0 ? `デッキ ${decks}` : 'デッキなし');
     return parts.join(' · ');
   };
 
@@ -1354,10 +1354,10 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
     if (!running) {
       const people = new Set(jobs.map((job) => job.member.openid)).size;
       runStatus.textContent = jobs.length === 0
-        ? (personal ? '보스와 덱을 채워야 돌립니다.' : '고른 유니온원과 보스·덱이 있어야 돌립니다.')
+        ? (personal ? 'ボスとデッキを設定すると実行できます。' : '選んだユニオンメンバーとボス・デッキが必要です。')
         : (personal
-          ? `${jobs.length}판을 돌립니다 — 보스·덱 조합만큼입니다.`
-          : `${jobs.length}판을 돌립니다 — 유니온원 ${people}명 × 보스·덱.`);
+          ? `${jobs.length}件を計算します — ボス×デッキの組み合わせ分です。`
+          : `${jobs.length}件を計算します — ユニオンメンバー ${people}名 × ボス・デッキ。`);
     }
   }
 
@@ -1397,7 +1397,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       done += 1;
       setBar(runBar, done, jobs.length);
       runStatus.textContent = `${done}/${jobs.length} · ${job.member.name} · ${job.bossName} `
-        + `· 남은 시간 약 ${humanSeconds(remainingSeconds(done, jobs.length, Date.now() - started))}`;
+        + `· 残り約 ${humanSeconds(remainingSeconds(done, jobs.length, Date.now() - started))}`;
       renderReport();     // 도착 순서와 무관하게 사람→보스→덱으로 다시 세운다
     };
     // 판마다 서로 독립이라 나눠 돌려도 결과가 같다. 여기가 병렬로 가장 크게 덕을 보는
@@ -1414,8 +1414,8 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
     // 문지기가 «몇 판을 돌립니다»로 되돌리기 전에 부르고, 마무리 문구를 마지막에 적는다.
     refreshRunGate();
     runStatus.textContent = cancelled
-      ? `중단했습니다 (${results.length}/${jobs.length}판).`
-      : `${jobs.length}판을 ${humanSeconds((Date.now() - started) / 1000)} 만에 마쳤습니다.`;
+      ? `中断しました (${results.length}/${jobs.length}件)。`
+      : `${jobs.length}件を ${humanSeconds((Date.now() - started) / 1000)} で完了しました。`;
   };
 
   runButton.addEventListener('click', () => { void runAll(); });
@@ -1427,7 +1427,7 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
       const card = el('div', 'union-report-card');
       const head = el('div', 'union-report-head');
       head.append(el('b', 'union-report-name', report.member.name),
-        el('span', 'union-report-sync', `싱크로 ${report.member.synchro}`));
+        el('span', 'union-report-sync', `シンクロ ${report.member.synchro}`));
       card.append(head);
       for (const boss of report.bosses) {
         card.append(el('h4', 'union-report-boss', boss.name));
@@ -1437,9 +1437,9 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
           if (row.damage !== undefined) {
             line.append(el('b', 'union-report-damage', DAMAGE.format(Math.round(row.damage))));
           } else if (row.missing) {
-            line.append(el('span', 'union-report-skip', `미보유 · ${row.missing.map(labelFor).join(', ')}`));
+            line.append(el('span', 'union-report-skip', `未所持 · ${row.missing.map(labelFor).join(', ')}`));
           } else {
-            line.append(el('span', 'union-report-skip', row.error ?? '계산 실패'));
+            line.append(el('span', 'union-report-skip', row.error ?? '計算失敗'));
           }
           card.append(line);
         }
