@@ -20,9 +20,14 @@ const TABS = ['board', 'calc', 'roster', 'plans', 'union', 'links'];
 mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 let problems = 0;
+try {
 for (const width of WIDTHS) {
   const page = await browser.newPage({ viewport: { width, height: 900 }, deviceScaleFactor: 1 });
-  await page.goto(url, { waitUntil: 'networkidle' }).catch(() => {});
+  // 開けなければここで落とす — 空白ページを撮って「はみ出しなし」と言うのが一番まずい
+  await page.goto(url, { waitUntil: 'networkidle' });
+  if (await page.locator('[data-view-tab]').count() === 0) {
+    throw new Error(`${url} に計算機の画面が出ていない (プレビューは立っているか?)`);
+  }
   await page.waitForTimeout(1500);
   for (const tab of TABS) {
     const button = page.locator(`[data-view-tab="${tab}"]`);
@@ -50,6 +55,8 @@ for (const width of WIDTHS) {
   }
   await page.close();
 }
-await browser.close();
+} finally {
+  await browser.close();   // 途中で失敗しても Chrome を残さない
+}
 console.log(problems > 0 ? `横にはみ出す画面が ${problems} 件` : '横のはみ出しなし');
 process.exit(problems > 0 ? 1 : 0);
