@@ -566,6 +566,50 @@ describe('calculator UI', () => {
     expect(root.querySelectorAll('[data-boss-preset]').length).toBe(5);
   });
 
+  it('CSV を取り込み直すと編成中のキャラの育成値が更新され、操作設定は残る', async () => {
+    // 以前は「まだ設定を持たないキャラだけ」を埋めていたので、一度編成に入れたキャラは
+    // 取り込み直しても古い育成値のままだった。かといって丸ごと上書きすると手で決めた
+    // 速射・バースト運用が毎回消える。項目単位で混ぜる規則 (roster-merge.ts) の配線を固定する。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // 枠に置いてから、そのキャラの操作 (バースト運用) を手で決める
+    chooseCharacter(root, 0, '리타');
+    root.querySelector<HTMLInputElement>('[data-slot-card="0"] [data-custom-toggle]')!.click();
+    const burst = root.querySelector<HTMLSelectElement>('[data-burst-assignment]')!;
+    burst.value = 'skip';
+    burst.dispatchEvent(new Event('change'));
+    expect(root.querySelector('.control-chip-text')!.textContent).toContain('バースト使わない');
+
+    const header = [
+      '이름', '돌파', '코강', '스킬1', '스킬2', '버스트스킬',
+      '우코(%)', '공증(%)', '방어(%)', '장탄(%)', '크확(%)', '크댐(%)', '차속(%)', '차댐(%)', '명중(%)',
+      '머리_레벨', '몸통_레벨', '장갑_레벨', '다리_레벨',
+    ].join(',');
+    const row = ['리타', '3', '4', '10', '10', '10',
+      '50', '30', '0', '0', '0', '0', '0', '0', '0', '5', '5', '5', '5'].join(',');
+
+    const input = root.querySelector<HTMLInputElement>('#roster-csv')!;
+    Object.defineProperty(input, 'files', {
+      value: [new File([`${header}\n${row}`], 'roster.csv', { type: 'text/csv' })],
+      configurable: true,
+    });
+    input.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-roster-note]')!.textContent).toContain('育成値を更新');
+    });
+
+    // 育成は取込値に (돌파3 + 코강4 = 7)
+    const saved = JSON.parse(localStorage.getItem('nikke-state-v1')!) as
+      { decks: Array<{ characters: Record<string, { growthStage?: number; burst?: { mode: string } }> }> };
+    const mine = saved.decks[0]!.characters['리타']!;
+    expect(mine.growthStage).toBe(7);
+    // 操作は手で決めたまま
+    expect(mine.burst).toEqual({ mode: 'skip' });
+    expect(root.querySelector('.control-chip-text')!.textContent).toContain('バースト使わない');
+  });
+
   it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

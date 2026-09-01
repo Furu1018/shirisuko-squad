@@ -45,6 +45,7 @@ import { LATEST_NOTICE_ID, NOTICES, noticeFragment, noticeToShow } from './notic
 import { mountSharePanel, squadPreview, type SharePanel } from './share-panel';
 import { startPresence } from './presence';
 import { UNION_SEASON, bossBattle } from './union-bosses';
+import { applyImportedRoster } from './roster-merge';
 import { mountUnionRaid } from './union-raid';
 import { EXTERNAL_LINKS, hostOf } from './external-links';
 import {
@@ -3732,6 +3733,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     showErrors([]);
     status.textContent = '保存された結果を消しました。再実行すると計算し直します。';
   });
+  // 起動時: まだ設定を持たないキャラだけロスターの値で埋める。
+  // 保存済みのデッキ設定は「その人がこの計算機で決めたこと」なので上書きしない。
   const applyRosterToDecks = () => {
     for (const deck of decks) {
       for (const member of deck.squad) {
@@ -3741,6 +3744,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
     }
   };
+
+  // 取込 (CSV / Blablalink) 直後: 編成中のキャラへ**新しい育成値だけ**配る。
+  // 速射・バースト運用などの操作設定は残す (規則は roster-merge.ts)。
+  // 起動時の applyRosterToDecks と分けてあるのは、リロードのたびに手で直した値が
+  // 巻き戻ると困るため — 上書きしてよいのは「取り込み直した」その瞬間だけ。
+  const refreshDecksFromRoster = (): number => applyImportedRoster(roster, decks).length;
   const updateRosterNote = (message?: string) => {
     const count = Object.keys(roster).length;
     if (message) rosterNote.textContent = message;
@@ -3760,12 +3769,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       roster = overrides;
       saveRoster();
       void loadCombatPower();
-      applyRosterToDecks();
+      const refreshed = refreshDecksFromRoster();
       saveState();
       renderDeckTabs();
       renderSquad();
       const skipped = unmatched.length > 0 ? ` · 未対応 ${unmatched.length}名を除外` : '';
-      updateRosterNote(`CSV ロスター ${matched.length}名を適用${skipped}`
+      const updated = refreshed > 0 ? ` · 編成中 ${refreshed}名の育成値を更新` : '';
+      updateRosterNote(`CSV ロスター ${matched.length}名を適用${skipped}${updated}`
         + ' · キューブと好感度は CSV にないため既定値で計算します(カードの個別設定で修正可)');
     } catch (error) {
       updateRosterNote(`CSV の読み込みに失敗: ${error instanceof Error ? error.message : String(error)}`);
@@ -3821,7 +3831,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         roster = overrides;
         saveRoster();
         void loadCombatPower();
-        applyRosterToDecks();
+        const refreshed = refreshDecksFromRoster();
 
         // 콘솔은 계정 단위라 전투 설정 쪽에 있다. 전초기지가 비공개면 안 오고, 그때는
         // 손대지 않는 게 맞다 — 0으로 덮으면 멀쩡하던 값이 사라진다.
@@ -3833,6 +3843,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         renderSquad();
 
         const parts = [`Blablalink ${serverLabel} ${matched.length}名を適用`];
+        if (refreshed > 0) parts.push(`編成中 ${refreshed}名の育成値を更新`);
         if (unmatched.length > 0) parts.push(`未対応 ${unmatched.length}名を除外`);
         if (consoleLevels) parts.push('コンソールレベルも適用');
         updateRosterNote(parts.join(' · '));
