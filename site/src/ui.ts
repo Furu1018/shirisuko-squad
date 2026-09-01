@@ -694,7 +694,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
               <h3>ニケを選ぶ <span data-roster-count></span></h3>
               <p class="picker-target" data-roster-desc></p>
             </div>
-            <input type="search" class="roster-search" data-roster-search placeholder="名前・頭文字・属性で検索 (ㄹㅍ, 라피레드, 전격)" autocomplete="off" aria-label="ニケ名検索" />
+            <input type="search" class="roster-search" data-roster-search placeholder="名前で検索 (ラピ / 라피 / ㄹㅍ)" autocomplete="off" aria-label="ニケ名検索" />
             <!-- 정렬·필터는 판을 눌러 펼친다. 칩을 늘 깔아 두면 목록이 화면 밖으로
                  밀리고, 필터가 몇 개 걸렸는지도 한눈에 안 들어온다. -->
             <div class="picker-bar">

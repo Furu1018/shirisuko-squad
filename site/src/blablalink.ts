@@ -7,15 +7,15 @@ import type {
 } from './types';
 
 export const BLABLA_SERVERS = [
-  { area: 83, label: '한국' },
-  { area: 81, label: '일본' },
-  { area: 84, label: '글로벌' },
-  { area: 82, label: '북미' },
-  { area: 85, label: '동남아' },
+  { area: 83, label: '韓国' },
+  { area: 81, label: '日本' },
+  { area: 84, label: 'グローバル' },
+  { area: 82, label: '北米' },
+  { area: 85, label: '東南アジア' },
 ] as const;
 
 export function blablaServerLabel(area: number): string {
-  return BLABLA_SERVERS.find((server) => server.area === area)?.label ?? `서버 ${area}`;
+  return BLABLA_SERVERS.find((server) => server.area === area)?.label ?? `サーバー ${area}`;
 }
 
 // 블라블라링크 프로필 응답 → 캐릭터별 override.

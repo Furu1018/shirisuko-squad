@@ -567,11 +567,11 @@ describe('calculator UI', () => {
     expect(server!.value).toBe('');
     expect([...server!.options].map((option) => [option.value, option.textContent])).toEqual([
       ['', '自動 (所持ニケが最も多いサーバー)'],
-      ['83', '한국'],
-      ['81', '일본'],
-      ['84', '글로벌'],
-      ['82', '북미'],
-      ['85', '동남아'],
+      ['83', '韓国'],
+      ['81', '日本'],
+      ['84', 'グローバル'],
+      ['82', '北米'],
+      ['85', '東南アジア'],
     ]);
   });
 
@@ -614,7 +614,7 @@ describe('calculator UI', () => {
 
     expect(sentBody).toEqual({ profileUrl: url.value, area: 84 });
     expect(root.querySelector<HTMLElement>('[data-blabla-status]')!.textContent)
-      .toContain('글로벌サーバーから 1名を読み込みました。');
+      .toContain('グローバルサーバーから 1名を読み込みました。');
   });
 
   it('sets breakthrough from the portrait star stepper and keeps the dropdown in sync', () => {

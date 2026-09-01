@@ -1,3 +1,4 @@
+import { labelFor } from './display-name';
 import type { BattleTimeline, CharacterMeta, DeckState } from './types';
 
 // 버스트 순서를 손으로 정하는 층.
@@ -166,7 +167,7 @@ export function cycleLine(cycle: BurstCycle | undefined): string {
   const parts = BURST_STAGES
     .map((stage) => {
       const name = (cycle[stage] ?? [])[0];
-      return name ? `${stage}버 ${name}` : null;
+      return name ? `${stage}バ ${labelFor(name)}` : null;
     })
     .filter((part): part is string => part !== null);
   return parts.length > 0 ? parts.join(' → ') : '자동';
