@@ -117,11 +117,25 @@ const RULES = [];
     // (これで状態クラスの色の受け継ぎが効かず、薄めた文字を取りこぼしていた)
     const selector = raw.replace(/\/\*[\s\S]*?\*\//g, '').trim().replace(/\s+/g, ' ');
     if (!selector || selector.startsWith('@') || selector.includes(':root')) continue;
-    // 無効化された操作部品は WCAG の対象外 (押せないものは基準を求めない)
-    if (selector.includes(DISABLED)) continue;
+    // 無効化された操作部品は WCAG の対象外 (押せないものは基準を求めない)。
+    // ただし `:not(:disabled)` は «有効なとき» の指定なので、外してはいけない。
+    if (selector.replace(/:not\([^)]*\)/g, '').includes(DISABLED)) continue;
     RULES.push({ selector, body: r[2] });
   }
 }
+
+/**
+ * 検算できない書き方を禁じる。
+ *
+ * 要素を opacity で薄めると、その**中の文字**がどこまで下地に溶けるかは DOM の
+ * 入れ子が分からないと決まらない。CSS だけを読むこの検算では原理的に追えない
+ * (実際、親 `.is-off` の下の補助文字が 3.1:1 まで落ちているのを見逃していた)。
+ * 追えるふりをするより、«薄さ» は色で表してもらう方が確実なので構文ごと止める。
+ *
+ * 逃げ道は2つだけ — 押せない部品 (`:disabled`) と、読ませる文字ではない飾り
+ * (直前に `contrast-ignore` と書く)。どちらも上で既に除いてある。
+ */
+const banned = RULES.filter(({ body }) => opacityOf(body) < 1);
 
 const colorOf = (body) => body.match(/(?:^|;|\{)\s*color:\s*([^;]+)/)?.[1];
 const bgOf = (body) => body.match(/(?:^|;)\s*background(?:-color)?:\s*([^;]+)/)?.[1];
@@ -138,8 +152,10 @@ function inherited(selector, pick) {
     if (!selector.startsWith(rule.selector)) continue;
     // 文字列の前方一致だけだと `.timeline-legend` が `.timeline-legend-item` に当たってしまう。
     // 続きが状態の付け足し (`.` `:` `[`) のときだけ「同じ要素の別の状態」とみなす。
+    // 空白が混ざったら子孫セレクタ = 別の要素なので受け継がない
+    // (`.a.is-on .mark` の色を `.a` から取ってしまい、有りもしない基準割れを出していた)。
     const rest = selector.slice(rule.selector.length);
-    if (rest && !/^[.:[]/.test(rest)) continue;
+    if (rest && (!/^[.:[]/.test(rest) || rest.includes(' '))) continue;
     const value = pick(rule.body);
     if (value) found = value;   // 後に書かれた方が勝つ
   }
@@ -151,9 +167,7 @@ const failures = [];
 const passes = [];
 for (const { selector, body } of RULES) {
   const ownColor = colorOf(body);
-  const alphaHere = opacityOf(body);
-  // 色を持たない規則でも、薄めているなら土台の色に効いてしまう
-  const colorValue = ownColor ?? (alphaHere < 1 ? inherited(selector, colorOf) : undefined);
+  const colorValue = ownColor ?? inherited(selector, colorOf);
   if (!colorValue) continue;
   const colorDecl = [null, colorValue];
   const bgValue = bgOf(body) ?? (ownColor ? undefined : inherited(selector, bgOf));
@@ -169,11 +183,8 @@ for (const { selector, body } of RULES) {
   for (const parent of bgDecl ? ['#ffffff'] : SURFACES) {
     const bg = bgDecl ? resolve色(bgDecl[1], parent) : parent;
     if (!bg) continue;
-    const solid = resolve色(colorDecl[1], bg);
-    if (!solid) continue;
-    // 要素ごと薄めているなら、文字も下地に溶ける
-    const alpha = opacityOf(body);
-    const fg = alpha >= 1 ? solid : over(solid, alpha, bg);
+    const fg = resolve色(colorDecl[1], bg);
+    if (!fg) continue;
     const r = ratio(fg, bg);
     const row = { selector, fg, bg, r, need, px };
     if (r < need) { failures.push(row); break; }
@@ -190,10 +201,20 @@ if (SHOW_ALL) {
   for (const row of passes) console.log(`OK  ${fmt(row)}`);
   console.log('');
 }
+if (banned.length > 0) {
+  console.log(`--- 検算できない書き方 (${banned.length}件) ---`);
+  for (const { selector, body } of banned) {
+    console.log(`NG  opacity: ${opacityOf(body)}  ${selector.slice(0, 68)}`);
+  }
+  console.log(`
+opacity で薄めると、中の文字がどこまで下地に溶けるかは CSS だけでは決まりません。
+«薄さ» は色で表してください (例: color: var(--ink-2))。
+読ませる文字ではない飾りなら、直前の行に /* contrast-ignore: 理由 */ と書いて外せます。`);
+}
 if (failures.length > 0) {
   console.log(`--- 基準割れ (${failures.length}件) ---`);
   for (const row of failures) console.log(`NG  ${fmt(row)}`);
   console.log(`\n${failures.length}件が基準を下回っています。`);
-  process.exit(1);
 }
+if (banned.length > 0 || failures.length > 0) process.exit(1);
 console.log(`検算した規則 ${passes.length}件 — 基準割れなし。`);

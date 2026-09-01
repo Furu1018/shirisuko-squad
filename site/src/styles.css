@@ -736,9 +736,9 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .timeline-legend-row { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 10px; }
 .timeline-legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; background: rgb(var(--line-rgb) / .06); border: 1px solid var(--line); border-radius: 20px; color: var(--ink); font-size: 11px; cursor: pointer; }
 .timeline-legend-item:hover { border-color: rgb(var(--line-rgb) / .35); }
-/* 押せる要素なので opacity で薄めすぎない (文字が実効 2.4:1 まで落ちていた)。
-   «切ってある» ことは取り消し線と点の薄さで示す */
-.timeline-legend-item.is-off { opacity: .72; text-decoration: line-through; }
+/* 押せる要素。親を opacity で薄めると子の文字がどこまで溶けるか検算できないので、
+   «切ってある» ことは取り消し線と色で示す (文字の濃さは自分で決める) */
+.timeline-legend-item.is-off { text-decoration: line-through; color: var(--ink-2); }
 /* contrast-ignore: 文字ではなく状態を示す色の点 (文字は取り消し線で示している) */
 .timeline-legend-item.is-off .tl-dot { opacity: .35; }
 .timeline-legend-item .tl-total { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -841,7 +841,7 @@ footer a { color: var(--accent); text-decoration: none; font-weight: 800; letter
 .roster-chip.is-on { border-color: var(--cyan); background: rgb(var(--accent-rgb) / .14); color: var(--ink); font-weight: 700; }
 button.roster-cell { font: inherit; text-align: left; cursor: pointer; }
 button.roster-cell:hover:not(:disabled) { border-color: var(--cyan); background: rgb(var(--accent-rgb) / .08); }
-button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
+button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .slot-pick { margin-top: 6px; padding: 6px 8px; width: 100%; border: 1px solid rgb(var(--accent-rgb) / .28); background: rgb(var(--accent-rgb) / .08); color: var(--ink); font-size: 11px; font-weight: 700; border-radius: 6px; cursor: pointer; }
 .slot-pick:hover { background: rgb(var(--accent-rgb) / .18); border-color: var(--cyan); }
 
@@ -1087,7 +1087,7 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 .enikk-deckno { font: 700 10px ui-monospace, monospace; color: var(--dim, var(--ink-3)); text-align: center; }
 /* 덱 딜은 이 카드에서 가장 먼저 읽히는 숫자다 — 초상화 옆에서 눈에 바로 들어와야 한다. */
 .enikk-deckdmg { font: 800 clamp(20px, 5vw, 26px)/1.1 ui-monospace, monospace; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.enikk-deck.is-blocked { opacity: .45; }
+.enikk-deck.is-blocked { border-style: dashed; background: rgb(var(--line-rgb) / .05); }
 .enikk-deck.is-blocked .enikk-deckdmg::after { content: ' 미지원'; color: var(--amber-text); font-size: 11px; }
 .enikk-who { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
 
@@ -1159,8 +1159,9 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 /* 보스 다섯 칸. 넓으면 둘씩 서고, 좁으면 한 줄로 접힌다. */
 .union-bosses { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin-top: 12px; }
 .union-boss { padding: 12px; border: 1px solid var(--line); background: rgb(var(--surface-rgb) / .55); }
-/* 中の入力やボタンは押せるままなので、薄くしすぎると文字が基準を割る */
-.union-boss.is-off { opacity: .72; }
+/* 中の入力やボタンは押せるまま。親を opacity で薄めると中の文字の濃さが読めなくなるので、
+   «外してある» ことは枠線と下地で示す */
+.union-boss.is-off { border-style: dashed; background: rgb(var(--line-rgb) / .05); }
 .union-boss-head { display: flex; align-items: center; gap: 8px; }
 .union-boss-name { flex: 1 1 auto; min-width: 0; padding: 6px 8px; border: 1px solid var(--line);
   background: rgb(var(--surface-rgb) / .6); color: var(--ink); font: 700 12px inherit; }
@@ -1275,6 +1276,7 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 
 /* 끌어다 놓기 — 누르는 길은 그대로 두고 더한 길이다(손가락에서는 끌기가 안 된다). */
 .roster-cell[draggable="true"] { cursor: grab; }
+/* contrast-ignore: つまんで運んでいる最中の見た目。読ませる文字ではない */
 .roster-cell.is-dragging, .squad-slot.is-dragging { opacity: .45; }
 .squad-slot.is-drop { outline: 2px dashed var(--amber); outline-offset: -2px;
   background: rgb(var(--amber-rgb) / .06); }
@@ -1432,7 +1434,7 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 .calc-boss-presets { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
 .calc-boss-presets-label { font-size: 12px; color: var(--muted, var(--ink-3)); margin-right: 4px; }
 .union-preset-row { align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
-.union-preset-row .union-note { font-size: 12px; opacity: .8; }
+.union-preset-row .union-note { font-size: 12px; color: var(--ink-2); }
 
 /* しりすこスクワッド: 取込の記録とワンボタン更新 */
 .roster-sync { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1444,13 +1446,13 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 .roster-stat { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 9px;
   background: rgb(var(--line-rgb) / .10); border: 1px solid rgb(var(--line-rgb) / .20); min-width: 84px; }
 .roster-stat b { font-size: 16px; font-weight: 800; }
-.roster-stat span { font-size: 11px; opacity: .75; }
+.roster-stat span { font-size: 11px; color: var(--ink-2); }
 .roster-sort { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.roster-sort-label { font-size: 12px; opacity: .75; }
+.roster-sort-label { font-size: 12px; color: var(--ink-2); }
 .roster-table-wrap { overflow-x: auto; }
 .roster-table { border-collapse: collapse; width: 100%; font-size: 12.5px; white-space: nowrap; }
 .roster-table th, .roster-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid rgb(var(--line-rgb) / .18); }
-.roster-table th { font-size: 11px; opacity: .7; font-weight: 700; position: sticky; top: 0; background: inherit; }
+.roster-table th { font-size: 11px; color: var(--ink-2); font-weight: 700; position: sticky; top: 0; background: var(--surface); }
 .roster-table .roster-name { font-weight: 700; }
 .roster-table .roster-power { text-align: right; font-variant-numeric: tabular-nums; }
 
@@ -1459,15 +1461,16 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 .plans-group { border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px; padding: 12px 14px; }
 .plans-group-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .plans-group-head h3 { margin: 0; font-size: 15px; font-weight: 800; }
-.plans-against { font-size: 11px; opacity: .7; padding: 2px 8px; border-radius: 999px;
+/* 灰の塗りの上に載るので、副の墨だと 4.01:1 で足りない */
+.plans-against { font-size: 11px; color: var(--ink); padding: 2px 8px; border-radius: 999px;
   background: rgb(var(--line-rgb) / .16); }
-.plans-note { margin: 8px 0 0; font-size: 12px; opacity: .85; }
-.plans-note.is-ok { opacity: 1; }
+.plans-note { margin: 8px 0 0; font-size: 12px; color: var(--ink-2); }
+.plans-note.is-ok { color: var(--ink); }
 .plans-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
-.plans-empty { margin: 0; font-size: 12px; opacity: .7; }
+.plans-empty { margin: 0; font-size: 12px; color: var(--ink-2); }
 .plans-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 7px 9px; border-radius: 8px; background: rgb(var(--line-rgb) / .08); }
-.plans-index { font-size: 12px; opacity: .75; min-width: 40px; }
+.plans-index { font-size: 12px; color: var(--ink-2); min-width: 40px; }
 .plans-members { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
 .plans-chip { font-size: 11.5px; padding: 2px 7px; border-radius: 999px;
   background: rgb(var(--line-rgb) / .18); white-space: nowrap; }
@@ -1477,12 +1480,12 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 /* しりすこスクワッド: ボス条件で確かめる */
 .plans-boss { border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px; padding: 12px 14px; margin-bottom: 14px; }
 .plans-boss h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
-.plans-boss-lede { margin: 0 0 10px; font-size: 12px; opacity: .8; }
+.plans-boss-lede { margin: 0 0 10px; font-size: 12px; color: var(--ink-2); }
 .plans-boss-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .plans-boss-result { overflow-x: auto; margin-top: 10px; }
 .plans-boss-table { border-collapse: collapse; width: 100%; font-size: 12.5px; white-space: nowrap; }
 .plans-boss-table th, .plans-boss-table td { padding: 6px 10px; text-align: left;
   border-bottom: 1px solid rgb(var(--line-rgb) / .18); }
-.plans-boss-table th { font-size: 11px; opacity: .7; font-weight: 700; }
+.plans-boss-table th { font-size: 11px; color: var(--ink-2); font-weight: 700; }
 .plans-boss-members { white-space: normal; min-width: 200px; }
 .plans-boss-moved { font-weight: 800; }
