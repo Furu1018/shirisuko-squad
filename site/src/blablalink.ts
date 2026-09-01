@@ -251,7 +251,9 @@ export function areaToOverrides(
     override.equipLevels = equipLevelsOf(detail);
 
     overrides[name] = override;
-    matched.push(name);
+    // 同じニケが2度来ても1件として数える。`matched.length` は取込件数の表示と
+    // 「今回に無かった N名」の計算に使うので、重複すると数字がずれる。
+    if (!matched.includes(name)) matched.push(name);
   }
 
   if (unknownCollection > 0) {
