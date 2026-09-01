@@ -185,18 +185,18 @@ describe('share panel', () => {
     const { host, panel } = mount(server);
     panel.open();
     await flush();
-    expect(host.querySelector('[data-share-item]')!.textContent).toContain('적용 4');
+    expect(host.querySelector('[data-share-item]')!.textContent).toContain('適用 4');
 
     host.querySelector<HTMLButtonElement>('[data-share-apply="a1"]')!.click();
     // 서버를 기다리지 않고 먼저 올린다.
-    expect(host.querySelector('[data-share-item]')!.textContent).toContain('적용 5');
+    expect(host.querySelector('[data-share-item]')!.textContent).toContain('適用 5');
     await flush();
     expect(server.applies).toEqual(['a1']);
 
     // 같은 브라우저가 또 적용해도 숫자는 그대로다.
     host.querySelector<HTMLButtonElement>('[data-share-apply="a1"]')!.click();
     await flush();
-    expect(host.querySelector('[data-share-item]')!.textContent).toContain('적용 5');
+    expect(host.querySelector('[data-share-item]')!.textContent).toContain('適用 5');
   });
 
   it('does not count an apply that failed, and stays quiet when only counting fails', async () => {
@@ -223,7 +223,7 @@ describe('share panel', () => {
     const before = second.messages.length;
     second.host.querySelector<HTMLButtonElement>('[data-share-apply="a1"]')!.click();
     await flush();
-    expect(second.host.querySelector('[data-share-item]')!.textContent).toContain('적용 2');
+    expect(second.host.querySelector('[data-share-item]')!.textContent).toContain('適用 2');
     expect(second.messages.length).toBe(before);
   });
 
@@ -236,7 +236,7 @@ describe('share panel', () => {
     host.querySelector<HTMLButtonElement>('[data-share-apply="a1"]')!.click();
     await flush();
     // 서버에는 알리되(집계는 서버가 판단한다) 화면 숫자를 미리 올리지는 않는다.
-    expect(host.querySelector('[data-share-item]')!.textContent).toContain('적용 8');
+    expect(host.querySelector('[data-share-item]')!.textContent).toContain('適用 8');
     expect(server.applies).toEqual(['a1']);
   });
 
@@ -276,7 +276,7 @@ describe('share panel', () => {
     // 없으면 그렇다고 적는다.
     type('없는이름');
     expect(rows()).toEqual([]);
-    expect(host.querySelector('[data-share-rows]')!.textContent).toContain('검색과 일치하는');
+    expect(host.querySelector('[data-share-rows]')!.textContent).toContain('検索に一致する');
     // 비우면 다 돌아온다.
     type('');
     expect(rows()).toHaveLength(3);
@@ -337,7 +337,7 @@ describe('share panel', () => {
     await flush();
 
     expect(host.querySelector<HTMLElement>('[data-list]')!.hidden).toBe(false);
-    expect(messages.at(-1)).toEqual({ text: '«새 설정»을(를) 올렸습니다.', ok: true });
+    expect(messages.at(-1)).toEqual({ text: '「새 설정」を投稿しました。', ok: true });
   });
 
   it('keeps the modal usable when the server is down, and can retry', async () => {
@@ -367,7 +367,7 @@ describe('squad preview', () => {
 
     const many = squadPreview([['리타'], ['앨리스', '나가']], image);
     expect([...many.querySelectorAll('.share-deck-label')].map((node) => node.textContent))
-      .toEqual(['1덱', '2덱']);
+      .toEqual(['デッキ 1', 'デッキ 2']);
     // 초상화가 없는 니케는 이름 조각으로 자리를 지킨다.
     const chip = many.querySelector('.share-portrait-empty')!;
     expect(chip.textContent).toBe('나가');
@@ -406,11 +406,11 @@ describe('list helpers', () => {
 
   it('reads times as how long ago', () => {
     const now = Date.parse('2026-08-26T12:00:00.000Z');
-    expect(agoText('2026-08-26T11:59:30.000Z', now)).toBe('방금');
-    expect(agoText('2026-08-26T11:01:00.000Z', now)).toBe('59분 전');
-    expect(agoText('2026-08-26T11:00:00.000Z', now)).toBe('1시간 전');
-    expect(agoText('2026-08-26T02:00:00.000Z', now)).toBe('10시간 전');
-    expect(agoText('2026-08-20T12:00:00.000Z', now)).toBe('6일 전');
+    expect(agoText('2026-08-26T11:59:30.000Z', now)).toBe('たった今');
+    expect(agoText('2026-08-26T11:01:00.000Z', now)).toBe('59分前');
+    expect(agoText('2026-08-26T11:00:00.000Z', now)).toBe('1時間前');
+    expect(agoText('2026-08-26T02:00:00.000Z', now)).toBe('10時間前');
+    expect(agoText('2026-08-20T12:00:00.000Z', now)).toBe('6日前');
     expect(agoText('not a date', now)).toBe('');
   });
 });

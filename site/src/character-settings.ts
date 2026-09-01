@@ -1,4 +1,4 @@
-import { labelFor } from './display-name';
+import { growthLabel, labelFor } from './display-name';
 import type {
   BuffTargetRow,
   CharacterControl,
@@ -94,7 +94,7 @@ function summaryText(name: string, catalog: SettingsCatalog, value?: CharacterOv
   const skillSummary = defaults.skillLevelsLocked
     ? '数値未公開 · Lv10固定'
     : `スキル ${skillLevels['1']} / ${skillLevels['2']} / ${skillLevels['3']}`;
-  return `${value ? '個別値' : '既定値'} · ${growth.label} · 好感度 ${growth.affinity} · ${skillSummary} · `
+  return `${value ? '個別値' : '既定値'} · ${growthLabel(growth.label)} · 好感度 ${growth.affinity} · ${skillSummary} · `
     + `優コ ${numberText(overload.element_bonus ?? 0)} · `
     + `攻増 ${numberText(overload.atk_pct ?? 0)} · 装弾 ${numberText(overload.max_ammo_pct ?? 0)} · `
     + `${cube.name === NO_CUBE ? 'キューブなし' : `${cube.name} Lv${cube.level}`} · ${controlSummary}`;
@@ -463,7 +463,7 @@ export function renderCharacterSettings(
   for (const growth of defaults.growthOptions) {
     const option = document.createElement('option');
     option.value = String(growth.value);
-    option.textContent = growth.label;
+    option.textContent = growthLabel(growth.label);
     growthSelect.append(option);
   }
   growthSelect.value = String(current.growthStage);

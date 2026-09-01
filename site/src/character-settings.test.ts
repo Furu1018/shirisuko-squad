@@ -166,7 +166,7 @@ describe('character settings editor', () => {
 
   it('shows resolved defaults and opens final-value inputs on demand', () => {
     expect(root.textContent).toContain('スキル 10 / 10 / 10');
-    expect(root.textContent).toContain('3돌 · 好感度 30');
+    expect(root.textContent).toContain('3凸 · 好感度 30');
     expect(root.textContent).toContain('優コ 88.60');
     expect(root.textContent).toContain('攻増 22.22');
     expect(root.textContent).toContain('装弾 129.64');
@@ -282,8 +282,8 @@ describe('character settings editor', () => {
 
     const growth = root.querySelector<HTMLSelectElement>('[data-growth-stage]')!;
     expect([...growth.options].map((option) => option.text)).toEqual([
-      '명함', '1돌', '2돌', '3돌', '코강 1', '코강 2', '코강 3', '코강 4',
-      '코강 5', '코강 6', '코강 7',
+      '無凸', '1凸', '2凸', '3凸', 'コア1', 'コア2', 'コア3', 'コア4',
+      'コア5', 'コア6', 'コア7',
     ]);
     expect(root.textContent).toContain('好感度は限界突破ごとの最大値で適用します。');
 
@@ -291,7 +291,7 @@ describe('character settings editor', () => {
     growth.dispatchEvent(new Event('change'));
 
     expect(value?.growthStage).toBe(0);
-    expect(root.textContent).toContain('명함 · 好感度 10');
+    expect(root.textContent).toContain('無凸 · 好感度 10');
   });
 
   it('constrains an SR character to card through limit break two', () => {
@@ -300,7 +300,7 @@ describe('character settings editor', () => {
     setToggle('[data-custom-toggle]', true);
 
     const growth = root.querySelector<HTMLSelectElement>('[data-growth-stage]')!;
-    expect([...growth.options].map((option) => option.text)).toEqual(['명함', '1돌', '2돌']);
+    expect([...growth.options].map((option) => option.text)).toEqual(['無凸', '1凸', '2凸']);
     expect(value?.growthStage).toBe(2);
   });
 

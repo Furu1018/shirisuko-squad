@@ -8,7 +8,7 @@
 //   1덱  → 세로 카드: 총딜을 머리에 세우고 캐릭터별 기여도와 평타/스킬 분해
 //   5덱  → 합계 헤드라인 + 덱 5열: 전체 합계가 주인공이고 25명 개별딜을 모두 싣는다
 
-import { labelFor } from './display-name';
+import { elementLabel, labelFor } from './display-name';
 import { formatDamage, formatDps } from './model';
 import type { BatchResult, CharacterMeta, DeckResultEntry } from './types';
 
@@ -194,13 +194,13 @@ const factChips = (ctx: CanvasRenderingContext2D, chips: string[], x: number, y:
 
 const conditionChips = (meta: ReportMeta, entry: DeckResultEntry): string[] => {
   const chips = [
-    `${entry.result.duration}초 전투`,
-    `방어력 ${meta.enemyDef.toLocaleString('en-US')}`,
-    meta.enemyCode ? `${meta.enemyCode} 코드` : '코드 없음',
-    meta.corePx > 0 ? `코어 ${meta.corePx}px` : '코어 없음',
+    `${entry.result.duration}秒戦闘`,
+    `防御力 ${meta.enemyDef.toLocaleString('en-US')}`,
+    meta.enemyCode ? `${elementLabel(meta.enemyCode)}コード` : 'コードなし',
+    meta.corePx > 0 ? `コア ${meta.corePx}px` : 'コアなし',
   ];
-  if (meta.hasParts) chips.push('파괴 가능 파츠');
-  chips.push(`시드 ${entry.request.seed}`);
+  if (meta.hasParts) chips.push('破壊可能パーツ');
+  chips.push(`シード ${entry.request.seed}`);
   return chips;
 };
 
@@ -223,15 +223,15 @@ function drawSingle(
   ctx.font = `800 26px ${FONT}`;
   ctx.fillStyle = COLOR.ink;
   ctx.textAlign = 'left';
-  ctx.fillText('전투 결과 ', PAD, y);
-  const titleWidth = ctx.measureText('전투 결과 ').width;
-  text(ctx, '리포트', PAD + titleWidth, y, 26, COLOR.amber, 800);
+  ctx.fillText('戦闘結果 ', PAD, y);
+  const titleWidth = ctx.measureText('戦闘結果 ').width;
+  text(ctx, 'レポート', PAD + titleWidth, y, 26, COLOR.amber, 800);
 
   y += 22;
   line(ctx, PAD, y, CARD_W - PAD * 2);
   y += 30;
 
-  text(ctx, '스쿼드 총 대미지', PAD, y, 12, COLOR.muted, 500);
+  text(ctx, 'スカッド総ダメージ', PAD, y, 12, COLOR.muted, 500);
   text(ctx, formatDamage(entry.result.squadTotal), CARD_W - PAD, y + 4, 40, COLOR.ink, 800, 'right');
   y += 26;
   text(ctx, formatDps(entry.result.squadTotal / entry.result.duration), CARD_W - PAD, y, 12, COLOR.muted, 500, 'right');
@@ -244,7 +244,7 @@ function drawSingle(
     portrait(ctx, row.portrait, PAD, y, 40, 7);
     const nameX = PAD + 52;
     text(ctx, ellipsis(ctx, row.name, 15, 700, 300), nameX, y + 17, 15, COLOR.ink, 700);
-    text(ctx, `${row.share.toFixed(1)}% 기여`, nameX, y + 34, 11, COLOR.muted, 500);
+    text(ctx, `${row.share.toFixed(1)}% 貢献`, nameX, y + 34, 11, COLOR.muted, 500);
     text(ctx, formatDamage(row.damage), CARD_W - PAD, y + 18, 19, COLOR.cyan, 800, 'right');
     text(ctx, formatDps(row.damage / entry.result.duration), CARD_W - PAD, y + 34, 11, COLOR.muted, 500, 'right');
 
@@ -262,8 +262,8 @@ function drawSingle(
       ctx.fillStyle = COLOR.amber;
       ctx.fillRect(PAD + normalW, barY, skillW, 4);
       const pct = (part: number) => (part / split * 100).toFixed(1);
-      text(ctx, `평타 ${formatDamage(row.normal)} (${pct(row.normal)}%)`, PAD, barY + 20, 11, COLOR.cyan, 600);
-      text(ctx, `스킬 ${formatDamage(row.skill)} (${pct(row.skill)}%)`, PAD + 172, barY + 20, 11, COLOR.amber, 600);
+      text(ctx, `通常 ${formatDamage(row.normal)} (${pct(row.normal)}%)`, PAD, barY + 20, 11, COLOR.cyan, 600);
+      text(ctx, `スキル ${formatDamage(row.skill)} (${pct(row.skill)}%)`, PAD + 172, barY + 20, 11, COLOR.amber, 600);
       y = barY + 34;
     } else {
       ctx.fillStyle = COLOR.cyan;
@@ -278,7 +278,7 @@ function drawSingle(
   y = factChips(ctx, conditionChips(meta, entry), PAD, y);
   y += 26;
   text(ctx, meta.siteUrl, PAD, y, 11, COLOR.muted, 500);
-  text(ctx, `${entry.result.hitCount.toLocaleString('en-US')} 히트`, CARD_W - PAD, y, 11, COLOR.muted, 500, 'right');
+  text(ctx, `${entry.result.hitCount.toLocaleString('en-US')} ヒット`, CARD_W - PAD, y, 11, COLOR.muted, 500, 'right');
   return y + PAD - 6;
 }
 
@@ -298,14 +298,14 @@ function drawBatch(
   let y = PAD + 16;
 
   text(ctx, `NIKKE SQUAD SIM · ${decks.length} DECK · ${duration}s`, PAD, y, 11, COLOR.cyan, 800);
-  text(ctx, '전체 덱 총 대미지', width - PAD, y, 12, COLOR.muted, 500, 'right');
+  text(ctx, '全デッキ総ダメージ', width - PAD, y, 12, COLOR.muted, 500, 'right');
   y += 30;
   ctx.font = `800 26px ${FONT}`;
   ctx.fillStyle = COLOR.ink;
   ctx.textAlign = 'left';
-  ctx.fillText(`${decks.length}덱 전투 `, PAD, y);
-  const titleWidth = ctx.measureText(`${decks.length}덱 전투 `).width;
-  text(ctx, '결과', PAD + titleWidth, y, 26, COLOR.amber, 800);
+  ctx.fillText(`${decks.length}デッキ戦闘 `, PAD, y);
+  const titleWidth = ctx.measureText(`${decks.length}デッキ戦闘 `).width;
+  text(ctx, '結果', PAD + titleWidth, y, 26, COLOR.amber, 800);
   text(ctx, formatDamage(batch.total), width - PAD, y + 8, 44, COLOR.ink, 800, 'right');
 
   y += 30;
@@ -322,7 +322,7 @@ function drawBatch(
     const x = PAD + index * (colW + COL_GAP);
     let cy = top;
 
-    text(ctx, `덱 ${entry.deckId}`, x, cy, 13, COLOR.ink, 700);
+    text(ctx, `デッキ ${entry.deckId}`, x, cy, 13, COLOR.ink, 700);
     text(ctx, formatDamage(entry.result.squadTotal), x + colW, cy, 15, COLOR.cyan, 800, 'right');
     cy += 10;
     line(ctx, x, cy, colW);
@@ -347,11 +347,11 @@ function drawBatch(
   y += 22;
 
   const first = decks[0];
-  y = factChips(ctx, first ? conditionChips(meta, first) : [`${duration}초 전투`], PAD, y);
+  y = factChips(ctx, first ? conditionChips(meta, first) : [`${duration}秒戦闘`], PAD, y);
   y += 26;
   const hits = decks.reduce((sum, entry) => sum + entry.result.hitCount, 0);
   text(ctx, meta.siteUrl, PAD, y, 11, COLOR.muted, 500);
-  text(ctx, `${decks.length}덱 · ${hits.toLocaleString('en-US')} 히트`, width - PAD, y, 11, COLOR.muted, 500, 'right');
+  text(ctx, `${decks.length}デッキ · ${hits.toLocaleString('en-US')} ヒット`, width - PAD, y, 11, COLOR.muted, 500, 'right');
   return y + PAD - 6;
 }
 
@@ -374,7 +374,7 @@ export function renderReport(
 
   const measure = createCanvas();
   const measureCtx = measure.getContext('2d');
-  if (!measureCtx) throw new Error('캔버스를 사용할 수 없는 브라우저입니다.');
+  if (!measureCtx) throw new Error('このブラウザではキャンバスを使用できません。');
   const single = batch.decks[0];
   const height = multi
     ? drawBatch(measureCtx, batch, meta, portraits, width)
@@ -384,7 +384,7 @@ export function renderReport(
   canvas.width = Math.round(width * SCALE);
   canvas.height = Math.round(height * SCALE);
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('캔버스를 사용할 수 없는 브라우저입니다.');
+  if (!ctx) throw new Error('このブラウザではキャンバスを使用できません。');
   ctx.scale(SCALE, SCALE);
 
   ctx.fillStyle = COLOR.bg;
@@ -402,7 +402,7 @@ export function renderReport(
 export const canvasToBlob = (canvas: HTMLCanvasElement): Promise<Blob> => new Promise((resolve, reject) => {
   canvas.toBlob((blob) => {
     if (blob) resolve(blob);
-    else reject(new Error('이미지를 만들지 못했습니다.'));
+    else reject(new Error('画像を生成できませんでした。'));
   }, 'image/png');
 });
 

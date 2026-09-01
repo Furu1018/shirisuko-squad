@@ -82,7 +82,7 @@ describe('report image', () => {
     // jsdom은 getContext가 null이다 — 캔버스를 못 쓰는 브라우저와 같은 상황.
     const batch = batchOf([entry(1, ['리타', '크라운'], 1000)]);
     expect(() => renderReport(batch, meta, new Map()))
-      .toThrowError('캔버스를 사용할 수 없는 브라우저입니다.');
+      .toThrowError('このブラウザではキャンバスを使用できません。');
   });
 
   it('gives up on portraits that never load so the report still renders', async () => {
