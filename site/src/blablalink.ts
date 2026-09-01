@@ -1,3 +1,4 @@
+import { NO_CUBE } from './character-settings';
 import type {
   CharacterMeta,
   CharacterOverrides,
@@ -243,7 +244,7 @@ export function areaToOverrides(
     else if (!detail.harmony_cube_tid) {
       // 「取込が持っていない」ではなく「着けていない」— 区別しないと、外したキューブが
       // マージで前回の値のまま残る
-      override.cube = { name: '없음', level: 0 };
+      override.cube = { name: NO_CUBE, level: 0 };
       noCube += 1;
     }
 

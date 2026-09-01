@@ -4814,7 +4814,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         cell(num(entry.overload.element));
         cell(num(entry.overload.atk));
         cell(num(entry.overload.ammo));
-        cell(!entry.cubeName || entry.cubeName === '없음' ? '—' : entry.cubeName);
+        cell(!entry.cubeName || entry.cubeName === NO_CUBE ? '—' : entry.cubeName);
         cell(entry.favorite > 0
           ? `お気に入り ${'★'.repeat(entry.favorite)}`
           : (entry.collectionStage && entry.collectionStage !== '없음' ? entry.collectionStage : '—'));

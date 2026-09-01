@@ -6,6 +6,7 @@
 //
 // 判定の芯: **所持しているか** は「ロスターに行があるか」で決める。
 // 取込は所持ニケだけを返すので、行の有無がそのまま所持の有無になる。
+import { NO_CUBE } from './character-settings';
 import type { CharacterMeta, CharacterOverrides } from './types';
 
 /** 1人ぶんの育成の読み取り結果。 */
@@ -44,7 +45,6 @@ export interface RosterSummary {
   noCube: number;
 }
 
-const NO_CUBE = '없음';
 
 /** ロスターの1行を読みやすい形に。取込が持たない項目は null のままにして「不明」と「0」を混同しない。 */
 export function readEntry(
