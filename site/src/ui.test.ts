@@ -2159,10 +2159,12 @@ describe('calculator UI', () => {
     toggle.dispatchEvent(new Event('change'));
 
     root.querySelector<HTMLFormElement>('form')!.requestSubmit();
-    await flush();
-
-    expect(root.querySelector('[data-errors]')?.textContent)
-      .toContain('デッキ 1 · 리타: 限界突破段階は 0~10 の整数である必要があります。');
+    // 1ティック待つだけだと全テスト同時実行の負荷で取りこぼすことがあった (3回に1回ほど)。
+    // 条件が満たされるまで待つ形にする — 検証している中身 (この文言が出て、計算は走らない) は同じ。
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-errors]')?.textContent)
+        .toContain('デッキ 1 · 리타: 限界突破段階は 0~10 の整数である必要があります。');
+    });
     expect(client.simulateCalls).toBe(0);
   });
 
