@@ -5450,6 +5450,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     element<HTMLButtonElement>(root, '[data-board-skip]').addEventListener('click', () => {
       skippedImport = true;
       writeSkip(true);
+      // 「取り込み直す」で開いた状態も畳む。畳まないと STEP 1 から出られなくなる
+      // (forceStart が立ったままだと skippedImport を見る前に «出す» が勝つ)。
+      forceStart = false;
       renderBoardSync();
       scrollTo(boardMain);
     });

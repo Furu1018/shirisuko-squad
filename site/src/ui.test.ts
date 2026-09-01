@@ -1031,6 +1031,22 @@ describe('calculator UI', () => {
     expect(boardMain().hidden).toBe(false);
   });
 
+  it('「取り込み直す」で開いた STEP 1 からも「取り込まずに試す」で出られる', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    dropCsv('#board-csv');
+    await vi.waitFor(() => { expect(boardStart().hidden).toBe(true); });
+    root.querySelector<HTMLButtonElement>('[data-board-sync-import]')!.click();
+    expect(boardStart().hidden).toBe(false);
+
+    // ここで «やっぱりやめる» ができないと STEP 1 から出られなくなる
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    expect(boardStart().hidden).toBe(true);
+    expect(boardMain().hidden).toBe(false);
+  });
+
   it('STEP 1 と帯は同時に出ない', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
