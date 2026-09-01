@@ -760,6 +760,15 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
   const ask = pick(panel, '[data-union-ask]');
   const askText = pick(panel, '[data-union-ask-text]');
 
+  // プロキシ (Cloudflare Worker) 未設定でもタブ自体は出す — しりすこスクワッド β。
+  // サーバースキャン (`${proxy}/sync`) だけ使えないので、その入口を隠して理由を書く。
+  // 「直接取得」(Blablalink コンソールのスニペット)・CSV・個人用モードはプロキシ無しで動く。
+  if (!deps.proxy) {
+    scanButton.hidden = true;
+    scanStop.hidden = true;
+    scanStatus.textContent = 'サーバースキャンは未設定です (Blablalink プロキシなし)。「直接取得」か CSV / 手入力で使えます。';
+  }
+
   const setBar = (bar: HTMLElement, done: number, total: number) => {
     bar.hidden = total === 0;
     const fill = bar.firstElementChild as HTMLElement | null;
