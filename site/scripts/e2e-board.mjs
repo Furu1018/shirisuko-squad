@@ -74,6 +74,7 @@ try {
   console.log(`[${lap()}] FAILED: ${e.message}`);
 } finally {
   console.log('errors:', errors.length ? errors.slice(0, 10) : 'none');
-  if (browser) await browser.close().catch(() => {});   // 起動できていれば必ず閉じる
+  // 起動できていれば必ず閉じる。閉じられなかったのも失敗として数える (Chrome が残る)
+  if (browser) await browser.close().catch((e) => { failed = true; console.log(`close failed: ${e.message}`); });
 }
 process.exit(failed || errors.length > 0 ? 1 : 0);
