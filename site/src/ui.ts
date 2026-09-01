@@ -570,10 +570,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             </li>
           </ol>`}
           <div class="board-start-alt">
-            <label class="roster-import" title="Letsdoro のニケ情報 CSV を読み込みます">
-              <input id="board-csv" type="file" accept=".csv,text/csv" hidden />
-              <span>Letsdoro CSV を読み込む</span>
-            </label>
+            <input id="board-csv" type="file" accept=".csv,text/csv" hidden />
+            <button type="button" class="roster-import" data-board-csv-open title="Letsdoro のニケ情報 CSV を読み込みます">Letsdoro CSV を読み込む</button>
             <button type="button" class="roster-info" data-board-doro aria-label="Letsdoro CSV の入手方法" title="Letsdoro で CSV を入手する方法">i</button>
             <button type="button" class="board-start-skip" data-board-skip>取り込まずに試す</button>
           </div>
@@ -801,10 +799,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             <div><h2 id="squad-heading">編成とキャラクター設定</h2></div>
             <div class="squad-tools">
               <span class="roster-import-group">
-                <label class="roster-import" title="Letsdoro のニケ情報 CSV を読み込み、すべてのニケ設定に適用します">
-                  <input id="roster-csv" type="file" accept=".csv,text/csv" hidden />
-                  <span>Letsdoro CSV を読み込む</span>
-                </label>
+                <input id="roster-csv" type="file" accept=".csv,text/csv" hidden />
+                <button type="button" class="roster-import" data-roster-csv-open title="Letsdoro のニケ情報 CSV を読み込み、すべてのニケ設定に適用します">Letsdoro CSV を読み込む</button>
                 <button type="button" class="roster-info" data-doro-open aria-label="Letsdoro CSV の入手方法" title="Letsdoro で CSV を入手する方法">i</button>
               </span>
               ${blablaProxy ? '<button type="button" class="roster-import" data-blabla-open title="Blablalink のプロフィール URL から所持ニケの育成状況を一括で読み込みます">Blablalink 連携</button>' : ''}
@@ -4008,6 +4004,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   };
   rosterInput.addEventListener('change', () => { void importRosterCsv(rosterInput); });
+  element<HTMLButtonElement>(root, '[data-roster-csv-open]').addEventListener('click', () => rosterInput.click());
 
   // 블라블라링크 연동. 프록시가 설정된 빌드에서만 마크업이 있으므로 없으면 통째로 건너뛴다.
   if (blablaProxy) {
@@ -5406,12 +5403,22 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       } catch { /* 覚えられなくても導線は動く */ }
     };
     let skippedImport = readSkip();
+    // «取り込み直す» を押して STEP 1 を開いている最中か。出し分けは renderBoardSync に一本化し、
+    // ここ以外で hidden を直接いじらない (帯を隠し忘れて STEP 1 と二重に出ていた)。
+    let forceStart = false;
 
+    // «取り込み直す» で開いた STEP 1 は、新しい取込が着くまで開けておく。
+    // 描画のたびに閉じると、同期中の再描画で勝手に消える。
+    let lastSyncAt = syncMeta?.at ?? null;
     renderBoardSync = () => {
       const count = Object.keys(roster).length;
+      if ((syncMeta?.at ?? null) !== lastSyncAt) {
+        lastSyncAt = syncMeta?.at ?? null;
+        forceStart = false;
+      }
       // 取り込む前は STEP 1 だけを見せ、盤面は出さない。«読み込み → 3凸» の順に進ませる。
       const imported = Boolean(syncMeta) || count > 0;
-      boardStart.hidden = imported || skippedImport;
+      boardStart.hidden = !forceStart && (imported || skippedImport);
       boardMain.hidden = !boardStart.hidden;
       // STEP 1 が出ている間は帯を出さない — 同じことを二度言うと «次に何をするか» がぼやける
       boardSync.hidden = !boardStart.hidden;
@@ -5435,8 +5442,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     openBoardImport = () => {
       skippedImport = false;
       writeSkip(false);
-      boardStart.hidden = false;
-      boardMain.hidden = true;
+      forceStart = true;
+      renderBoardSync();
       scrollTo(boardStart);
     };
     boardReimport.addEventListener('click', () => openBoardImport());
@@ -5448,6 +5455,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     });
     const boardCsv = element<HTMLInputElement>(root, '#board-csv');
     boardCsv.addEventListener('change', () => { void importRosterCsv(boardCsv); });
+    // label + hidden な input はキーボードで到達できないので、押せるボタンから開く
+    element<HTMLButtonElement>(root, '[data-board-csv-open]').addEventListener('click', () => boardCsv.click());
     element<HTMLButtonElement>(root, '[data-board-doro]').addEventListener('click', () => {
       element<HTMLElement>(root, '[data-doro-modal]').hidden = false;
     });

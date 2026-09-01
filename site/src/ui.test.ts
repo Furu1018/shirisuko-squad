@@ -960,6 +960,7 @@ describe('calculator UI', () => {
   // ── 取り込みの導線 (STEP 1 → 3凸) ──
   const boardStart = () => root.querySelector<HTMLElement>('[data-board-start]')!;
   const boardMain = () => root.querySelector<HTMLElement>('[data-board-main]')!;
+  const boardSync = () => root.querySelector<HTMLElement>('[data-board-sync]')!;
   const CSV_HEADER = [
     '이름', '돌파', '코강', '스킬1', '스킬2', '버스트스킬',
     '우코(%)', '공증(%)', '방어(%)', '장탄(%)', '크확(%)', '크댐(%)', '차속(%)', '차댐(%)', '명중(%)',
@@ -1019,6 +1020,52 @@ describe('calculator UI', () => {
     expect(reimport.hidden).toBe(false);
     reimport.click();
     expect(boardStart().hidden).toBe(false);
+    // STEP 1 を出している間は帯を出さない — 同じことを二度言わせない
+    expect(boardSync().hidden).toBe(true);
+    expect(boardMain().hidden).toBe(true);
+
+    // 取り込み直すと STEP 1 が閉じ、帯が戻る
+    dropCsv('#board-csv');
+    await vi.waitFor(() => { expect(boardStart().hidden).toBe(true); });
+    expect(boardSync().hidden).toBe(false);
+    expect(boardMain().hidden).toBe(false);
+  });
+
+  it('STEP 1 と帯は同時に出ない', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    expect(boardStart().hidden).toBe(false);
+    expect(boardSync().hidden).toBe(true);
+
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    expect(boardStart().hidden).toBe(true);
+    expect(boardSync().hidden).toBe(false);
+  });
+
+  it('CSV の取り込みはキーボードで押せるボタンから開く', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // label + hidden な input はキーボードで到達できないので、押せるボタンから開く
+    const opensPicker = (open: HTMLButtonElement, input: HTMLInputElement) => {
+      expect(open.tagName).toBe('BUTTON');
+      let opened = 0;
+      input.click = () => { opened += 1; };
+      open.click();
+      return opened;
+    };
+
+    expect(opensPicker(
+      root.querySelector<HTMLButtonElement>('[data-board-csv-open]')!,
+      root.querySelector<HTMLInputElement>('#board-csv')!,
+    )).toBe(1);
+    expect(opensPicker(
+      root.querySelector<HTMLButtonElement>('[data-roster-csv-open]')!,
+      root.querySelector<HTMLInputElement>('#roster-csv')!,
+    )).toBe(1);
   });
 
   it('プロキシが無いビルドでは、存在しないボタンを案内しない', () => {
