@@ -926,6 +926,38 @@ describe('calculator UI', () => {
     expect(saved.decks[0]!.squad.filter(Boolean).sort()).toEqual(['리타', '크라운'].sort());
   });
 
+  it('「キューブを着けていない」は保存され、再読込しても既定キューブに戻らない', () => {
+    // Blablalink はキューブ未装着を明示的に出す。これを「知らないキューブ」として
+    // 消すと、外したはずのキューブが取り込み直しのたびに戻る。
+    localStorage.setItem('nikke-state-v1', JSON.stringify({
+      decks: [{ id: 1, squad: ['리타', '', '', '', ''],
+        characters: { 리타: { cube: { name: '없음', level: 0 } } } }],
+      fiveDeckMode: false, activeDeckId: 1,
+    }));
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const saved = JSON.parse(localStorage.getItem('nikke-state-v1')!) as
+      { decks: Array<{ characters: Record<string, { cube?: { name: string } }> }> };
+    expect(saved.decks[0]!.characters['리타']?.cube).toEqual({ name: '없음', level: 0 });
+  });
+
+  it('「キューブを着けていない」で計算をはじかない', async () => {
+    localStorage.setItem('nikke-state-v1', JSON.stringify({
+      decks: [{ id: 1, squad: ['리타', '', '', '', ''],
+        characters: { 리타: { cube: { name: '없음', level: 0 } } } }],
+      fiveDeckMode: false, activeDeckId: 1,
+    }));
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await flush();
+    expect(root.querySelector('[data-errors]')!.textContent).not.toContain('キューブ設定');
+  });
+
   it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

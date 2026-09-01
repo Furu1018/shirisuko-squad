@@ -154,7 +154,7 @@ export function parseRosterCsv(text: string, settings: SettingsCatalog): RosterI
     if (Object.keys(equipLevels).length > 0) override.equipLevels = equipLevels;
 
     overrides[name] = override;
-    matched.push(name);
+    if (!matched.includes(name)) matched.push(name);
   }
 
   return { overrides, matched, unmatched };

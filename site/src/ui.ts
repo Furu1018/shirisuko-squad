@@ -1,6 +1,6 @@
 import { elementLabel, growthLabel, labelFor, labelForClass, labelForMaker } from './display-name';
 import { ResultCache, type StorageLike, type StorageSource } from './cache';
-import { renderCharacterSettings, type CharPanelKind } from './character-settings';
+import { NO_CUBE, renderCharacterSettings, type CharPanelKind } from './character-settings';
 import {
   BLABLA_SERVERS,
   areaToOverrides,
@@ -475,7 +475,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         if (!cube) continue;
         const renamed = LEGACY_CUBE_NAMES[cube.name];
         if (renamed) cube.name = renamed;
-        if (!settings.cubes[cube.name]) delete overrides.cube;
+        // NO_CUBE は「知らないキューブ」ではなく「着けていない」— 消すと既定キューブに戻る
+        if (cube.name !== NO_CUBE && !settings.cubes[cube.name]) delete overrides.cube;
       }
       for (const overrides of Object.values(deck.characters ?? {})) migrateOverloadLines(overrides);
     }
@@ -2229,7 +2230,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           messages.push(`デッキ ${deck.id} · ${labelFor(name)}: ${meta?.label ?? key} の値が許容範囲を外れています。`);
         }
       }
-      if (custom.cube && (!settings.cubes[custom.cube.name] || !Number.isInteger(custom.cube.level)
+      // 「着けていない」(NO_CUBE・レベル0) は正当な状態。カタログに無いキューブとして弾かない
+      const noCube = custom.cube?.name === NO_CUBE;
+      if (custom.cube && !noCube && (!settings.cubes[custom.cube.name] || !Number.isInteger(custom.cube.level)
         || custom.cube.level < 1 || custom.cube.level > 15)) {
         messages.push(`デッキ ${deck.id} · ${labelFor(name)}: キューブ設定を確認してください。`);
       }
