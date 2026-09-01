@@ -19,7 +19,7 @@
   --surface-2: #f1f2f4;
   --surface-3: #e9ecef;
   --ink: #14161a;
-  --ink-2: #63686f;   /* 淡い面 (#f1f2f4) の上でも 4.5:1 を満たす */
+  --ink-2: #5f646b;   /* 淡い面 (#f1f2f4) に淡い塗りが重なった上でも 4.5:1 を満たす */
   --ink-3: #676d74;   /* 補助の文字。9〜11px でしか使わないので淡い面の上を基準にする */
   --line: rgb(var(--line-rgb) / 0.14);
 
@@ -40,7 +40,7 @@
   --scrim: rgb(20 22 26 / .45);
   /* 琥珀は白地だと 2.15:1 しかない。**文字に使うときは**濃い側を使う */
   --amber-text: #92400e;   /* 琥珀の淡い塗りの上に載ることがあるので、白地基準より濃くする */
-  --danger: #b3242a;   /* 同系色の淡い塗りの上の文字にもなるので濃い側 */
+  --danger: #ae2329;   /* 同系色の淡い塗りの上の文字にもなるので濃い側 */
   --danger-soft: #8a1b20;
   --success: #0f7a44;
   --info: #6c42f0;
@@ -222,7 +222,7 @@ h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
 .custom-help > summary { padding: 9px 12px; cursor: pointer; color: var(--cyan); font-size: 12px; font-weight: 700; }
 .custom-help-body { padding: 4px 12px 12px; color: var(--ink-2); font-size: 11px; line-height: 1.7; }
 .custom-help-body p { margin: 6px 0; }
-.custom-help-body code { padding: 1px 5px; background: rgb(var(--accent-rgb) / .1); border-radius: 4px; color: var(--accent); font: 11px ui-monospace, monospace; }
+.custom-help-body code { padding: 1px 5px; background: rgb(var(--accent-rgb) / .1); border-radius: 4px; color: var(--accent-deep); font: 11px ui-monospace, monospace; }
 .custom-help-note { color: var(--muted); }
 .custom-btn { min-height: 38px; padding: 0 14px; border: 1px solid rgb(var(--accent-rgb) / .3); background: rgb(var(--accent-rgb) / .08); color: var(--ink); font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer; }
 .custom-btn:hover { background: rgb(var(--accent-rgb) / .16); }
@@ -235,7 +235,7 @@ h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
 .custom-msg,
 .share-msg { margin: 12px 0 0; padding: 9px 12px; background: rgb(var(--danger-rgb) / .1); border-left: 3px solid var(--danger); color: var(--danger-soft); font-size: 12px; line-height: 1.5; }
 .custom-msg.is-ok,
-.share-msg.is-ok { background: rgb(var(--accent-rgb) / .1); border-left-color: var(--cyan); color: var(--accent); }
+.share-msg.is-ok { background: rgb(var(--accent-rgb) / .1); border-left-color: var(--cyan); color: var(--accent-deep); }
 .custom-list { margin-top: 16px; }
 .custom-list-title { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .1em; }
 .custom-list-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; }
@@ -263,7 +263,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 /* 덱 복사 */
 .deck-copy { position: relative; margin-top: 10px; }
 .deck-copy-open { padding: 6px 10px; background: rgb(var(--accent-rgb) / .07); border: 1px solid rgb(var(--accent-rgb) / .22); color: var(--ink-2); font-size: 10px; cursor: pointer; }
-.deck-copy-open:hover { background: rgb(var(--accent-rgb) / .14); }
+.deck-copy-open:hover { background: rgb(var(--accent-rgb) / .10); }
 .deck-copy-panel { margin-top: 8px; padding: 12px; background: rgb(var(--surface-rgb) / .8); border: 1px solid rgb(var(--accent-rgb) / .18); }
 .deck-copy-title { margin: 0 0 8px; color: var(--ink-2); font-size: 10px; }
 .deck-copy-targets { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -425,7 +425,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .enikk-exclude-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .enikk-exclude-chips:empty { display: none; }
 .enikk-exclude-chip { display: flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid rgb(var(--danger-rgb) / .45); border-radius: 999px; background: rgb(var(--danger-rgb) / .12); color: var(--danger); font: 700 10px ui-monospace, monospace; cursor: pointer; }
-.enikk-exclude-chip:hover { background: rgb(var(--danger-rgb) / .26); border-color: var(--danger); }
+.enikk-exclude-chip:hover { background: rgb(var(--danger-rgb) / .18); border-color: var(--danger); }
 .enikk-exclude-chip b { font-size: 10px; }
 .enikk-exclude .field-note { margin: 8px 0 0; }
 
@@ -1372,7 +1372,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .burst-now-stage { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; }
 .burst-now-stage.stage-1 { background: rgb(var(--amber-rgb) / .16); color: var(--amber-text); }
 .burst-now-stage.stage-2 { background: rgb(var(--accent-rgb) / .16); color: var(--cyan); }
-.burst-now-stage.stage-3 { background: rgba(167,139,250,.18); color: var(--info); }
+.burst-now-stage.stage-3 { background: rgba(167,139,250,.18); color: var(--accent-deep); }
 .burst-now-pick { color: var(--muted); font-size: 12px; }
 
 .burst-picks { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }

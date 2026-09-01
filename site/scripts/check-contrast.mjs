@@ -8,6 +8,17 @@
 //   node scripts/check-contrast.mjs --all  通った組み合わせも全部出す
 //
 // 判定は WCAG の相対輝度。小さい文字 (9〜13px) は 4.5:1、大きい/太い文字は 3:1 を目安にする。
+//
+// ## 守れていない範囲 (ここを «守れている» と読み替えないこと)
+//
+// **キャラ画像の上に載る文字は検算できない**。下地が画像なので、CSS をいくら読んでも
+// 実効の明るさが決まらない。`backdrop-filter` の裏に何が来るかも同じ理由で分からない。
+// 該当する箇所は ROADMAP.md に列挙してあり、**目視でしか確かめられない**:
+//   .filter-panel の見出し / .roster-burst / .growth-stepper / .growth-core
+//
+// opacity を禁じたのは «CSS だけでは追えない書き方» を減らすためだが、
+// この一群は禁じるだけでは消えない (画像の上に文字を置く設計そのものを変える必要がある)。
+// つまりこの検算が緑でも、配色の安全が全部保証されたわけではない。
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,8 +74,13 @@ function resolve色(value, bg, depth = 0) {
   if (!value || depth > 6) return null;
   const v = value.trim();
   if (/^#[0-9a-f]{3,8}$/i.test(v)) return v.length > 7 ? v.slice(0, 7) : v;
-  const varOnly = v.match(/^var\((--[a-z0-9-]+)\)$/i);
-  if (varOnly) return resolve色(TOKENS[varOnly[1]], bg, depth + 1);
+  // `var(--x)` と `var(--x, 予備)`。予備を読めないと規則ごと未検査になる
+  const varRef = v.match(/^var\(\s*(--[a-z0-9-]+)\s*(?:,\s*([\s\S]+))?\)$/i);
+  if (varRef) {
+    const defined = TOKENS[varRef[1]];
+    if (defined !== undefined) return resolve色(defined, bg, depth + 1);
+    return varRef[2] ? resolve色(varRef[2], bg, depth + 1) : null;
+  }
   // rgb(var(--x) / a) / rgb(var(--x))
   const rgbVar = v.match(/^rgba?\(\s*var\((--[a-z0-9-]+)\)\s*(?:\/\s*([0-9.]+)\s*)?\)$/i);
   if (rgbVar) {
@@ -92,8 +108,14 @@ function resolve色(value, bg, depth = 0) {
 function opacityOf(body) {
   const m = body.match(/(?:^|;)\s*opacity:\s*([0-9.]+)/);
   const v = m ? Number(m[1]) : 1;
-  return Number.isFinite(v) && v > 0 && v <= 1 ? v : 1;
+  return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 1;
 }
+
+/**
+ * `opacity: 0` は「読ませない」指定。読み上げにだけ残す入力の隠し方 (`.toggle-field input`)
+ * がこれなので、薄めているのではなく**消えている**ものとして検算から外す。
+ */
+const isHidden = (body) => opacityOf(body) === 0;
 
 /** その規則の文字の大きさ。小さいものだけ 4.5:1 を求める。 */
 function fontPx(body) {
@@ -107,6 +129,9 @@ function fontPx(body) {
 // ── 規則を集める ─────────────────────────────────────────────────────────
 const RULES = [];
 {
+  // `@media` の中の規則もここで拾える。囲いの直後の1つ目が食われそうに見えるが、
+  // 本体側の `[^{}]*` が `{` を跨げないため、正規表現は囲いの波括弧の後ろで
+  // 勝手に再同期する (囲いを外す前処理を入れても拾える規則数は 971 で変わらなかった)。
   const RULE = /([^{}]+)\{([^{}]*)\}/g;
   let r;
   while ((r = RULE.exec(CSS)) !== null) {
@@ -135,7 +160,7 @@ const RULES = [];
  * 逃げ道は2つだけ — 押せない部品 (`:disabled`) と、読ませる文字ではない飾り
  * (直前に `contrast-ignore` と書く)。どちらも上で既に除いてある。
  */
-const banned = RULES.filter(({ body }) => opacityOf(body) < 1);
+const banned = RULES.filter(({ body }) => opacityOf(body) < 1 && !isHidden(body));
 
 const colorOf = (body) => body.match(/(?:^|;|\{)\s*color:\s*([^;]+)/)?.[1];
 const bgOf = (body) => body.match(/(?:^|;)\s*background(?:-color)?:\s*([^;]+)/)?.[1];
@@ -180,7 +205,9 @@ for (const { selector, body } of RULES) {
   const large = px !== null && Number(px) > 0 && (Number(px) >= 24 || (Number(px) >= 18.66 && weight >= 700));
   const need = large ? 3 : 4.5;
 
-  for (const parent of bgDecl ? ['#ffffff'] : SURFACES) {
+  // 半透明の背景を «白地の上» とだけ仮定していた。実際は淡い面の上にも載るので
+  // 3面すべてで試す (透けた分だけ下地が効くため、面によって結果が変わる)。
+  for (const parent of SURFACES) {
     const bg = bgDecl ? resolve色(bgDecl[1], parent) : parent;
     if (!bg) continue;
     const fg = resolve色(colorDecl[1], bg);
