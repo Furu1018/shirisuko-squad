@@ -44,6 +44,7 @@ import {
 import { LATEST_NOTICE_ID, NOTICES, noticeFragment, noticeToShow } from './notices';
 import { mountSharePanel, squadPreview, type SharePanel } from './share-panel';
 import { startPresence } from './presence';
+import { UNION_SEASON, bossBattle } from './union-bosses';
 import { mountUnionRaid } from './union-raid';
 import { EXTERNAL_LINKS, hostOf } from './external-links';
 import {
@@ -497,8 +498,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
       <nav class="view-tabs" aria-label="画面切り替え">
         <button type="button" class="view-tab is-on" data-view-tab="calc" aria-pressed="true">計算機</button>
-        ${blablaProxy ? '<button type="button" class="view-tab" data-view-tab="union" aria-pressed="false">ユニオンレイド<b class="tab-beta">BETA</b></button>' : ''}
-        <button type="button" class="view-tab" data-view-tab="enikk" aria-pressed="false">ENIKK 조합 가져오기</button>
+        <button type="button" class="view-tab" data-view-tab="union" aria-pressed="false">ユニオンレイド<b class="tab-beta">BETA</b></button>
         <button type="button" class="view-tab" data-view-tab="links" aria-pressed="false">外部リンク</button>
       </nav>
 
@@ -787,6 +787,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <div class="disclosure-panel" data-advanced-battle-panel hidden>
             <div class="field-grid">
               <label><span>敵防御力</span><input id="enemy-def" type="number" min="0" max="999999" step="1" value="31784" /></label>
+              <div class="calc-boss-presets" data-boss-presets><span class="calc-boss-presets-label">${UNION_SEASON.label}</span></div>
               <label><span>乱数シード</span><input id="seed" type="number" min="0" max="2147483647" step="1" value="42" /></label>
               <label title="ゲージチャージだけの時間です。これに段階切り替えの0.3秒とバーストクールの余裕が加わるため、実際の空白はもっと長くなります。"><span>バーストゲージチャージ</span><div class="input-unit"><input id="burst-regen" type="number" min="0" max="20" step="0.1" value="2" /><em>秒</em></div></label>
               <label class="toggle-field deck-regen-toggle" title="バーストクールがずれるデッキだけ別の値で測りたいときにオンにします"><input id="burst-regen-per-deck" type="checkbox" /><span class="toggle"></span><span>バーストチャージをデッキごとに分ける</span></label>
@@ -4328,12 +4329,35 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   });
   applyParallel(false);
 
+  // ── 今シーズンのボスをワンタップで敵条件に (しりすこスクワッド) ──
+  // 敵コード・敵防御力だけ差し替え、他の条件 (戦闘時間・コア・回避区間) は今の値を残す。
+  // 値は writeBattle で入れ、通常の入力と同じ経路 (change) を流して要約・保存を追随させる。
+  {
+    const host = root.querySelector<HTMLElement>('[data-boss-presets]');
+    if (host) {
+      for (const boss of UNION_SEASON.bosses) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'roster-import calc-boss-preset';
+        button.dataset.bossPreset = boss.elementCode;
+        button.textContent = `${boss.name} · ${elementLabel(boss.elementCode)}`;
+        button.title = UNION_SEASON.note;
+        button.addEventListener('click', () => {
+          writeBattle(bossBattle(boss, readBattle()));
+          element<HTMLSelectElement>(root, '#enemy-code').dispatchEvent(new Event('change', { bubbles: true }));
+          element<HTMLInputElement>(root, '#enemy-def').dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        host.append(button);
+      }
+    }
+  }
+
   // ── 유니온 레이드 (BETA) ────────────────────────────────────────────────
   // 프록시가 있어야 유니온원 스펙을 받아 올 수 있다 — 없으면 탭 자체를 안 그렸다.
   const unionPanel = root.querySelector<HTMLElement>('[data-view="union"]');
-  if (unionPanel && blablaProxy) {
+  if (unionPanel) {
     mountUnionRaid({ panel: unionPanel }, {
-      proxy: blablaProxy,
+      proxy: blablaProxy || '',
       shareServer,
       settings,
       catalog: [...catalogByName.values()],
@@ -4394,6 +4418,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   for (const tab of root.querySelectorAll<HTMLButtonElement>('[data-view-tab]')) {
     tab.addEventListener('click', () => switchView(tab.dataset.viewTab as ViewName));
   }
+  // β の主役はユニオンレイド (3属性比較) なので最初に開く。計算機は「計算機」タブから
+  switchView('union');
 
   // ── 외부고리 ────────────────────────────────────────────────────────────
   // 표(`external-links.ts`)를 그대로 편다. 주소를 HTML에 박지 않는 이유는 고칠 곳을

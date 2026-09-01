@@ -1395,3 +1395,9 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
   .burst-slot-stage { font-size: 9px; }
   .burst-slot-face { width: 24px; height: 24px; }
 }
+
+/* しりすこスクワッド: 今シーズンのボスをワンタップで敵条件に */
+.calc-boss-presets { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.calc-boss-presets-label { font-size: 12px; color: var(--muted, #8fa3b5); margin-right: 4px; }
+.union-preset-row { align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.union-preset-row .union-note { font-size: 12px; opacity: .8; }

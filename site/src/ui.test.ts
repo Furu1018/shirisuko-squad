@@ -1316,7 +1316,8 @@ describe('calculator UI', () => {
     expect(root.querySelector<HTMLElement>('[data-deck-copy-panel]')!.hidden).toBe(false);
   });
 
-  it('breaks the enikk player list into pages of ten', () => {
+  // しりすこスクワッド β: enikk (ソロレイド順位取込) はタブを出していないので保留 — 上流同期時に復活させるなら it に戻す
+  it.skip('breaks the enikk player list into pages of ten', () => {
     const players = Array.from({ length: 25 }, (_, i) => ({
       rank: i + 1, playerid: `p${i}`, server: 'KR', damage: 1000 - i, cp: 0,
       decks: [{ squad: names.slice(0, 5), damage: 100, cp: 0, usable: true }],
@@ -1341,7 +1342,7 @@ describe('calculator UI', () => {
     expect(root.querySelector('.enikk-page-info')!.textContent).toBe('3쪽 중 3쪽');
   });
 
-  it('ignores an enikk cache left by an older shape instead of crashing', () => {
+  it.skip('ignores an enikk cache left by an older shape instead of crashing', () => {
     // v1은 `players`가 숫자였다. 그 값을 새 코드가 배열로 읽으면 터진다.
     localStorage.setItem('nikke-enikk-v1', JSON.stringify({ players: 300, comps: [] }));
     localStorage.setItem('nikke-enikk-v2', JSON.stringify({ players: 300, comps: [] }));
