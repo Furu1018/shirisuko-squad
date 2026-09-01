@@ -48,6 +48,10 @@ import { UNION_SEASON, bossBattle } from './union-bosses';
 import { applyImportedRoster } from './roster-merge';
 import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
 import {
+  BEATS, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, baselineBattle, loadPlans, plansOf,
+  removePlan, savePlans, type ElementPlans, type PlanElement,
+} from './element-plans';
+import {
   canReSync, loadSyncMeta, saveSyncMeta, syncSummary, type SyncMeta,
 } from './sync-meta';
 import { mountUnionRaid } from './union-raid';
@@ -504,9 +508,18 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       <nav class="view-tabs" aria-label="画面切り替え">
         <button type="button" class="view-tab is-on" data-view-tab="calc" aria-pressed="true">計算機</button>
         <button type="button" class="view-tab" data-view-tab="roster" aria-pressed="false">マイロスター</button>
+        <button type="button" class="view-tab" data-view-tab="plans" aria-pressed="false">属性別編成</button>
         <button type="button" class="view-tab" data-view-tab="union" aria-pressed="false">ユニオンレイド<b class="tab-beta">BETA</b></button>
         <button type="button" class="view-tab" data-view-tab="links" aria-pressed="false">外部リンク</button>
       </nav>
+
+      <section class="panel plans-panel" data-view="plans" aria-labelledby="plans-heading" hidden>
+        <div class="section-heading">
+          <div><p class="step">PLANS</p><h2 id="plans-heading">属性別編成</h2></div>
+        </div>
+        <p class="links-lede">コードごとに<b>本命の編成を3つまで</b>置いておく場所です。ここではボスの癖 (コア・パーツ・区間) を考えず、<b>有利コードだけ</b>を見ます。ボスに合わせた調整は計算機側で重ねてください。</p>
+        <div class="plans-groups" data-plans-groups></div>
+      </section>
 
       <section class="panel roster-panel" data-view="roster" aria-labelledby="roster-heading" hidden>
         <div class="section-heading">
@@ -3777,6 +3790,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 保存済みのデッキ設定は「その人がこの計算機で決めたこと」なので上書きしない。
   // マイロスターの描き直し。取込のたびに呼ぶ (中身は下で差し込む)。
   let renderMyRoster: () => void = () => undefined;
+  let renderPlans: () => void = () => undefined;
 
   const applyRosterToDecks = () => {
     for (const deck of decks) {
@@ -3990,7 +4004,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 300명을 한 줄로 늘어놓으면 스크롤이 끝없다 — 열 명씩 끊어 쪽으로 넘긴다.
   const ENIKK_PER_PAGE = 10;
   let enikkPage = 0;
-  let currentView: 'calc' | 'roster' | 'union' | 'enikk' | 'links' = 'calc';
+  let currentView: 'calc' | 'roster' | 'plans' | 'union' | 'enikk' | 'links' = 'calc';
 
   const readEnikkCache = (): EnikkImport | null => {
     try {
@@ -4441,6 +4455,144 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   });
   applyParallel(false);
 
+  // ── 属性別編成 (5属性 × 最大3案) ──
+  // 保存されるのは**顔ぶれだけ**。各キャラの育成値はロスター側を見るので、
+  // 取り込み直せばここの案も自動で新しい育成値で計算される。
+  {
+    const groupsBox = element<HTMLElement>(root, '[data-plans-groups]');
+    let plans: ElementPlans = loadPlans(resolveStorage());
+    const say = (element_: PlanElement, message: string, ok = false) => {
+      const note = groupsBox.querySelector<HTMLElement>(`[data-plans-note="${element_}"]`);
+      if (!note) return;
+      note.textContent = message;
+      note.hidden = !message;
+      note.classList.toggle('is-ok', ok);
+    };
+
+    const commit = (next: ElementPlans) => {
+      plans = next;
+      savePlans(resolveStorage(), plans);
+      renderPlans();
+    };
+
+    renderPlans = () => {
+      groupsBox.replaceChildren();
+      for (const code of PLAN_ELEMENTS) {
+        const group = el('div', 'plans-group');
+        group.dataset.plansGroup = code;
+
+        const head = el('div', 'plans-group-head');
+        const title = createText('h3', `${elementLabel(code)} 編成`);
+        const against = createText('span', `${elementLabel(BEATS[code])}ボス向け`, 'plans-against');
+        const save = el('button', 'roster-import', '今の編成を保存');
+        (save as HTMLButtonElement).type = 'button';
+        save.dataset.plansSave = code;
+        save.title = '計算機で今開いているデッキの顔ぶれを、この属性の案として保存します';
+        save.addEventListener('click', () => {
+          const result = addPlan(plans, code, activeDeck().squad);
+          if (result.added) { commit(result.plans); say(code, '保存しました。', true); return; }
+          say(code, result.reason === 'full'
+            ? `この属性は既に ${MAX_PLANS_PER_ELEMENT} 案あります。どれかを消してから保存してください。`
+            : result.reason === 'duplicate' ? '同じ顔ぶれの案が既にあります。'
+              : '計算機の編成が空です。先にニケを入れてください。');
+        });
+        const compare = el('button', 'roster-import', '3案を比較');
+        (compare as HTMLButtonElement).type = 'button';
+        compare.dataset.plansCompare = code;
+        compare.title = 'ボスの癖を外した同じ条件で、この属性の案を順に計算します';
+        compare.addEventListener('click', () => { void comparePlans(code, compare as HTMLButtonElement); });
+        head.append(title, against, save, compare);
+        group.append(head);
+
+        const note = el('p', 'plans-note');
+        note.dataset.plansNote = code;
+        note.hidden = true;
+        group.append(note);
+
+        const list = el('div', 'plans-list');
+        const saved = plansOf(plans, code);
+        if (saved.length === 0) {
+          list.append(createText('p', 'まだ案がありません。計算機で編成を組んで「今の編成を保存」を押してください。', 'plans-empty'));
+        }
+        saved.forEach((plan, index) => {
+          const row = el('div', 'plans-row');
+          row.dataset.plansRow = plan.id;
+          row.append(createText('b', `案 ${index + 1}`, 'plans-index'));
+          const members = el('span', 'plans-members');
+          for (const name of plan.squad.filter(Boolean)) {
+            members.append(createText('span', labelFor(name), 'plans-chip'));
+          }
+          row.append(members);
+          const score = el('span', 'plans-score');
+          score.dataset.plansScore = plan.id;
+          row.append(score);
+          const apply = el('button', 'roster-import', '計算機に入れる');
+          (apply as HTMLButtonElement).type = 'button';
+          apply.dataset.plansApply = plan.id;
+          apply.addEventListener('click', () => {
+            applyShareText(encodeShareCode([{ id: 1, squad: plan.squad, characters: {} }], false), 'one');
+            say(code, `案 ${index + 1} を計算機のデッキ ${activeDeckId} に入れました。`, true);
+          });
+          const drop = el('button', 'roster-import danger', '削除');
+          (drop as HTMLButtonElement).type = 'button';
+          drop.dataset.plansRemove = plan.id;
+          drop.addEventListener('click', () => { commit(removePlan(plans, code, plan.id)); });
+          row.append(apply, drop);
+          list.append(row);
+        });
+        group.append(list);
+        groupsBox.append(group);
+      }
+    };
+
+    // 同じ土俵 (ボスの癖なし) で順に計算し、最大値を 100% として並べる。
+    const comparePlans = async (code: PlanElement, button: HTMLButtonElement) => {
+      const saved = plansOf(plans, code);
+      if (saved.length === 0) { say(code, '比較する案がありません。'); return; }
+      const battle = baselineBattle(readBattle(), code);
+      const custom = customPayload();
+      button.disabled = true;
+      say(code, `計算中… 0/${saved.length}`);
+      const totals = new Map<string, number>();
+      try {
+        await prepared;
+        let done = 0;
+        for (const plan of saved) {
+          const deck: DeckState = {
+            id: 1,
+            squad: [...plan.squad],
+            // 育成値はロスターを正本にする — 取り込み直せばこの案も自動で新しい値になる
+            characters: Object.fromEntries(plan.squad.filter(Boolean)
+              .filter((name) => roster[name])
+              .map((name) => [name, cloneOverride(roster[name]!)])),
+          };
+          const request = requestForDeck(deck, battle, Object.keys(custom).length > 0 ? custom : undefined);
+          const problems = validateRequest(request);
+          if (problems.length > 0) { say(code, `計算できません — ${problems[0]}`); button.disabled = false; return; }
+          const key = cacheKey(request, version);
+          let result = cache.get(key);
+          if (!result) { result = await client.simulate(request); cache.set(key, result); }
+          totals.set(plan.id, result.squadTotal);
+          done += 1;
+          say(code, `計算中… ${done}/${saved.length}`);
+        }
+        const best = Math.max(...totals.values());
+        for (const [id, total] of totals) {
+          const cell = groupsBox.querySelector<HTMLElement>(`[data-plans-score="${id}"]`);
+          if (!cell) continue;
+          const share = best > 0 ? Math.round((total / best) * 1000) / 10 : 0;
+          cell.textContent = `${formatDamage(total)} (${share}%)`;
+          cell.classList.toggle('is-best', total === best);
+        }
+        say(code, `${elementLabel(BEATS[code])}ボス相当 · 戦闘 ${battle.duration}秒 · コアとパーツ無しで比較しました。`, true);
+      } catch (error) {
+        say(code, `計算に失敗しました — ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        button.disabled = false;
+      }
+    };
+  }
+
   // ── マイロスター (育成状況) ──
   // 取り込んだロスターを読むだけの画面。値は変えない — 変更は計算機のカード側に一本化する。
   {
@@ -4563,7 +4715,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   // ── 화면 전환 ───────────────────────────────────────────────────────────
   /** 위쪽 탭이 고를 수 있는 화면. 「외부고리」는 우리 것이 아닌 곳으로 나가는 판이다. */
-  type ViewName = 'calc' | 'roster' | 'union' | 'enikk' | 'links';
+  type ViewName = 'calc' | 'roster' | 'plans' | 'union' | 'enikk' | 'links';
 
   function switchView(view: ViewName) {
     currentView = view;
@@ -4791,6 +4943,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   updateRosterNote();
   renderSyncBox();
   renderMyRoster();
+  renderPlans();
   renderDeckTabs();
   renderSquad();
   // 판은 창이 아니라 늘 펼쳐져 있으므로 처음부터 그려 둔다.

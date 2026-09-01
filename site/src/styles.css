@@ -1421,3 +1421,23 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 .roster-table th { font-size: 11px; opacity: .7; font-weight: 700; position: sticky; top: 0; background: inherit; }
 .roster-table .roster-name { font-weight: 700; }
 .roster-table .roster-power { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* しりすこスクワッド: 属性別編成 */
+.plans-groups { display: flex; flex-direction: column; gap: 14px; }
+.plans-group { border: 1px solid rgba(146,176,201,.22); border-radius: 11px; padding: 12px 14px; }
+.plans-group-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.plans-group-head h3 { margin: 0; font-size: 15px; font-weight: 800; }
+.plans-against { font-size: 11px; opacity: .7; padding: 2px 8px; border-radius: 999px;
+  background: rgba(146,176,201,.16); }
+.plans-note { margin: 8px 0 0; font-size: 12px; opacity: .85; }
+.plans-note.is-ok { opacity: 1; }
+.plans-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.plans-empty { margin: 0; font-size: 12px; opacity: .7; }
+.plans-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 9px; border-radius: 8px; background: rgba(146,176,201,.08); }
+.plans-index { font-size: 12px; opacity: .75; min-width: 40px; }
+.plans-members { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
+.plans-chip { font-size: 11.5px; padding: 2px 7px; border-radius: 999px;
+  background: rgba(146,176,201,.18); white-space: nowrap; }
+.plans-score { font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 116px; text-align: right; }
+.plans-score.is-best { font-weight: 800; }

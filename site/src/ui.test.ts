@@ -847,6 +847,85 @@ describe('calculator UI', () => {
     expect(names()).toEqual(['앨리스', '리타']);   // 突破 8 → 0
   });
 
+  it('属性別編成は5属性ぶん出て、向き先のボスコードを添える', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const groups = [...root.querySelectorAll<HTMLElement>('[data-plans-group]')];
+    expect(groups.map((g) => g.dataset.plansGroup)).toEqual(['작열', '수냉', '풍압', '전격', '철갑']);
+    // 電撃編成は水冷ボス向け (エンジンの優越コード表どおり)
+    const denki = groups.find((g) => g.dataset.plansGroup === '전격')!;
+    expect(denki.querySelector('.plans-against')!.textContent).toBe('水冷ボス向け');
+    expect(denki.querySelector('.plans-empty')).not.toBeNull();
+  });
+
+  it('今の編成を保存し、3案までで打ち止め、消せる', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const groupOf = (code: string) =>
+      root.querySelector<HTMLElement>(`[data-plans-group="${code}"]`)!;
+    const saveIn = (code: string) =>
+      groupOf(code).querySelector<HTMLButtonElement>(`[data-plans-save="${code}"]`)!.click();
+
+    // 空の編成は保存しない (既定の編成が入っているので、まず全部外す)
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    saveIn('전격');
+    expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('空です');
+
+    chooseCharacter(root, 0, '리타');
+    saveIn('전격');
+    expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(1);
+
+    // 同じ顔ぶれは足さない
+    saveIn('전격');
+    expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('同じ顔ぶれ');
+    expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(1);
+
+    // 3案で打ち止め
+    chooseCharacter(root, 1, '크라운');
+    saveIn('전격');
+    chooseCharacter(root, 2, '앨리스');
+    saveIn('전격');
+    expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(3);
+    chooseCharacter(root, 3, '나가');
+    saveIn('전격');
+    expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('3 案あります');
+    expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(3);
+
+    // 保存はこのブラウザに残る
+    const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as
+      { byElement: Record<string, unknown[]> };
+    expect(stored.byElement['전격']).toHaveLength(3);
+
+    // 消せる
+    groupOf('전격').querySelector<HTMLButtonElement>('[data-plans-remove]')!.click();
+    expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(2);
+  });
+
+  it('保存した案を計算機のデッキに戻せる', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // 既定の編成が入っているので、まず空にしてから狙った2人を置く
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    chooseCharacter(root, 0, '리타');
+    chooseCharacter(root, 1, '크라운');
+    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+
+    // 計算機側を別の編成にしてから戻す
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    chooseCharacter(root, 0, '앨리스');
+    root.querySelector<HTMLButtonElement>('[data-plans-apply]')!.click();
+
+    const saved = JSON.parse(localStorage.getItem('nikke-state-v1')!) as
+      { decks: Array<{ squad: string[] }> };
+    expect(saved.decks[0]!.squad.filter(Boolean).sort()).toEqual(['리타', '크라운'].sort());
+  });
+
   it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
