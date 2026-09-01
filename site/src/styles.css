@@ -31,7 +31,7 @@
   --amber-hot: #e08600;
   --amber-soft: #7a4a00;   /* 淡い面の上に置く濃い琥珀の文字 */
   --amber-ink: #2a1a00;    /* 琥珀の面の上に置く文字 */
-  --cyan: #6c42f0;         /* 旧アクセント (シアン) の行き先 */
+  --cyan: #5730c9;         /* 旧アクセント (シアン) の行き先。淡い紫の塗りの上にも載るので濃い側 */
   /* --accent は上流から未定義のまま使われていた (.field-note.warning)。
      ライト化で参照箇所が増えたので、ここで正式に定める */
   --accent: #6c42f0;
@@ -40,7 +40,7 @@
   --scrim: rgb(20 22 26 / .45);
   /* 琥珀は白地だと 2.15:1 しかない。**文字に使うときは**濃い側を使う */
   --amber-text: #92400e;   /* 琥珀の淡い塗りの上に載ることがあるので、白地基準より濃くする */
-  --danger: #d92c33;
+  --danger: #b3242a;   /* 同系色の淡い塗りの上の文字にもなるので濃い側 */
   --danger-soft: #8a1b20;
   --success: #0f7a44;
   --info: #6c42f0;
@@ -349,6 +349,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 }
 .growth-star.is-on::before { background-position: 62.5% 0; }  /* 채워진 별 = 골드 프레임 */
 /* 진화(코강) — 별 옆 동그라미. 숫자는 아이콘 위에 얹는다. */
+/* contrast-ignore: 下地は親のアイコン (星の枠) で、CSS からは辿れない */
 .growth-core { position: relative; display: grid; place-items: center; width: 16px; height: 16px; margin-left: 1px; color: #fff; font: 900 9px/1 ui-monospace, monospace; text-shadow: 0 1px 2px rgb(var(--line-rgb) / .10); }
 .growth-core::before {
   content: ""; position: absolute; top: -17px; left: -17px; width: 50px; height: 50px;
@@ -868,7 +869,7 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
   font: 800 9.5px ui-monospace, monospace; font-style: normal; }
 .notice-tag[data-notice-tag="新機能"] { background: rgb(var(--amber-rgb) / .16); color: var(--amber-text); }
 .notice-tag[data-notice-tag="改善"] { background: rgb(var(--accent-rgb) / .14); color: var(--cyan); }
-.notice-tag[data-notice-tag="修正"] { background: rgb(var(--line-rgb) / .16); color: var(--ink-2); }
+.notice-tag[data-notice-tag="修正"] { background: rgb(var(--line-rgb) / .16); color: var(--ink); }
 
 /* 캐릭터 설정 — 카드에서 창으로 여는 뭉치 */
 .char-panel-open { display: flex; align-items: center; justify-content: space-between; gap: 6px;
