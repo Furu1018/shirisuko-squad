@@ -206,8 +206,10 @@ export function areaToOverrides(
   const matched: string[] = [];
   const unmatched: number[] = [];
   const notes: string[] = [];
-  let unknownCollection = 0;
-  let noCube = 0;
+  // 注意文の «N種» も人単位で数える。matched だけ一意化すると、同じニケが2度来たときに
+  // ここだけ実人数を超える。
+  const unknownCollectionNames = new Set<string>();
+  const noCubeNames = new Set<string>();
 
   for (const detail of area.details ?? []) {
     const code = Number(detail.name_code);
@@ -237,7 +239,7 @@ export function areaToOverrides(
 
     const collection = collectionOf(detail, settings.favoriteItems);
     if (collection) override.collection = collection;
-    else unknownCollection += 1;
+    else unknownCollectionNames.add(name);
 
     const cube = cubeOf(detail, settings.cubes);
     if (cube) override.cube = cube;
@@ -245,7 +247,7 @@ export function areaToOverrides(
       // 「取込が持っていない」ではなく「着けていない」— 区別しないと、外したキューブが
       // マージで前回の値のまま残る
       override.cube = { name: NO_CUBE, level: 0 };
-      noCube += 1;
+      noCubeNames.add(name);
     }
 
     override.equipLevels = equipLevelsOf(detail);
@@ -256,11 +258,11 @@ export function areaToOverrides(
     if (!matched.includes(name)) matched.push(name);
   }
 
-  if (unknownCollection > 0) {
-    notes.push(`소장품을 알아보지 못한 니케 ${unknownCollection}종 — 그 니케만 기본 소장품으로 계산합니다.`);
+  if (unknownCollectionNames.size > 0) {
+    notes.push(`소장품을 알아보지 못한 니케 ${unknownCollectionNames.size}종 — 그 니케만 기본 소장품으로 계산합니다.`);
   }
-  if (noCube > 0) {
-    notes.push(`큐브를 끼지 않은 니케 ${noCube}종 — 그 니케만 기본 큐브로 계산합니다.`);
+  if (noCubeNames.size > 0) {
+    notes.push(`큐브를 끼지 않은 니케 ${noCubeNames.size}종 — 그 니케만 기본 큐브로 계산합니다.`);
   }
   if (unmatched.length > 0) {
     notes.push(`계산기가 아직 다루지 않는 니케 ${unmatched.length}종은 건너뛰었습니다.`);
