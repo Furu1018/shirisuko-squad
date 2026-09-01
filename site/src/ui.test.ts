@@ -551,7 +551,12 @@ describe('calculator UI', () => {
       blablaProxy: '',
     } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
 
+    // 入口は3凸ボード。ユニオン運営はタブから開く
+    const boardTab = root.querySelector<HTMLButtonElement>('[data-view-tab="board"]')!;
+    expect(boardTab.classList.contains('is-on')).toBe(true);
+    expect(root.querySelector<HTMLElement>('[data-view="board"]')!.hidden).toBe(false);
     const tab = root.querySelector<HTMLButtonElement>('[data-view-tab="union"]')!;
+    tab.click();
     expect(tab.classList.contains('is-on')).toBe(true);
     const panel = root.querySelector<HTMLElement>('[data-view="union"]')!;
     expect(panel.hidden).toBe(false);
@@ -924,6 +929,132 @@ describe('calculator UI', () => {
     const saved = JSON.parse(localStorage.getItem('nikke-state-v1')!) as
       { decks: Array<{ squad: string[] }> };
     expect(saved.decks[0]!.squad.filter(Boolean).sort()).toEqual(['리타', '크라운'].sort());
+  });
+
+  // ── 3凸ボード ──
+  const boardSlot = (index: number) => root.querySelector<HTMLElement>(`[data-board-slot="${index}"]`)!;
+  const pickBoss = (index: number, boss: string) => {
+    const select = root.querySelector<HTMLSelectElement>(`[data-board-boss="${index}"]`)!;
+    select.value = boss;
+    select.dispatchEvent(new Event('change'));
+  };
+  /** 属性別編成に案を置く: 計算機で編成してから「今の編成を保存」。 */
+  const savePlan = (code: string, names: string[]) => {
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    names.forEach((name, index) => chooseCharacter(root, index, name));
+    root.querySelector<HTMLButtonElement>(`[data-plans-save="${code}"]`)!.click();
+  };
+  const boardSummary = () => root.querySelector('[data-board-summary]')!.textContent ?? '';
+  const storedBoard = () => JSON.parse(localStorage.getItem('nikke-raid-board-v1')!) as
+    { slots: Array<{ boss: string | null; squad: string[] }> };
+  const settle = async () => { await flush(); await flush(); await flush(); };
+
+  it('3凸ボードが入口で、3枠・合計・属性別の手持ちが出る', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    expect(root.querySelectorAll('[data-board-slot]')).toHaveLength(3);
+    expect(root.querySelectorAll('[data-board-stock]')).toHaveLength(5);
+    expect(boardSlot(0).querySelector('.board-dmg-note')!.textContent).toContain('ボスを選ぶと');
+    expect(boardSummary()).toContain('使用 0名');
+    // 取込前の帯
+    expect(root.querySelector('[data-board-sync-main]')!.textContent).toContain('まだ');
+    // 空き枠には「残りで探す」だけ
+    expect(boardSlot(2).querySelector('[data-board-search-open]')).not.toBeNull();
+  });
+
+  it('ボスを選ぶと有利コードの案が入り、その枠が計算されて保存される', async () => {
+    const client = new FakeClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // レイタンス (電撃) には鉄甲の案 (エンジンの優越コード表どおり)
+    savePlan('철갑', ['리타', '크라운']);
+    pickBoss(0, 'レイタンス');
+    await settle();
+
+    const slot = boardSlot(0);
+    expect(slot.classList.contains('is-iron')).toBe(true);
+    expect([...slot.querySelectorAll('.board-team .board-who')].map((chip) => chip.textContent))
+      .toEqual(['리타', '크라운']);
+    expect(client.simulateCalls).toBe(1);
+    expect(slot.querySelector('[data-board-score]')!.textContent).toContain('123,456');
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('計算しました');
+    expect(boardSummary()).toContain('使用 2名');
+    expect(storedBoard().slots[0]!.boss).toBe('レイタンス');
+    // 属性別の手持ちにも同じ点数が載る
+    expect(root.querySelector('[data-board-stock="철갑"]')!.textContent).toContain('123,456');
+
+    // 案が無いボスは入れられないことを伝える
+    pickBoss(1, 'モダニア');
+    await settle();
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('案がまだありません');
+    expect(client.simulateCalls).toBe(1);
+  });
+
+  it('同じニケを2枠で使うと被りとして出て、解くと損の少ない側から外れる', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);     // レイタンス向け
+    savePlan('수냉', ['앨리스', '크라운']);   // トゥームストーン (灼熱) 向け
+    pickBoss(0, 'レイタンス');
+    await settle();
+    pickBoss(1, 'トゥームストーン');
+    await settle();
+
+    const clash = root.querySelector<HTMLElement>('[data-board-clash="1:0"]')!;
+    expect(clash.textContent).toContain('크라운');
+    expect(clash.textContent).toContain('1凸目でも使っています');
+    expect(root.querySelectorAll('.board-team .board-who.is-clash')).toHaveLength(2);
+    expect(boardSummary()).toContain('被り 1件');
+    expect(root.querySelector('[data-board-used] .board-who.is-clash')!.textContent).toContain('1凸 / 2凸');
+
+    clash.querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    expect(root.querySelector('[data-board-clash]')).toBeNull();
+    expect(boardSummary()).toContain('被り 0件');
+    // 点数が同じ (試験の計算機は常に同じ値) なので「こちら (2凸目) から外す」が選ばれる
+    expect(storedBoard().slots[1]!.squad.filter(Boolean)).toEqual(['앨리스']);
+    expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);
+  });
+
+  it('被りなしで最大の3凸を探すと、同じニケを使わない組み合わせが枠に入る', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('수냉', ['앨리스', '크라운']);   // 鉄甲案と 크라운 が被る
+    savePlan('수냉', ['앨리스', '나가']);     // 被らない案
+    root.querySelector<HTMLButtonElement>('[data-board-search-best]')!.click();
+    await settle();
+
+    const slots = storedBoard().slots;
+    expect(slots.filter((slot) => slot.boss)).toHaveLength(2);   // 3つ目は被りなしで組めない
+    expect(slots[0]!.boss).toBe('レイタンス');
+    expect(slots[1]!.boss).toBe('トゥームストーン');
+    expect(slots[1]!.squad.filter(Boolean)).toEqual(['앨리스', '나가']);
+    expect(root.querySelector('[data-board-clash]')).toBeNull();
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('2 凸ぶん');
+
+    // 空き枠に「残りで探す」: 全員使用済みなら入れる案が無いと伝える
+    root.querySelector<HTMLButtonElement>('[data-board-search-open="2"]')!.click();
+    await settle();
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('入れられる案がありません');
+    expect(storedBoard().slots[2]!.boss).toBeNull();
+
+    // 風圧の案 (アニヒリオ向け) を足すと、使用済みの 나가 を外して残りで組む
+    savePlan('풍압', ['프리바티', '나가']);
+    root.querySelector<HTMLButtonElement>('[data-board-search-open="2"]')!.click();
+    await settle();
+    expect(storedBoard().slots[2]!.boss).toBe('アニヒリオ');
+    expect(storedBoard().slots[2]!.squad.filter(Boolean)).toEqual(['프리바티']);
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('나가 は外してあります');
+    expect(root.querySelector('[data-board-clash]')).toBeNull();
   });
 
   it('「キューブを着けていない」は保存され、再読込しても既定キューブに戻らない', () => {
