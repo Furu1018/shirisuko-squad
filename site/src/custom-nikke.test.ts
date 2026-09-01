@@ -53,7 +53,7 @@ describe('parseCustomInput', () => {
     expect(() => parseCustomInput(JSON.stringify(badWeapon))).toThrow(/weapon_type/);
     const missing = JSON.parse(validJson);
     delete missing.nikke.max_ammo;
-    expect(() => parseCustomInput(JSON.stringify(missing))).toThrow(/누락/);
+    expect(() => parseCustomInput(JSON.stringify(missing))).toThrow(/不足/);
   });
 });
 

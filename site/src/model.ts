@@ -1,4 +1,5 @@
 import { sequenceForDeck, trimSequence } from './burst-order';
+import { labelForClass, labelForMaker } from './display-name';
 import type {
   BatchResult,
   BattleSettings,
@@ -149,63 +150,63 @@ export function validateRequest(request: SimulationRequest): string[] {
   const squad = request.squad.map((name) => name.trim()).filter(Boolean);
 
   if (squad.length === 0) {
-    errors.push('스쿼드에 캐릭터를 1명 이상 편성해 주세요.');
+    errors.push('スカッドにキャラクターを1人以上編成してください。');
   } else if (squad.length > 5) {
-    errors.push('스쿼드는 최대 5명까지 편성할 수 있습니다.');
+    errors.push('スカッドは最大5人まで編成できます。');
   }
   if (new Set(squad).size !== squad.length) {
-    errors.push('같은 캐릭터를 두 번 편성할 수 없습니다.');
+    errors.push('同じキャラクターを2回編成することはできません。');
   }
   if (!integerInRange(request.duration, 10, 180)) {
-    errors.push('전투 시간은 10~180초여야 합니다.');
+    errors.push('戦闘時間は10〜180秒である必要があります。');
   }
   if (request.synchroLevel !== undefined && !integerInRange(request.synchroLevel, 1, SYNCHRO_MAX)) {
-    errors.push(`싱크로 레벨은 1~${SYNCHRO_MAX}이어야 합니다.`);
+    errors.push(`シンクロレベルは1〜${SYNCHRO_MAX}である必要があります。`);
   }
   if (!integerInRange(request.enemyDef, 0, 999_999)) {
-    errors.push('적 방어력은 0~999999여야 합니다.');
+    errors.push('敵防御力は0〜999999である必要があります。');
   }
   if (!integerInRange(request.corePx, 0, 1_000)) {
-    errors.push('코어 직경은 0~1000px여야 합니다.');
+    errors.push('コア直径は0〜1000pxである必要があります。');
   }
   if (!integerInRange(request.seed, 0, 2_147_483_647)) {
-    errors.push('시드는 0~2147483647 사이의 정수여야 합니다.');
+    errors.push('シードは0〜2147483647の整数である必要があります。');
   }
   if (request.burstRegenTime !== undefined
       && !(Number.isFinite(request.burstRegenTime)
         && request.burstRegenTime >= 0 && request.burstRegenTime <= 20)) {
-    errors.push('버스트 게이지 충전 시간은 0~20초여야 합니다.');
+    errors.push('バーストゲージ充填時間は0〜20秒である必要があります。');
   }
   if (request.burstReaction !== undefined
       && !(Number.isFinite(request.burstReaction)
         && request.burstReaction >= 0 && request.burstReaction <= 3)) {
-    errors.push('버스트 반응속도는 0~3초여야 합니다.');
+    errors.push('バースト反応速度は0〜3秒である必要があります。');
   }
   // 보스 페이즈 — 시작이 끝보다 뒤면 조용히 뒤집지 않고 막는다. 엔진도 같은 규칙이다.
   const windows: Array<[{ from: number; to: number }, string]> = [
-    ...(request.immuneWindows ?? []).map((w) => [w, '족자'] as [typeof w, string]),
-    ...(request.elementWindows ?? []).map((w) => [w, '속저'] as [typeof w, string]),
+    ...(request.immuneWindows ?? []).map((w) => [w, '回避区間'] as [typeof w, string]),
+    ...(request.elementWindows ?? []).map((w) => [w, '属性制限'] as [typeof w, string]),
   ];
   for (const [w, label] of windows) {
     if (!Number.isFinite(w.from) || !Number.isFinite(w.to)
         || w.from < 0 || w.to > 180 || w.from < 0) {
-      errors.push(`${label} 구간은 0~180초여야 합니다.`);
+      errors.push(`${label}の区間は0〜180秒である必要があります。`);
     } else if (w.from >= w.to) {
-      errors.push(`${label} 구간은 시작이 끝보다 앞서야 합니다 (${w.from}~${w.to}).`);
+      errors.push(`${label}の区間は開始が終了より前である必要があります (${w.from}〜${w.to})。`);
     }
   }
 
   if (request.console) {
     const levels: Array<[number, string]> = [
-      [request.console.common_level, '공통'],
+      [request.console.common_level, '共通'],
       ...Object.entries(request.console.class_level)
-        .map(([bucket, level]) => [level, `클래스(${bucket})`] as [number, string]),
+        .map(([bucket, level]) => [level, `クラス(${labelForClass(bucket)})`] as [number, string]),
       ...Object.entries(request.console.company_level)
-        .map(([bucket, level]) => [level, `기업(${bucket})`] as [number, string]),
+        .map(([bucket, level]) => [level, `企業(${labelForMaker(bucket)})`] as [number, string]),
     ];
     for (const [level, label] of levels) {
       if (!integerInRange(level, 0, 1_000)) {
-        errors.push(`${label} 콘솔 레벨은 0~1000 사이의 정수여야 합니다.`);
+        errors.push(`${label}コンソールレベルは0〜1000の整数である必要があります。`);
       }
     }
   }
@@ -222,16 +223,16 @@ export function validateDecks(decks: DeckState[]): string[] {
   const errors: string[] = [];
   const nonEmpty = decks.filter((deck) => deck.squad.some((name) => name.trim()));
   if (nonEmpty.length === 0) {
-    errors.push('캐릭터가 편성된 덱이 하나 이상 필요합니다.');
+    errors.push('キャラクターを編成したデッキが1つ以上必要です。');
     return errors;
   }
   for (const deck of nonEmpty) {
     const names = deck.squad.map((name) => name.trim()).filter(Boolean);
     if (names.length > 5) {
-      errors.push(`덱 ${deck.id}: 캐릭터는 최대 5명까지 편성할 수 있습니다.`);
+      errors.push(`デッキ ${deck.id}: キャラクターは最大5人まで編成できます。`);
     }
     if (new Set(names).size !== names.length) {
-      errors.push(`덱 ${deck.id}: 같은 캐릭터를 두 번 편성할 수 없습니다.`);
+      errors.push(`デッキ ${deck.id}: 同じキャラクターを2回編成することはできません。`);
     }
   }
   return errors;
@@ -288,13 +289,13 @@ export function aggregateDeckResults(decks: DeckResultEntry[]): BatchResult {
 
 export function formatDamage(value: number): string {
   if (Math.abs(value) >= 1_000_000) {
-    return `${(value / 100_000_000).toFixed(2)}억`;
+    return `${(value / 100_000_000).toFixed(2)}億`;
   }
   return Math.round(value).toLocaleString('en-US');
 }
 
 export function formatDps(value: number): string {
-  return `${formatDamage(value)}/초`;
+  return `${formatDamage(value)}/秒`;
 }
 
 /**
@@ -309,4 +310,4 @@ export const formatExactDamage = (value: number): string =>
 
 /** 줄이지 않은 초당 대미지. 소수점 한 자리까지 — 정수로 자르면 덱 간 차이가 묻힌다. */
 export const formatExactDps = (value: number): string =>
-  `${(Math.round(value * 10) / 10).toLocaleString('en-US', { minimumFractionDigits: 1 })}/초`;
+  `${(Math.round(value * 10) / 10).toLocaleString('en-US', { minimumFractionDigits: 1 })}/秒`;

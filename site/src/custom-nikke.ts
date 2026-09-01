@@ -115,7 +115,7 @@ export function unsupportedEffects(skills: unknown[]): string[] {
     const target = String(skill.target ?? '');
     const trigger = isRecord(skill.trigger) ? skill.trigger : {};
     const timings = Array.isArray(trigger.timing) ? trigger.timing.map(String) : [];
-    const name = String(skill.name ?? '(이름 없음)');
+    const name = String(skill.name ?? '(名前なし)');
     const statOk = skill.type === 'damage'
       ? DAMAGE_STATS.has(prefix(stat))
       : BUFF_STATS.has(stat);
@@ -132,30 +132,30 @@ export function parseCustomInput(text: string): CustomCharacter {
   try {
     data = JSON.parse(text.trim());
   } catch {
-    throw new Error('JSON 형식이 아닙니다. LLM이 준 JSON만 붙여넣어 주세요.');
+    throw new Error('JSON 形式ではありません。LLM が出力した JSON だけを貼り付けてください。');
   }
-  if (!isRecord(data)) throw new Error('최상위는 객체여야 합니다.');
+  if (!isRecord(data)) throw new Error('トップレベルはオブジェクトである必要があります。');
   const name = typeof data.name === 'string' ? data.name.trim() : '';
-  if (!name) throw new Error('name(이름)이 필요합니다.');
-  if (!isRecord(data.nikke)) throw new Error('nikke(스탯) 객체가 필요합니다.');
-  if (!Array.isArray(data.skills)) throw new Error('skills(스킬 배열)가 필요합니다.');
+  if (!name) throw new Error('name(名前)が必要です。');
+  if (!isRecord(data.nikke)) throw new Error('nikke(ステータス)オブジェクトが必要です。');
+  if (!Array.isArray(data.skills)) throw new Error('skills(スキル配列)が必要です。');
 
   const nikke = data.nikke;
   const required = ['rarity', 'element_code', 'class', 'weapon_type', 'burst_stage',
     'burst_cooldown', 'max_ammo', 'reload_time', 'fire_rate', 'damage_coeff'];
   const missing = required.filter((f) => nikke[f] === undefined || nikke[f] === null);
-  if (missing.length > 0) throw new Error(`nikke에 누락된 항목: ${missing.join(', ')}`);
+  if (missing.length > 0) throw new Error(`nikke に不足している項目: ${missing.join(', ')}`);
   if (!WEAPONS.includes(String(nikke.weapon_type))) {
-    throw new Error(`weapon_type은 ${WEAPONS.join('/')} 중 하나여야 합니다.`);
+    throw new Error(`weapon_type は ${WEAPONS.join('/')} のいずれかである必要があります。`);
   }
   if (!CODES.includes(String(nikke.element_code))) {
-    throw new Error(`element_code는 ${CODES.join('/')} 중 하나여야 합니다.`);
+    throw new Error(`element_code は ${CODES.join('/')} のいずれかである必要があります。`);
   }
   if (!CLASSES.includes(String(nikke.class))) {
-    throw new Error(`class는 ${CLASSES.join('/')} 중 하나여야 합니다.`);
+    throw new Error(`class は ${CLASSES.join('/')} のいずれかである必要があります。`);
   }
   if (![1, 2, 3].includes(Number(nikke.burst_stage))) {
-    throw new Error('burst_stage는 1, 2, 3 중 하나여야 합니다.');
+    throw new Error('burst_stage は 1, 2, 3 のいずれかである必要があります。');
   }
 
   // 엔진 기본값 보정 (누락 허용 필드)

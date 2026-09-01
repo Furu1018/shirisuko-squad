@@ -50,22 +50,22 @@ const deck = (id: number, squad: string[]): DeckState => ({
 
 describe('validateRequest', () => {
   it.each([
-    [[], '스쿼드에 캐릭터를 1명 이상 편성해 주세요.'],
-    [['1', '2', '3', '4', '5', '6'], '스쿼드는 최대 5명까지 편성할 수 있습니다.'],
+    [[], 'スカッドにキャラクターを1人以上編成してください。'],
+    [['1', '2', '3', '4', '5', '6'], 'スカッドは最大5人まで編成できます。'],
   ])('enforces the one-to-five member boundary', (squad, message) => {
     expect(validateRequest({ ...valid, squad })).toContain(message);
   });
 
   it('rejects duplicate squad members', () => {
     const errors = validateRequest({ ...valid, squad: ['리타', '리타'] });
-    expect(errors).toContain('같은 캐릭터를 두 번 편성할 수 없습니다.');
+    expect(errors).toContain('同じキャラクターを2回編成することはできません。');
   });
 
   it.each([
-    ['전투 시간', { duration: 181 }, '전투 시간은 10~180초여야 합니다.'],
-    ['적 방어력', { enemyDef: -1 }, '적 방어력은 0~999999여야 합니다.'],
-    ['코어 직경', { corePx: 1001 }, '코어 직경은 0~1000px여야 합니다.'],
-    ['난수 시드', { seed: -1 }, '시드는 0~2147483647 사이의 정수여야 합니다.'],
+    ['전투 시간', { duration: 181 }, '戦闘時間は10〜180秒である必要があります。'],
+    ['적 방어력', { enemyDef: -1 }, '敵防御力は0〜999999である必要があります。'],
+    ['코어 직경', { corePx: 1001 }, 'コア直径は0〜1000pxである必要があります。'],
+    ['난수 시드', { seed: -1 }, 'シードは0〜2147483647の整数である必要があります。'],
   ] as const)('%s 범위를 검증한다', (_label, over, message) => {
     expect(validateRequest({ ...valid, ...over })).toContain(message);
   });
@@ -223,13 +223,13 @@ describe('multi-deck model', () => {
 
   it('rejects a duplicate only within its own deck', () => {
     expect(validateDecks([deck(1, ['리타', '리타']), deck(2, ['리타'])]))
-      .toContain('덱 1: 같은 캐릭터를 두 번 편성할 수 없습니다.');
+      .toContain('デッキ 1: 同じキャラクターを2回編成することはできません。');
   });
 
   it('skips empty decks but rejects an all-empty batch', () => {
     expect(validateDecks([deck(1, []), deck(2, ['리타'])])).toEqual([]);
     expect(validateDecks([deck(1, []), deck(2, [])]))
-      .toContain('캐릭터가 편성된 덱이 하나 이상 필요합니다.');
+      .toContain('キャラクターを編成したデッキが1つ以上必要です。');
   });
 
   it('keeps a 52px core reference while sending zero when core is disabled', () => {
@@ -265,9 +265,9 @@ describe('multi-deck model', () => {
     // 엔진이 이어 붙인다 — 유니온에는 싱크로 1131이 실제로 있고, 1000으로 눌러 버리면
     // 그 사람 공격력이 15% 넘게 깎인다.
     expect(validateRequest({ ...valid, synchroLevel: 0 }))
-      .toContain('싱크로 레벨은 1~1400이어야 합니다.');
+      .toContain('シンクロレベルは1〜1400である必要があります。');
     expect(validateRequest({ ...valid, synchroLevel: 1_401 }))
-      .toContain('싱크로 레벨은 1~1400이어야 합니다.');
+      .toContain('シンクロレベルは1〜1400である必要があります。');
     expect(validateRequest({ ...valid, synchroLevel: 1_131 })).toEqual([]);
     expect(validateRequest({ ...valid, synchroLevel: 400 })).toEqual([]);
   });
@@ -321,7 +321,7 @@ describe('multi-deck model', () => {
 
 describe('formatDamage', () => {
   it('formats hundred-millions with two decimal places', () => {
-    expect(formatDamage(3_207_003_887)).toBe('32.07억');
+    expect(formatDamage(3_207_003_887)).toBe('32.07億');
   });
 
   it('keeps smaller numbers readable', () => {
@@ -368,11 +368,11 @@ describe('formatDamage', () => {
     // 기업만 딜에 직결되지만 공통·클래스도 체력 계수 캐릭터(신데렐라 등)를 통해
     // 딜에 들어오므로 셋 다 검사한다.
     expect(validateRequest({ ...valid, console: { common_level: -1, class_level: { 화력형: 100, 방어형: 100, 지원형: 100 }, company_level: { 엘리시온: 100, 미실리스: 100, 테트라: 100, 필그림: 100, 어브노말: 100 } } }))
-      .toContain('공통 콘솔 레벨은 0~1000 사이의 정수여야 합니다.');
+      .toContain('共通コンソールレベルは0〜1000の整数である必要があります。');
     expect(validateRequest({ ...valid, console: { common_level: 180, class_level: { ...{ 화력형: 100, 방어형: 100, 지원형: 100 }, 화력형: 1001 }, company_level: { 엘리시온: 100, 미실리스: 100, 테트라: 100, 필그림: 100, 어브노말: 100 } } }))
-      .toContain('클래스(화력형) 콘솔 레벨은 0~1000 사이의 정수여야 합니다.');
+      .toContain('クラス(火力型)コンソールレベルは0〜1000の整数である必要があります。');
     expect(validateRequest({ ...valid, console: { common_level: 180, class_level: { 화력형: 100, 방어형: 100, 지원형: 100 }, company_level: { ...{ 엘리시온: 100, 미실리스: 100, 테트라: 100, 필그림: 100, 어브노말: 100 }, 테트라: 1.5 } } }))
-      .toContain('기업(테트라) 콘솔 레벨은 0~1000 사이의 정수여야 합니다.');
+      .toContain('企業(テトラ)コンソールレベルは0〜1000の整数である必要があります。');
     expect(validateRequest({ ...valid, console: { common_level: 0, class_level: { 화력형: 0, 방어형: 0, 지원형: 0 }, company_level: { 엘리시온: 0, 미실리스: 0, 테트라: 0, 필그림: 0, 어브노말: 0 } } }))
       .toEqual([]);
   });
@@ -385,9 +385,9 @@ describe('formatDamage', () => {
     expect(cacheKey(fast, 'v1')).not.toBe(cacheKey(slow, 'v1'));
 
     expect(validateRequest({ ...valid, burstRegenTime: -1 }))
-      .toContain('버스트 게이지 충전 시간은 0~20초여야 합니다.');
+      .toContain('バーストゲージ充填時間は0〜20秒である必要があります。');
     expect(validateRequest({ ...valid, burstRegenTime: 21 }))
-      .toContain('버스트 게이지 충전 시간은 0~20초여야 합니다.');
+      .toContain('バーストゲージ充填時間は0〜20秒である必要があります。');
     expect(validateRequest({ ...valid, burstRegenTime: 2.8 })).toEqual([]);
   });
 });
