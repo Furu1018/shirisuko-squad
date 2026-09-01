@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { EXTERNAL_LINKS, hostOf } from './external-links';
 
-describe('외부고리 표', () => {
-  it('네 곳으로 나간다', () => {
+describe('外部リンク表', () => {
+  it('しりすこ圏向けの4箇所に出る', () => {
     expect(EXTERNAL_LINKS.map((link) => link.label))
-      .toEqual(['렛츠도로', '딜도로', '솔레 금서고', '도로파티']);
+      .toEqual(['しりすこPAD', 'しりすこPAD GB', 'nikke-calc (原作)', 'Blablalink']);
   });
 
   it('모든 고리가 https이고 이름·설명이 비어 있지 않다', () => {
