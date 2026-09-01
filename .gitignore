@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 site/node_modules/
 site/dist/
+# scripts/shots.mjs・e2e-board.mjs を引数なしで走らせたときの既定の出力先
+site/shots/
 site/public/runtime/
 site/public/characters/
 site/public/catalog.json
