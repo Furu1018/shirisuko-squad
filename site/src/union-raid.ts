@@ -23,6 +23,7 @@ import {
 } from './share-code';
 import { DEFAULT_SYNCHRO_LEVEL, SYNCHRO_MEASURED_MAX } from './model';
 import type { BattleSettings, DeckState, SimulationResult } from './types';
+import { UNION_SEASON, bossBattleCodeFrom } from './union-bosses';
 
 /** 유니온원 한 명. `GetGuildMembers`가 주는 것만 담는다. */
 export interface UnionMember {
@@ -1022,6 +1023,34 @@ export function mountUnionRaid(hosts: UnionHosts, deps: UnionDeps): void {
 
   // ── 3단계 · 보스와 덱 ────────────────────────────────────────────────────
   const bossBox = pick(panel, '[data-union-bosses]');
+
+  // ── 今シーズンのボスプリセット (しりすこスクワッド) ──
+  // ボス5枠の名前と条件コード (NK3) を一発で埋める。条件の土台は今の計算機の戦闘条件 —
+  // 戦闘時間・コア・回避区間などはそのまま残し、敵コード・敵防御力だけボスの値にする。
+  // デッキ (NK2) は触らない: 盤面を作り直すたびに編成が消えると困る。
+  {
+    const row = el('div', 'union-code-row union-preset-row');
+    const apply = el('button', 'roster-import', `${UNION_SEASON.label}のボスをセット`);
+    (apply as HTMLButtonElement).type = 'button';
+    apply.dataset.unionPreset = '';
+    apply.title = `${UNION_SEASON.bosses.map((boss) => boss.name).join(' / ')} を5枠に入れます。${UNION_SEASON.note}`;
+    apply.addEventListener('click', () => {
+      const base = deps.currentBattleCode();
+      UNION_SEASON.bosses.forEach((boss, index) => {
+        const slot = bosses[index];
+        if (!slot) return;
+        bosses[index] = {
+          ...readBossCode({ ...slot, name: boss.name, code: bossBattleCodeFrom(boss, base), enabled: true }),
+          decks: slot.decks,
+        };
+      });
+      renderBosses();
+      renderMembers();
+      sayBoard(`${UNION_SEASON.label}のボス ${UNION_SEASON.bosses.length}体をセットしました (敵防御力は暫定値)。`, true);
+    });
+    row.append(apply, el('span', 'union-note', UNION_SEASON.note));
+    bossBox.before(row);
+  }
 
   // ── 공유에서 고르기 ──────────────────────────────────────────────────────
   // 보스 조건·덱·판 전체가 같은 목록 구조를 쓰므로 창 하나에 판 셋을 얹고 필요한 것만

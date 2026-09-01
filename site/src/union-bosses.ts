@@ -7,7 +7,7 @@
 // 属性は内部キー (韓国語) のまま持つ。画面表示は elementLabel() を通す。
 // 敵防御力はまだ実測がないため上流の既定値 31,784 を暫定使用 — 比較用途 (相対値) には
 // 影響しないが、絶対値は実測後に差し替える (README「暫定事項」参照)。
-import { encodeBattleCode } from './share-code';
+import { decodeBattleCode, encodeBattleCode } from './share-code';
 import type { BattleSettings } from './types';
 
 export interface UnionBoss {
@@ -59,3 +59,40 @@ export function bossBattle(boss: UnionBoss, base: BattleSettings): BattleSetting
 export function bossBattleCode(boss: UnionBoss, base: BattleSettings): string {
   return encodeBattleCode(bossBattle(boss, base));
 }
+
+/**
+ * 土台が NK3 コードで渡ってくる場所 (ユニオン盤面) 用。コードを解釈して敵コード・敵防御力だけ
+ * 差し替え、また NK3 に戻す。コンソール・シンクロは NK3 に載らないので、エンコードが読まない
+ * ダミーで型だけ満たす。壊れたコードは既定条件として扱う (decodeBattleCode と同じ寛容さ)。
+ */
+export function bossBattleCodeFrom(boss: UnionBoss, baseCode: string): string {
+  const dummy = { synchroLevel: 1, console: { common_level: 0, class_level: {}, company_level: {} } };
+  let padded: BattleSettings;
+  try {
+    padded = { ...decodeBattleCode(baseCode), ...dummy };
+  } catch {
+    // 既定条件 = 上流 BATTLE_DEFAULTS と同値。「既定と同じ項目は載せない」規則により、
+    // これをエンコードすると最短コードになり、デコード側が全項目を既定で埋める
+    padded = { ...FALLBACK_SHARE, ...dummy };
+  }
+  return bossBattleCode(boss, padded);
+}
+
+/** decodeBattleCode が失敗したときの土台。share-code.ts の BATTLE_DEFAULTS と同じ値 */
+const FALLBACK_SHARE: Omit<BattleSettings, 'console' | 'synchroLevel'> = {
+  duration: 180,
+  enemyDef: PROVISIONAL_ENEMY_DEF,
+  enemyCode: '',
+  coreEnabled: false,
+  corePx: 52,
+  hasParts: false,
+  seed: 42,
+  optimalRangeWeapons: [],
+  normalHitCoeff: {},
+  immuneWindows: [],
+  elementWindows: [],
+  rngMode: 'expected',
+  immuneBlocksBurst: true,
+  burstRegenTime: 2,
+  burstReaction: 0.05,
+};

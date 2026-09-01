@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { decodeBattleCode } from './share-code';
+import { decodeBattleCode, encodeBattleCode } from './share-code';
 import type { BattleSettings } from './types';
-import { PROVISIONAL_ENEMY_DEF, UNION_SEASON, bossBattle, bossBattleCode } from './union-bosses';
+import {
+  PROVISIONAL_ENEMY_DEF, UNION_SEASON, bossBattle, bossBattleCode, bossBattleCodeFrom,
+} from './union-bosses';
 
 const base: BattleSettings = {
   duration: 180, synchroLevel: 400, enemyDef: 12_345, enemyCode: '', coreEnabled: true,
@@ -32,6 +34,23 @@ describe('ユニオンレイド ボスプリセット', () => {
   it('enemyDef が null のボスは条件パネルの敵防御力を引き継ぐ', () => {
     const battle = bossBattle({ name: 'x', elementCode: '수냉', enemyDef: null }, base);
     expect(battle.enemyDef).toBe(12_345);
+  });
+
+  it('bossBattleCodeFrom は土台の NK3 コードの条件を残して敵コード・防御力だけ差し替える', () => {
+    const baseCode = encodeBattleCode(base);
+    const boss = UNION_SEASON.bosses[2]!;   // モダニア = 풍압
+    const back = decodeBattleCode(bossBattleCodeFrom(boss, baseCode));
+    expect(back.enemyCode).toBe('풍압');
+    expect(back.enemyDef).toBe(PROVISIONAL_ENEMY_DEF);
+    expect(back.duration).toBe(180);
+    expect(back.corePx).toBe(60);
+    expect(back.immuneWindows).toEqual([{ from: 10, to: 20 }]);
+  });
+
+  it('bossBattleCodeFrom は壊れた土台コードでも例外にせず既定条件から作る', () => {
+    const back = decodeBattleCode(bossBattleCodeFrom(UNION_SEASON.bosses[4]!, 'NK3-@@@'));
+    expect(back.enemyCode).toBe('철갑');
+    expect(back.duration).toBe(180);
   });
 
   it('NK3 コードに encode → decode で往復しても属性・防御力・土台の条件が保たれる', () => {
