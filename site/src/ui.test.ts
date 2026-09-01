@@ -1047,6 +1047,49 @@ describe('calculator UI', () => {
     expect(boardMain().hidden).toBe(false);
   });
 
+  it('プロキシが無くても「自分のブラウザで取り込む」道が STEP 1 に出ている', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+      blablaProxy: '',
+    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+    const scan = root.querySelector<HTMLDetailsElement>('[data-board-scan]')!;
+    expect(scan).not.toBeNull();
+    // プロキシが無いときは畳まずに開いておく (これが唯一の Blablalink 経路になるため)
+    expect(scan.open).toBe(true);
+    // 貼らせるコードは画面に出す — 読ませずに貼らせない
+    expect(root.querySelector<HTMLTextAreaElement>('[data-board-scan-code]')!.value)
+      .toContain('api.blablalink.com');
+    expect(scan.textContent).toContain('他所で配られた似たコードは絶対に貼らないでください');
+  });
+
+  it('貼り付けが正しくないときは、貼り直せる言い方で断る', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const paste = root.querySelector<HTMLTextAreaElement>('[data-board-scan-paste]')!;
+    const status = root.querySelector<HTMLElement>('[data-board-scan-status]')!;
+    const run = root.querySelector<HTMLButtonElement>('[data-board-scan-import]')!;
+
+    run.click();
+    await vi.waitFor(() => { expect(status.textContent).toContain('空です'); });
+
+    // ユニオン名簿を貼ったときは «何が違うか» を言う
+    paste.value = JSON.stringify({ v: 1, members: [{ name: 'a' }] });
+    run.click();
+    await vi.waitFor(() => { expect(status.textContent).toContain('ユニオン名簿'); });
+
+    // 形は正しいが計算機が扱えるニケが居ない → 取込処理まで届いていることの証明
+    paste.value = JSON.stringify({
+      profile: { openid: '123456', areas: [{ area: 81, characters: [{ name_code: 999999 }], details: [] }] },
+    });
+    run.click();
+    await vi.waitFor(() => { expect(status.textContent).toContain('見つかりませんでした'); });
+    // 失敗しても STEP 1 に留まる (盤面へ進めない)
+    expect(boardStart().hidden).toBe(false);
+  });
+
   it('STEP 1 と帯は同時に出ない', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

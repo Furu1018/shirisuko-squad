@@ -1506,6 +1506,24 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .board-start-body code { padding: 1px 5px; border-radius: 4px; background: rgb(var(--line-rgb) / .10); font-size: 11px; }
 .board-start-go { background: var(--ink); border-color: var(--ink); color: #fff; }
 .board-start-go:hover { background: #000; border-color: #000; }
+/* 自分のブラウザで取り込む道 (プロキシ不要) */
+.board-scan { margin: 0 0 14px; border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px;
+  background: var(--surface-2); }
+.board-scan > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 11px 14px; cursor: pointer; font-size: 13px; }
+.board-scan > summary span { font-size: 11.5px; color: var(--ink-2); }
+.board-scan[open] > summary { border-bottom: 1px solid rgb(var(--line-rgb) / .14); }
+.board-scan-steps { margin: 12px 0 10px; padding-left: 26px; display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; line-height: 1.6; color: var(--ink-2); }
+.board-scan-steps b { color: var(--ink); }
+.board-scan-warn { margin: 0 14px 10px; padding: 9px 11px; border-left: 3px solid var(--danger);
+  background: rgb(var(--danger-rgb) / .07); font-size: 11.5px; line-height: 1.65; color: var(--ink); }
+.board-scan-code, .board-scan-paste { display: block; width: calc(100% - 28px); margin: 0 14px 8px;
+  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  color: var(--ink); font: 11px/1.5 ui-monospace, monospace; resize: vertical; }
+.board-scan-code { color: var(--ink-2); }
+.board-scan-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 14px 12px; }
+.board-scan-status { font-size: 11.5px; color: var(--ink-2); }
 .board-start-alt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   border-top: 1px solid rgb(var(--line-rgb) / .12); padding-top: 14px; }
 .board-start-skip { margin-left: auto; padding: 6px 10px; border: 0; background: none;

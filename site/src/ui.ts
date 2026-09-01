@@ -8,9 +8,11 @@ import {
   consoleFrom,
   looksLikeProfileUrl,
   pickArea,
+  type RawArea,
   type RawProfile,
 } from './blablalink';
 import { parseRosterCsv } from './csv-import';
+import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import {
   formatEok,
   loadEnikkComps,
@@ -564,11 +566,34 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             <li>
               <span class="board-start-no is-warn" aria-hidden="true">!</span>
               <div class="board-start-body">
-                <b>Blablalink 連携はまだ使えません</b>
-                <p>照会を代行するサーバーの準備が終わっていないため、いまは使えません。当面は下の <b>Letsdoro CSV</b> から取り込んでください。</p>
+                <b>アドレスを貼る方式はまだ使えません</b>
+                <p>照会を代行するサーバーの準備が終わっていないため、いまは使えません。代わりに<b>下の方法</b>で、Blablalink と同じ育成データを取り込めます。</p>
               </div>
             </li>
           </ol>`}
+
+          <!-- プロキシの有無に関わらず使える道。自分のセッションで取るので
+               プロフィールを公開にする必要が無く、Cookie の入れ直しも要らない。 -->
+          <details class="board-scan" data-board-scan${blablaProxy ? '' : ' open'}>
+            <summary><b>自分のブラウザで取り込む</b><span>サーバー不要 · 公開設定も不要</span></summary>
+            <ol class="board-scan-steps">
+              <li><a href="https://www.blablalink.com/user" target="_blank" rel="noreferrer noopener">blablalink.com</a> をログインした状態で開く</li>
+              <li>そのタブで <b>F12</b> → <b>Console</b> を開く</li>
+              <li>下のコードをコピーして貼り、Enter (数十秒かかります)</li>
+              <li>コピーされた文字列を、いちばん下の欄に貼って「取り込む」</li>
+            </ol>
+            <p class="board-scan-warn"><b>貼る前に必ず中身を確認してください。</b>ログイン中のサイトでコンソールにコードを貼る操作は、乗っ取り詐欺が使う手口と同じ形です。ここのコードは<b>読み取ってコピーするだけ</b>で、外部への送信はありません。<b>他所で配られた似たコードは絶対に貼らないでください。</b></p>
+            <textarea class="board-scan-code" data-board-scan-code rows="4" readonly spellcheck="false"></textarea>
+            <div class="board-scan-row">
+              <button type="button" class="roster-import" data-board-scan-copy>コードをコピー</button>
+            </div>
+            <textarea class="board-scan-paste" data-board-scan-paste rows="3" placeholder="コンソールが出した文字列 (NKP1-… ) をここに貼り付け" spellcheck="false"></textarea>
+            <div class="board-scan-row">
+              <button type="button" class="roster-import board-start-go" data-board-scan-import>取り込む</button>
+              <span class="board-scan-status" data-board-scan-status></span>
+            </div>
+          </details>
+
           <div class="board-start-alt">
             <input id="board-csv" type="file" accept=".csv,text/csv" hidden />
             <button type="button" class="roster-import" data-board-csv-open title="Letsdoro のニケ情報 CSV を読み込みます">Letsdoro CSV を読み込む</button>
@@ -4004,6 +4029,38 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   };
   rosterInput.addEventListener('change', () => { void importRosterCsv(rosterInput); });
+
+  /**
+   * 取り込んだ1サーバー分を、ロスター・編成・戦闘条件に流し込む。
+   *
+   * 入口は2つある — プロキシ経由 (アドレスを貼る) と、自分のブラウザで取ったものの
+   * 貼り付け。**どちらも同じ形の生データ**なので、ここから先は必ず同じ道を通す。
+   * 片方だけ直して «同じ育成なのに経路で結果が違う» が起きると原因を追えない。
+   *
+   * 扱えるニケが1人も居なければ null を返す (呼び手が言い方を決める)。
+   */
+  const applyProfileArea = (area: RawArea, meta: Omit<SyncMeta, 'schemaVersion' | 'at' | 'matched'>) => {
+    const { overrides, matched, unmatched, notes } = areaToOverrides(area, settings, catalog);
+    if (matched.length === 0) return null;
+
+    roster = mergeImportedRoster(roster, overrides);
+    saveRoster();
+    void loadCombatPower();
+    const refreshed = refreshDecksFromRoster(matched);
+
+    // コンソールはアカウント単位なので戦闘条件の側にある。前哨基地が非公開だと来ないが、
+    // そのときは触らないのが正しい — 0 で覆うと元の値が消える。
+    const consoleLevels = consoleFrom(area);
+    if (consoleLevels) writeBattle({ ...readBattle(), console: consoleLevels });
+
+    saveState();
+    renderDeckTabs();
+    renderSquad();
+    rememberSync({ schemaVersion: 1, at: new Date().toISOString(), matched: matched.length, ...meta });
+
+    const carried = Object.keys(roster).length - matched.length;
+    return { matched, unmatched, notes, refreshed, carried, console: Boolean(consoleLevels) };
+  };
   element<HTMLButtonElement>(root, '[data-roster-csv-open]').addEventListener('click', () => rosterInput.click());
 
   // 블라블라링크 연동. 프록시가 설정된 빌드에서만 마크업이 있으므로 없으면 통째로 건너뛴다.
@@ -4052,41 +4109,24 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const area = pickArea(payload, selectedArea);
         if (!area) throw new Error('ニケ一覧が空です。');
         const serverLabel = blablaServerLabel(area.area);
-        const { overrides, matched, unmatched, notes } = areaToOverrides(area, settings, catalog);
-        if (matched.length === 0) {
+        const applied = applyProfileArea(area, {
+          source: 'blablalink', profileUrl: url,
+          ...(selectedArea === undefined ? {} : { area: selectedArea }),
+        });
+        if (!applied) {
           const message = '計算機が扱えるニケが見つかりませんでした。プロフィールが公開になっているか確認してください。';
           setStatus(message);
           if (preset) updateRosterNote(message);   // 窓を開かずに押したときは画面側にも出す
           return;
         }
 
-        roster = mergeImportedRoster(roster, overrides);
-        saveRoster();
-        void loadCombatPower();
-        const refreshed = refreshDecksFromRoster(matched);
-
-        // 콘솔은 계정 단위라 전투 설정 쪽에 있다. 전초기지가 비공개면 안 오고, 그때는
-        // 손대지 않는 게 맞다 — 0으로 덮으면 멀쩡하던 값이 사라진다.
-        const consoleLevels = consoleFrom(area);
-        if (consoleLevels) writeBattle({ ...readBattle(), console: consoleLevels });
-
-        saveState();
-        renderDeckTabs();
-        renderSquad();
-
-        rememberSync({
-          schemaVersion: 1, source: 'blablalink', at: new Date().toISOString(),
-          matched: matched.length, profileUrl: url,
-          ...(selectedArea === undefined ? {} : { area: selectedArea }),
-        });
-        const parts = [`Blablalink ${serverLabel} ${matched.length}名を適用`];
-        if (refreshed > 0) parts.push(`編成中 ${refreshed}名の育成値を更新`);
-        const carried = Object.keys(roster).length - matched.length;
-        if (carried > 0) parts.push(`今回に無かった ${carried}名は前回の値のまま`);
-        if (unmatched.length > 0) parts.push(`未対応 ${unmatched.length}名を除外`);
-        if (consoleLevels) parts.push('コンソールレベルも適用');
+        const parts = [`Blablalink ${serverLabel} ${applied.matched.length}名を適用`];
+        if (applied.refreshed > 0) parts.push(`編成中 ${applied.refreshed}名の育成値を更新`);
+        if (applied.carried > 0) parts.push(`今回に無かった ${applied.carried}名は前回の値のまま`);
+        if (applied.unmatched.length > 0) parts.push(`未対応 ${applied.unmatched.length}名を除外`);
+        if (applied.console) parts.push('コンソールレベルも適用');
         updateRosterNote(parts.join(' · '));
-        setStatus([`${serverLabel}サーバーから ${matched.length}名を読み込みました。`, ...notes].join(' '));
+        setStatus([`${serverLabel}サーバーから ${applied.matched.length}名を読み込みました。`, ...applied.notes].join(' '));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setStatus(message);
@@ -5456,6 +5496,51 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderBoardSync();
       scrollTo(boardMain);
     });
+    // ── 自分のブラウザで取り込む (プロキシ不要) ──
+    {
+      const codeBox = element<HTMLTextAreaElement>(root, '[data-board-scan-code]');
+      const pasteBox = element<HTMLTextAreaElement>(root, '[data-board-scan-paste]');
+      const status = element<HTMLElement>(root, '[data-board-scan-status]');
+      const runButton = element<HTMLButtonElement>(root, '[data-board-scan-import]');
+      // 貼るコードは読めるところに出す。読ませずに貼らせないための一手。
+      codeBox.value = PERSONAL_SNIPPET;
+
+      element<HTMLButtonElement>(root, '[data-board-scan-copy]').addEventListener('click', () => {
+        codeBox.focus();
+        codeBox.select();
+        // クリップボード API が塞がれている環境でも、選択済みなら手で Ctrl+C できる
+        void navigator.clipboard?.writeText(PERSONAL_SNIPPET).catch(() => undefined);
+        status.textContent = 'コードを選択しました。コピーして Blablalink のコンソールに貼ってください。';
+      });
+
+      runButton.addEventListener('click', () => {
+        void (async () => {
+          runButton.disabled = true;
+          status.textContent = '取り込み中…';
+          try {
+            const profile = await parsePersonalScan(pasteBox.value);
+            const area = pickArea(profile);
+            if (!area) throw new Error('所持ニケが入っていません。スニペットの実行結果を確認してください。');
+            const applied = applyProfileArea(area, { source: 'snippet' });
+            if (!applied) throw new Error('計算機が扱えるニケが見つかりませんでした。');
+
+            pasteBox.value = '';   // 個人データを画面に残さない
+            const parts = [`${blablaServerLabel(area.area)} ${applied.matched.length}名を適用`];
+            if (applied.refreshed > 0) parts.push(`編成中 ${applied.refreshed}名の育成値を更新`);
+            if (applied.carried > 0) parts.push(`今回に無かった ${applied.carried}名は前回の値のまま`);
+            if (applied.unmatched.length > 0) parts.push(`未対応 ${applied.unmatched.length}名を除外`);
+            if (applied.console) parts.push('コンソールレベルも適用');
+            updateRosterNote(parts.join(' · '));
+            status.textContent = [`${applied.matched.length}名を読み込みました。`, ...applied.notes].join(' ');
+          } catch (error) {
+            status.textContent = error instanceof Error ? error.message : String(error);
+          } finally {
+            runButton.disabled = false;
+          }
+        })();
+      });
+    }
+
     const boardCsv = element<HTMLInputElement>(root, '#board-csv');
     boardCsv.addEventListener('change', () => { void importRosterCsv(boardCsv); });
     // label + hidden な input はキーボードで到達できないので、押せるボタンから開く

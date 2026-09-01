@@ -9,8 +9,13 @@ import type { StorageLike } from './cache';
 
 export const SYNC_META_KEY = 'nikke-sync-v1';
 
-/** どこから取り込んだか。CSV は URL を持たないので再取込を自動化できない。 */
-export type SyncSource = 'blablalink' | 'csv';
+/**
+ * どこから取り込んだか。
+ * - blablalink: プロキシ経由。アドレスを覚えられるのでワンボタン更新ができる
+ * - snippet: 自分のブラウザでスニペットを実行して貼り付けた。取り直すには実行し直しが要る
+ * - csv: Letsdoro の CSV。ファイルを選び直す必要がある
+ */
+export type SyncSource = 'blablalink' | 'snippet' | 'csv';
 
 export interface SyncMeta {
   /** 形が変わったら上げる。読めない版は捨てて「未取込」に倒す。 */
@@ -38,7 +43,7 @@ export function loadSyncMeta(storage: StorageLike | null | undefined): SyncMeta 
     const data = JSON.parse(raw) as Partial<SyncMeta>;
     // 他人のブラウザに何が入っているか分からない。形を見てから使う。
     if (data?.schemaVersion !== 1) return null;
-    if (data.source !== 'blablalink' && data.source !== 'csv') return null;
+    if (data.source !== 'blablalink' && data.source !== 'snippet' && data.source !== 'csv') return null;
     if (typeof data.at !== 'string' || Number.isNaN(Date.parse(data.at))) return null;
     return {
       schemaVersion: 1,
@@ -83,6 +88,7 @@ export function syncAgoText(at: string, now: number = Date.now()): string {
 /** 取込元の呼び名。画面にそのまま出す。 */
 export const SOURCE_LABELS: Record<SyncSource, string> = {
   blablalink: 'Blablalink',
+  snippet: 'Blablalink (自分で取得)',
   csv: 'CSV',
 };
 
