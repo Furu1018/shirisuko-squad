@@ -240,7 +240,12 @@ export function areaToOverrides(
 
     const cube = cubeOf(detail, settings.cubes);
     if (cube) override.cube = cube;
-    else if (!detail.harmony_cube_tid) noCube += 1;
+    else if (!detail.harmony_cube_tid) {
+      // 「取込が持っていない」ではなく「着けていない」— 区別しないと、外したキューブが
+      // マージで前回の値のまま残る
+      override.cube = { name: '없음', level: 0 };
+      noCube += 1;
+    }
 
     override.equipLevels = equipLevelsOf(detail);
 

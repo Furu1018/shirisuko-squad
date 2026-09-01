@@ -139,13 +139,23 @@ export interface MergeableDeck {
 export function applyImportedRoster(
   roster: Record<string, CharacterOverrides>,
   decks: readonly MergeableDeck[],
+  /**
+   * 今回の取込に**実際に含まれていた**キャラ名。渡すとこの範囲だけを配る。
+   *
+   * ロスターは取込に無いキャラの行も残すようになったので、ロスター全体を配ると
+   * 「今回来ていないキャラ」のデッキ側の値まで古いロスター値で塗り替えてしまう
+   * (手で直した育成値が、関係ない CSV を取り込んだだけで戻る)。
+   */
+  onlyNames?: Iterable<string>,
 ): string[] {
+  const allowed = onlyNames ? new Set(onlyNames) : null;
   const touched = new Set<string>();
   for (const deck of decks) {
     for (const name of deck.squad) {
       if (!name) continue;
+      if (allowed && !allowed.has(name)) continue;   // 今回の取込に無い = 触らない
       const imported = roster[name];
-      if (!imported) continue;                       // 取込に無い = 触らない
+      if (!imported) continue;
       const before = deck.characters[name];
       const merged = mergeImportedOverride(imported, before);
       if (!before || !sameGrowth(before, merged)) touched.add(name);

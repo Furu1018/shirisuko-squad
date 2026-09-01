@@ -117,9 +117,13 @@ export function parseRosterCsv(text: string, settings: SettingsCatalog): RosterI
     }
     if (Object.keys(overload).length > 0) override.overload = overload;
 
+    // 突破段階は「限界突破 + コア強化」の**合計**なので、片方しか来ていないと復元できない。
+    // 돌파 だけを読んでコアを 0 と見なすと、Blablalink で入れたコア込みの段階を潰す
+    // (3突破+コア7=10 → 3 に落ちる)。両方が来たときだけ作る。
+    // 空欄 (列はあるが中身なし) は「0」として扱う — そこは「無い」ではなく「持っていない」。
     const breakthroughRaw = at(row, '돌파');
     const coreRaw = at(row, '코강');
-    if (breakthroughRaw !== undefined || coreRaw !== undefined) {
+    if (breakthroughRaw !== undefined && coreRaw !== undefined) {
       const breakthrough = toInt(breakthroughRaw) ?? 0;
       const core = toInt(coreRaw) ?? 0;
       override.growthStage = clamp(breakthrough + core, 0, defaults.maxGrowthStage);

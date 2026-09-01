@@ -147,7 +147,7 @@ describe('areaToOverrides', () => {
     expect(result.overrides['라피']!.collection).toEqual({ stage: '없음', favorite: 0 });
   });
 
-  it('낀 큐브를 이름으로 옮기고, 안 꼈으면 손대지 않는다', () => {
+  it('着けたキューブは名前に、着けていなければ「なし」として出す', () => {
     const result = areaToOverrides(area({
       characters: [{ name_code: 5001, grade: 0, core: 0 }, { name_code: 5002, grade: 0, core: 0 }],
       details: [
@@ -157,7 +157,9 @@ describe('areaToOverrides', () => {
     }), settings, catalog);
 
     expect(result.overrides['라피']!.cube).toEqual({ name: '렐릭 디바이드 큐브', level: 15 });
-    expect(result.overrides['앨리스']!.cube).toBeUndefined();
+    // 「取込が持っていない」ではなく「着けていない」— 区別しないと、外したキューブが
+    // 取り込み直しのマージで前回の値のまま残る
+    expect(result.overrides['앨리스']!.cube).toEqual({ name: '없음', level: 0 });
     expect(result.notes.some((note) => note.includes('큐브를 끼지 않은'))).toBe(true);
   });
 

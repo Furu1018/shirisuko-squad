@@ -164,6 +164,24 @@ describe('取込をデッキへ配る', () => {
     expect(deck.characters.라피!.growthStage).toBe(7);
   });
 
+  it('今回の取込に含まれるキャラだけへ配る (関係ない取込で他のキャラを塗り替えない)', () => {
+    // ロスターは取込に無いキャラの行も残すようになった。全部配ると、今回来ていない
+    // キャラのデッキ側の値まで古いロスター値で塗り替わり、手で直した育成値が戻る。
+    const manualGrowth = manual({ growthStage: 5 });
+    const deck = deckOf(['라피', '크라운'], { 크라운: manualGrowth });
+    const roster = { 라피: imported(), 크라운: imported({ growthStage: 1 }) };
+    const touched = applyImportedRoster(roster, [deck], ['라피']);   // 今回来たのは 라피 だけ
+    expect(deck.characters.라피!.growthStage).toBe(7);               // 来た → 更新
+    expect(deck.characters.크라운!.growthStage).toBe(5);             // 来ていない → 手の値のまま
+    expect(touched).toEqual(['라피']);
+  });
+
+  it('範囲を渡さなければ従来どおり全部配る', () => {
+    const deck = deckOf(['라피', '크라운'], { 크라운: manual({ growthStage: 5 }) });
+    applyImportedRoster({ 라피: imported(), 크라운: imported({ growthStage: 1 }) }, [deck]);
+    expect(deck.characters.크라운!.growthStage).toBe(1);
+  });
+
   it('取込に無いキャラ (未所持・自作ニケ) には触らない', () => {
     const custom = manual();
     const deck = deckOf(['커스텀'], { 커스텀: custom });

@@ -3441,8 +3441,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   let powerSig = '';
   let powerLoading = false;
 
+  // 取込の直後にもう一度呼ばれることがある。走っている間に来た依頼を捨てると、
+  // 古いロスターで測った戦闘力が残り続けるので、終わってから追いかけて測り直す。
+  let powerAgain = false;
   const loadCombatPower = async () => {
     if (!client.combatPower) return;
+    if (powerLoading) { powerAgain = true; return; }
     const sig = JSON.stringify(roster);
     if (powerLoading || powerSig === sig) return;
     powerLoading = true;
@@ -3464,6 +3468,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     } finally {
       powerLoading = false;
     }
+    if (powerAgain) { powerAgain = false; await loadCombatPower(); }
   };
 
   /** 버스트만 판 밖에 있다 — 값은 여기 두고 그리는 자리만 다르다. */
@@ -3820,7 +3825,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 速射・バースト運用などの操作設定は残す (規則は roster-merge.ts)。
   // 起動時の applyRosterToDecks と分けてあるのは、リロードのたびに手で直した値が
   // 巻き戻ると困るため — 上書きしてよいのは「取り込み直した」その瞬間だけ。
-  const refreshDecksFromRoster = (): number => applyImportedRoster(roster, decks).length;
+  const refreshDecksFromRoster = (names: readonly string[]): number =>
+    applyImportedRoster(roster, decks, names).length;
   // 取込の記録 (いつ・どこから・何名)。ワンボタン更新はここに残したアドレスを使う。
   const syncBox = element<HTMLElement>(root, '[data-sync-box]');
   const syncWhen = element<HTMLElement>(root, '[data-sync-when]');
@@ -3881,14 +3887,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       roster = mergeImportedRoster(roster, overrides);
       saveRoster();
       void loadCombatPower();
-      const refreshed = refreshDecksFromRoster();
+      const refreshed = refreshDecksFromRoster(matched);
       saveState();
       renderDeckTabs();
       renderSquad();
       const skipped = unmatched.length > 0 ? ` · 未対応 ${unmatched.length}名を除外` : '';
+      const kept = Object.keys(roster).length - matched.length;
       rememberSync({ schemaVersion: 1, source: 'csv', at: new Date().toISOString(), matched: matched.length });
       const updated = refreshed > 0 ? ` · 編成中 ${refreshed}名の育成値を更新` : '';
-      updateRosterNote(`CSV ロスター ${matched.length}名を適用${skipped}${updated}`
+      // 取込に無かったキャラは消さずに残す。黙って残すと「持っていないのに所持扱い」に気づけない
+      const carried = kept > 0 ? ` · この CSV に無かった ${kept}名は前回の値のまま` : '';
+      updateRosterNote(`CSV ロスター ${matched.length}名を適用${skipped}${updated}${carried}`
         + ' · キューブと好感度は CSV にないため既定値で計算します(カードの個別設定で修正可)');
     } catch (error) {
       updateRosterNote(`CSV の読み込みに失敗: ${error instanceof Error ? error.message : String(error)}`);
@@ -3954,7 +3963,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         roster = mergeImportedRoster(roster, overrides);
         saveRoster();
         void loadCombatPower();
-        const refreshed = refreshDecksFromRoster();
+        const refreshed = refreshDecksFromRoster(matched);
 
         // 콘솔은 계정 단위라 전투 설정 쪽에 있다. 전초기지가 비공개면 안 오고, 그때는
         // 손대지 않는 게 맞다 — 0으로 덮으면 멀쩡하던 값이 사라진다.
@@ -3972,6 +3981,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         });
         const parts = [`Blablalink ${serverLabel} ${matched.length}名を適用`];
         if (refreshed > 0) parts.push(`編成中 ${refreshed}名の育成値を更新`);
+        const carried = Object.keys(roster).length - matched.length;
+        if (carried > 0) parts.push(`今回に無かった ${carried}名は前回の値のまま`);
         if (unmatched.length > 0) parts.push(`未対応 ${unmatched.length}名を除外`);
         if (consoleLevels) parts.push('コンソールレベルも適用');
         updateRosterNote(parts.join(' · '));
@@ -4563,7 +4574,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           const drop = el('button', 'roster-import danger', '削除');
           (drop as HTMLButtonElement).type = 'button';
           drop.dataset.plansRemove = plan.id;
-          drop.addEventListener('click', () => { commit(removePlan(plans, code, plan.id)); });
+          drop.addEventListener('click', () => {
+            const saved = commit(removePlan(plans, code, plan.id));
+            if (!saved) say(code, 'この画面では消えましたが、ブラウザに保存できませんでした (次に開くと戻ります)。');
+          });
           row.append(apply, drop);
           list.append(row);
         });

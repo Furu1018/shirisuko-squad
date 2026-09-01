@@ -80,8 +80,15 @@ describe('列そのものが無い CSV', () => {
     expect(alice.growthStage).toBe(0);
   });
 
-  it('돌파 だけでも列があれば突破を読む (코강 は 0 扱い)', () => {
+  it('돌파 だけで 코강 が無い CSV は突破段階を作らない (合計を復元できないため)', () => {
+    // 「3突破 + コア7 = 段階10」を Blablalink で入れたあと、돌파 列しか無い CSV を
+    // 取り込むと、コアを 0 と見なして段階3に落ちてしまう。片方だけでは作らない。
     const csv = [['이름', '돌파'].join(','), '"앨리스","2"'].join('\n');
+    expect(parseRosterCsv(csv, settings).overrides['앨리스']!.growthStage).toBeUndefined();
+  });
+
+  it('돌파 と 코강 が揃えば読む (空欄は 0 = 強化していない)', () => {
+    const csv = [['이름', '돌파', '코강'].join(','), '"앨리스","2",""'].join('\n');
     expect(parseRosterCsv(csv, settings).overrides['앨리스']!.growthStage).toBe(2);
   });
 
@@ -98,9 +105,19 @@ describe('列そのものが無い CSV', () => {
     const short = ['이름', '돌파', '코강', '소장품', '우코(%)'].join(',');
     const csv = [short, '"앨리스","3"'].join('\n');
     const alice = parseRosterCsv(csv, settings).overrides['앨리스']!;
-    expect(alice.growthStage).toBe(3);           // 돌파 は来ている (코강 は 0 扱い)
-    expect(alice.collection).toBeUndefined();    // 来ていない → 作らない
-    expect(alice.overload).toBeUndefined();      // 同上
+    // 코강 のセルが来ていないので合計を復元できない → 突破段階は作らない
+    expect(alice.growthStage).toBeUndefined();
+    expect(alice.collection).toBeUndefined();
+    expect(alice.overload).toBeUndefined();
+  });
+
+  it('行が揃っていれば読む (短い行と区別する)', () => {
+    const header2 = ['이름', '돌파', '코강', '소장품', '우코(%)'].join(',');
+    const csv = [header2, '"앨리스","3","2","SR 15","80"'].join('\n');
+    const alice = parseRosterCsv(csv, settings).overrides['앨리스']!;
+    expect(alice.growthStage).toBe(5);
+    expect(alice.collection).toEqual({ stage: 'SR15', favorite: 0 });
+    expect(alice.overload).toEqual({ element_bonus: 80 });
   });
 });
 
