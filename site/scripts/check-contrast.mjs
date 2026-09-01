@@ -73,7 +73,12 @@ for (const line of rootBlock.split('\n')) {
 function resolve色(value, bg, depth = 0) {
   if (!value || depth > 6) return null;
   const v = value.trim();
-  if (/^#[0-9a-f]{3,8}$/i.test(v)) return v.length > 7 ? v.slice(0, 7) : v;
+  if (/^#[0-9a-f]{3,8}$/i.test(v)) {
+    // `#RRGGBBAA` の透明度を捨てていた。現状 styles.css に8桁は無いが、
+    // 増えたときに黙って «不透明» と誤読するので下地に重ねておく。
+    if (v.length === 9) return over(v.slice(0, 7), parseInt(v.slice(7, 9), 16) / 255, bg);
+    return v;
+  }
   // `var(--x)` と `var(--x, 予備)`。予備を読めないと規則ごと未検査になる
   const varRef = v.match(/^var\(\s*(--[a-z0-9-]+)\s*(?:,\s*([\s\S]+))?\)$/i);
   if (varRef) {
@@ -190,6 +195,8 @@ function inherited(selector, pick) {
 // ── 規則を1つずつ見る ─────────────────────────────────────────────────────
 const failures = [];
 const passes = [];
+/** 背景指定のある規則は下地3面それぞれで試すので、組み合わせの数と規則の数はずれる。 */
+const checkedRules = new Set();
 for (const { selector, body } of RULES) {
   const ownColor = colorOf(body);
   const colorValue = ownColor ?? inherited(selector, colorOf);
@@ -217,6 +224,7 @@ for (const { selector, body } of RULES) {
     if (r < need) { failures.push(row); break; }
     if (!bgDecl && parent !== WORST_SURFACE) continue;   // 背景指定なしは最悪面だけ記録
     passes.push(row);
+    checkedRules.add(selector);   // «規則の数» と «試した組み合わせの数» は別物
   }
 }
 
@@ -244,4 +252,4 @@ if (failures.length > 0) {
   console.log(`\n${failures.length}件が基準を下回っています。`);
 }
 if (banned.length > 0 || failures.length > 0) process.exit(1);
-console.log(`検算した規則 ${passes.length}件 — 基準割れなし。`);
+console.log(`検算した規則 ${checkedRules.size}件 / 試した組み合わせ ${passes.length}通り — 基準割れなし。`);

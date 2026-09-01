@@ -150,7 +150,8 @@ npm run build      # tsc --noEmit + vite build (prebuild で Python が要る)
 
 配色を変えたら `npm run check-contrast` — styles.css を読んで文字色と背景の組み合わせを検算し、
 小文字の基準 (4.5:1) を下回るものがあれば**落とす**。**build の前と CI で自動的に走る**ので、
-基準割れのまま気づかず出すことはない (現在 416規則)。
+基準割れのまま気づかず出すことはない (現在 418規則 / 762通りの組み合わせ。背景を指定した規則は
+下地3面それぞれで試すので、規則の数と組み合わせの数はずれる)。
 
 **`opacity` で文字を薄めるのは禁止**にしてある。要素を薄めると、その中の文字がどこまで下地に
 溶けるかは DOM の入れ子が分からないと決まらず、CSS だけを読むこの検算では原理的に追えない
@@ -179,6 +180,12 @@ npm run build      # tsc --noEmit + vite build (prebuild で Python が要る)
 直し方の方向は2つ。①背景を不透明に寄せる (`.filter-panel` を .97 まで上げれば裏の影響は
 4%以下に落ち、ぼかしの見た目はほぼ残る) ②文字に確実な下敷きを敷く。①が安く、
 ゲームUIらしさを保ちたい `.growth-core` などは②が向く。
+
+**このほか、解決できない色や背景は黙って飛ばされる**（未検査であって、合格ではない）:
+
+- `linear-gradient()` の上の文字 — `.calculate-button` が該当
+- `color-mix()` の上の文字 — `.favorite-item-note` が該当
+- 自分で色を持つ子要素は、親の背景まで遡らない（前方一致の見当付けまで）
 
 見た目を確認したいときは `npm run build && npx vite preview --port 4173` を立てて、
 Playwright で各タブを撮ると早い (職場PCでは `scratchpad/squad-shots.mjs` を使った)。
