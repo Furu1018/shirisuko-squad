@@ -1441,3 +1441,16 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
   background: rgba(146,176,201,.18); white-space: nowrap; }
 .plans-score { font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 116px; text-align: right; }
 .plans-score.is-best { font-weight: 800; }
+
+/* しりすこスクワッド: ボス条件で確かめる */
+.plans-boss { border: 1px solid rgba(146,176,201,.22); border-radius: 11px; padding: 12px 14px; margin-bottom: 14px; }
+.plans-boss h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
+.plans-boss-lede { margin: 0 0 10px; font-size: 12px; opacity: .8; }
+.plans-boss-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.plans-boss-result { overflow-x: auto; margin-top: 10px; }
+.plans-boss-table { border-collapse: collapse; width: 100%; font-size: 12.5px; white-space: nowrap; }
+.plans-boss-table th, .plans-boss-table td { padding: 6px 10px; text-align: left;
+  border-bottom: 1px solid rgba(146,176,201,.18); }
+.plans-boss-table th { font-size: 11px; opacity: .7; font-weight: 700; }
+.plans-boss-members { white-space: normal; min-width: 200px; }
+.plans-boss-moved { font-weight: 800; }

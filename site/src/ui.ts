@@ -45,14 +45,15 @@ import { LATEST_NOTICE_ID, NOTICES, noticeFragment, noticeToShow } from './notic
 import { mountSharePanel, squadPreview, type SharePanel } from './share-panel';
 import { startPresence } from './presence';
 import { UNION_SEASON, bossBattle } from './union-bosses';
-import { applyImportedRoster } from './roster-merge';
+import { applyImportedRoster, mergeImportedRoster } from './roster-merge';
 import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
 import {
-  BEATS, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, baselineBattle, loadPlans, plansOf,
-  removePlan, savePlans, type ElementPlans, type PlanElement,
+  BEATS, ELEMENT_PLANS_KEY, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, baselineBattle,
+  bossConditionBattle, counterOf, loadPlans, plansOf, removePlan, savePlans,
+  type ElementPlans, type PlanElement,
 } from './element-plans';
 import {
-  canReSync, loadSyncMeta, saveSyncMeta, syncSummary, type SyncMeta,
+  SYNC_META_KEY, canReSync, loadSyncMeta, saveSyncMeta, syncSummary, type SyncMeta,
 } from './sync-meta';
 import { mountUnionRaid } from './union-raid';
 import { EXTERNAL_LINKS, hostOf } from './external-links';
@@ -518,6 +519,18 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <div><p class="step">PLANS</p><h2 id="plans-heading">属性別編成</h2></div>
         </div>
         <p class="links-lede">コードごとに<b>本命の編成を3つまで</b>置いておく場所です。ここではボスの癖 (コア・パーツ・区間) を考えず、<b>有利コードだけ</b>を見ます。ボスに合わせた調整は計算機側で重ねてください。</p>
+        <div class="plans-boss" data-plans-boss>
+          <h3>ボス条件で確かめる</h3>
+          <p class="plans-boss-lede">上の比較は<b>ボスの癖なし</b>です。実際のボスではコアやパーツで順位が入れ替わることがあるので、ここで並べて確かめます。</p>
+          <div class="plans-boss-row">
+            <select data-plans-boss-pick aria-label="ボス"></select>
+            <label class="toggle-field mode-toggle"><input type="checkbox" data-plans-boss-core /><span class="toggle"></span><span>コアあり</span></label>
+            <label class="toggle-field mode-toggle"><input type="checkbox" data-plans-boss-parts /><span class="toggle"></span><span>破壊可能パーツあり</span></label>
+            <button type="button" class="roster-import" data-plans-boss-run>このボスで比べる</button>
+          </div>
+          <p class="plans-note" data-plans-boss-note hidden></p>
+          <div class="plans-boss-result" data-plans-boss-result></div>
+        </div>
         <div class="plans-groups" data-plans-groups></div>
       </section>
 
@@ -3442,6 +3455,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         ...(Object.keys(custom).length > 0 ? { customCharacters: custom } : {}),
       });
       combatPower = got;
+      renderMyRoster();   // 戦闘力は後から届く — 届いたら一覧と並べ替えに反映する
       powerSig = sig;
       renderFilterState();
       renderRosterGrid();
@@ -3770,7 +3784,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-reset-confirm]').addEventListener('click', () => {
     cache.clear();
     const store = resolveStorage();
-    for (const key of [STATE_KEY, ROSTER_KEY, CUSTOM_KEY]) {
+    for (const key of [STATE_KEY, ROSTER_KEY, CUSTOM_KEY, SYNC_META_KEY, ELEMENT_PLANS_KEY]) {
       try {
         store?.removeItem(key);
       } catch {
@@ -3862,7 +3876,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         updateRosterNote('CSV に対応キャラクターが見つかりませんでした。正式名称が一致しているか確認してください。');
         return;
       }
-      roster = overrides;
+      // 取込に無いキャラの行は残す — 一部だけの CSV で他のキャラが既定に戻ると、
+      // 属性別編成の比較まで静かに劣化する
+      roster = mergeImportedRoster(roster, overrides);
       saveRoster();
       void loadCombatPower();
       const refreshed = refreshDecksFromRoster();
@@ -3929,11 +3945,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const serverLabel = blablaServerLabel(area.area);
         const { overrides, matched, unmatched, notes } = areaToOverrides(area, settings, catalog);
         if (matched.length === 0) {
-          setStatus('計算機が扱えるニケが見つかりませんでした。プロフィールが公開になっているか確認してください。');
+          const message = '計算機が扱えるニケが見つかりませんでした。プロフィールが公開になっているか確認してください。';
+          setStatus(message);
+          if (preset) updateRosterNote(message);   // 窓を開かずに押したときは画面側にも出す
           return;
         }
 
-        roster = overrides;
+        roster = mergeImportedRoster(roster, overrides);
         saveRoster();
         void loadCombatPower();
         const refreshed = refreshDecksFromRoster();
@@ -4461,6 +4479,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   {
     const groupsBox = element<HTMLElement>(root, '[data-plans-groups]');
     let plans: ElementPlans = loadPlans(resolveStorage());
+    // 計算中かどうかはボタンではなくここに持つ。保存・削除で renderPlans() が
+    // ボタンごと作り直すため、disabled だけに頼ると二重に走らせられる。
+    let comparing = false;
     const say = (element_: PlanElement, message: string, ok = false) => {
       const note = groupsBox.querySelector<HTMLElement>(`[data-plans-note="${element_}"]`);
       if (!note) return;
@@ -4469,10 +4490,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       note.classList.toggle('is-ok', ok);
     };
 
-    const commit = (next: ElementPlans) => {
+    const commit = (next: ElementPlans): boolean => {
       plans = next;
-      savePlans(resolveStorage(), plans);
+      const saved = savePlans(resolveStorage(), plans);
       renderPlans();
+      return saved;
     };
 
     renderPlans = () => {
@@ -4490,7 +4512,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         save.title = '計算機で今開いているデッキの顔ぶれを、この属性の案として保存します';
         save.addEventListener('click', () => {
           const result = addPlan(plans, code, activeDeck().squad);
-          if (result.added) { commit(result.plans); say(code, '保存しました。', true); return; }
+          if (result.added) {
+            const saved = commit(result.plans);
+            say(code, saved ? '保存しました。'
+              : 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと消えます)。', saved);
+            return;
+          }
           say(code, result.reason === 'full'
             ? `この属性は既に ${MAX_PLANS_PER_ELEMENT} 案あります。どれかを消してから保存してください。`
             : result.reason === 'duplicate' ? '同じ顔ぶれの案が既にあります。'
@@ -4545,12 +4572,138 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
     };
 
+    // ── ボス条件で確かめる ──
+    // 基準 (癖なし) とボス条件の両方を計算して並べる。片方だけ見せると、
+    // なぜ順位が入れ替わったのか読めなくなる。
+    const bossPick = element<HTMLSelectElement>(root, '[data-plans-boss-pick]');
+    const bossCore = element<HTMLInputElement>(root, '[data-plans-boss-core]');
+    const bossParts = element<HTMLInputElement>(root, '[data-plans-boss-parts]');
+    const bossRun = element<HTMLButtonElement>(root, '[data-plans-boss-run]');
+    const bossNote = element<HTMLElement>(root, '[data-plans-boss-note]');
+    const bossResult = element<HTMLElement>(root, '[data-plans-boss-result]');
+
+    for (const [index, boss] of UNION_SEASON.bosses.entries()) {
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = `${boss.name} (${elementLabel(boss.elementCode)})`;
+      bossPick.append(option);
+    }
+
+    const sayBoss = (message: string, ok = false) => {
+      bossNote.textContent = message;
+      bossNote.hidden = !message;
+      bossNote.classList.toggle('is-ok', ok);
+    };
+
+    const runOne = async (deckSquad: readonly string[], battle: BattleSettings) => {
+      const deck: DeckState = {
+        id: 1,
+        squad: [...deckSquad],
+        characters: Object.fromEntries(deckSquad.filter(Boolean)
+          .filter((name) => roster[name])
+          .map((name) => [name, cloneOverride(roster[name]!)])),
+      };
+      const custom = customPayload();
+      const request = requestForDeck(deck, battle, Object.keys(custom).length > 0 ? custom : undefined);
+      // 「計算」と同じ検証を通す — 通常計算が弾く値 (範囲外のオーバーロード等) を
+      // 比較だけが素通りさせると、そこだけ違う結果が出て理由が分からなくなる
+      const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
+      if (problems.length > 0) throw new Error(problems[0]!);
+      const key = cacheKey(request, version);
+      const hit = cache.get(key);
+      if (hit) return hit.squadTotal;
+      const result = await client.simulate(request);
+      cache.set(key, result);
+      return result.squadTotal;
+    };
+
+    const runBossCheck = async () => {
+      if (comparing) { sayBoss('別の比較が走っています。終わるまで待ってください。'); return; }
+      const boss = UNION_SEASON.bosses[Number(bossPick.value)];
+      if (!boss) return;
+      const code = counterOf(boss.elementCode);
+      if (!code) { sayBoss('このボスのコードに対応する編成がありません。'); return; }
+      const saved = plansOf(plans, code);
+      if (saved.length === 0) {
+        sayBoss(`${elementLabel(code)} の案がまだありません。先に「今の編成を保存」で登録してください。`);
+        bossResult.replaceChildren();
+        return;
+      }
+      const base = readBattle();
+      const plain = baselineBattle(base, code);
+      const withBoss = bossConditionBattle(base, boss, {
+        coreEnabled: bossCore.checked, hasParts: bossParts.checked,
+      });
+      comparing = true;
+      bossRun.disabled = true;
+      bossResult.replaceChildren();
+      try {
+        await prepared;
+        const rows: Array<{ index: number; squad: string[]; plain: number; boss: number }> = [];
+        let done = 0;
+        for (const [index, plan] of saved.entries()) {
+          sayBoss(`計算中… ${done}/${saved.length * 2}`);
+          const plainTotal = await runOne(plan.squad, plain);
+          done += 1;
+          sayBoss(`計算中… ${done}/${saved.length * 2}`);
+          const bossTotal = await runOne(plan.squad, withBoss);
+          done += 1;
+          rows.push({ index: index + 1, squad: plan.squad, plain: plainTotal, boss: bossTotal });
+        }
+        const bestPlain = Math.max(...rows.map((row) => row.plain));
+        const bestBoss = Math.max(...rows.map((row) => row.boss));
+        const rankOf = (value: number, all: number[]) =>
+          all.filter((other) => other > value).length + 1;
+        const plainAll = rows.map((row) => row.plain);
+        const bossAll = rows.map((row) => row.boss);
+
+        const table = el('table', 'plans-boss-table');
+        const head = document.createElement('tr');
+        for (const label of ['案', '編成', '基準 (癖なし)', `${boss.name}`, '順位']) {
+          head.append(createText('th', label));
+        }
+        table.append(head);
+        for (const row of rows) {
+          const tr = document.createElement('tr');
+          tr.dataset.plansBossRow = String(row.index);
+          tr.append(createText('td', `案 ${row.index}`));
+          tr.append(createText('td', row.squad.filter(Boolean).map(labelFor).join(' / '), 'plans-boss-members'));
+          const plainRank = rankOf(row.plain, plainAll);
+          const bossRank = rankOf(row.boss, bossAll);
+          tr.append(createText('td',
+            `${formatDamage(row.plain)} (${bestPlain > 0 ? Math.round((row.plain / bestPlain) * 1000) / 10 : 0}%)`));
+          tr.append(createText('td',
+            `${formatDamage(row.boss)} (${bestBoss > 0 ? Math.round((row.boss / bestBoss) * 1000) / 10 : 0}%)`));
+          // 順位が動いたかどうかが、この画面で一番読みたいこと
+          const moved = plainRank !== bossRank;
+          tr.append(createText('td',
+            moved ? `${plainRank}位 → ${bossRank}位` : `${bossRank}位 (変わらず)`,
+            moved ? 'plans-boss-moved' : undefined));
+          table.append(tr);
+        }
+        bossResult.append(table);
+        const changed = rows.some((row) =>
+          rankOf(row.plain, plainAll) !== rankOf(row.boss, bossAll));
+        sayBoss(changed
+          ? 'このボスの条件では順位が入れ替わります — 右端を見てください。'
+          : 'このボスの条件でも順位は変わりませんでした。', !changed);
+      } catch (error) {
+        sayBoss(`計算に失敗しました — ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        comparing = false;
+        bossRun.disabled = false;
+      }
+    };
+    bossRun.addEventListener('click', () => { void runBossCheck(); });
+
     // 同じ土俵 (ボスの癖なし) で順に計算し、最大値を 100% として並べる。
     const comparePlans = async (code: PlanElement, button: HTMLButtonElement) => {
+      if (comparing) { say(code, '別の比較が走っています。終わるまで待ってください。'); return; }
       const saved = plansOf(plans, code);
       if (saved.length === 0) { say(code, '比較する案がありません。'); return; }
       const battle = baselineBattle(readBattle(), code);
       const custom = customPayload();
+      comparing = true;
       button.disabled = true;
       say(code, `計算中… 0/${saved.length}`);
       const totals = new Map<string, number>();
@@ -4567,8 +4720,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
               .map((name) => [name, cloneOverride(roster[name]!)])),
           };
           const request = requestForDeck(deck, battle, Object.keys(custom).length > 0 ? custom : undefined);
-          const problems = validateRequest(request);
-          if (problems.length > 0) { say(code, `計算できません — ${problems[0]}`); button.disabled = false; return; }
+          const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
+          if (problems.length > 0) { say(code, `計算できません — ${problems[0]}`); return; }
           const key = cacheKey(request, version);
           let result = cache.get(key);
           if (!result) { result = await client.simulate(request); cache.set(key, result); }
@@ -4588,6 +4741,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       } catch (error) {
         say(code, `計算に失敗しました — ${error instanceof Error ? error.message : String(error)}`);
       } finally {
+        comparing = false;
         button.disabled = false;
       }
     };

@@ -42,11 +42,36 @@ const clone = <T>(value: T): T =>
   (value && typeof value === 'object' ? structuredClone(value) : value);
 
 /**
+ * 育成項目のうち**中身がキーの集まり**のもの。項目ごと差し替えるのではなく、
+ * 来たキーだけを重ねる。
+ *
+ * 理由: CSV は列単位で欠ける。オーバーロード9種のうち「優越」列しか無い CSV を
+ * 取り込んだとき、項目ごと差し替えると残り8種が消える。装備も部位ごとに欠けうる。
+ * 「来た分だけ更新して、来なかった分は残す」が取り込み直しの正しい意味になる。
+ */
+const MERGE_BY_KEY = ['overload', 'equipLevels', 'skillLevels'] as const;
+
+/** 中身が一体で意味を持つ育成項目。半端に混ぜると壊れるので、来たら丸ごと差し替える。 */
+const REPLACE_WHOLE = ['growthStage', 'cube', 'collection'] as const;
+
+// 育成6項目は「キーごとに重ねる」か「丸ごと差し替える」のどちらかに必ず属する。
+// 分け忘れると静かに更新されない項目ができるので、型で気づかせる。
+type GrowthField = (typeof GROWTH_FIELDS)[number];
+type Handled = (typeof MERGE_BY_KEY)[number] | (typeof REPLACE_WHOLE)[number];
+const _allGrowthHandled: Exclude<GrowthField, Handled> extends never ? true : never = true;
+void _allGrowthHandled;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
  * 取込値と既存設定を項目単位で混ぜる。
  *
- * - 育成6項目: `imported` にある項目だけ置き換える。取込が持たない項目 (CSV はキューブを持たない等) は
- *   既存の値を残す — 「取込に無い = 既定に戻す」にすると、CSV 更新のたびにキューブが消える
- * - 操作4項目: 常に `existing` を残す
+ * - 育成6項目のうちキーの集まり (オーバーロード・装備・スキル) は**来たキーだけ**を重ねる
+ * - 残りの育成項目 (突破・キューブ・コレクション) は来たら丸ごと差し替える
+ * - 取込が持たない項目は既存の値を残す — 「取込に無い = 既定に戻す」にすると、
+ *   CSV 更新のたびにキューブや装備が消える
+ * - 操作4項目 (速射・バースト運用など) は常に `existing` を残す
  *
  * `existing` が無ければ取込値のコピーをそのまま返す。
  */
@@ -55,13 +80,43 @@ export function mergeImportedOverride(
   existing?: CharacterOverrides,
 ): CharacterOverrides {
   const out: CharacterOverrides = {};
-  // 既存を土台にする (育成・操作とも。育成はこのあと取込値で上書きされる)
+  // 既存を土台にする (育成・操作とも。育成はこのあと取込値で重ねられる)
   for (const [key, value] of Object.entries(existing ?? {})) {
     if (value !== undefined) Object.assign(out, { [key]: clone(value) });
   }
-  for (const field of GROWTH_FIELDS) {
+  for (const field of REPLACE_WHOLE) {
     const value = imported[field];
     if (value !== undefined) Object.assign(out, { [field]: clone(value) });
+  }
+  for (const field of MERGE_BY_KEY) {
+    const value = imported[field];
+    if (value === undefined) continue;
+    const before = out[field];
+    Object.assign(out, {
+      [field]: isRecord(value) && isRecord(before)
+        ? { ...before, ...clone(value) }   // 来たキーだけ重ねる
+        : clone(value),
+    });
+  }
+  return out;
+}
+
+/**
+ * 取込結果をロスター全体へ重ねる。
+ *
+ * **取込に無いキャラの行は消さない。** CSV は一部のキャラしか含まないことがあり、
+ * 丸ごと差し替えると、その CSV に載っていないキャラの育成値が既定に戻る
+ * (属性別編成の比較はロスターを見るので、保存した案の中身まで静かに劣化する)。
+ * NIKKE ではニケを失わないので、残しておいて困ることもない。
+ */
+export function mergeImportedRoster(
+  existing: Record<string, CharacterOverrides>,
+  imported: Record<string, CharacterOverrides>,
+): Record<string, CharacterOverrides> {
+  const out: Record<string, CharacterOverrides> = {};
+  for (const [name, override] of Object.entries(existing)) out[name] = clone(override);
+  for (const [name, override] of Object.entries(imported)) {
+    out[name] = mergeImportedOverride(override, existing[name]);
   }
   return out;
 }

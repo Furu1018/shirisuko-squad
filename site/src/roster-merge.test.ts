@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CharacterOverrides } from './types';
 import {
-  GROWTH_FIELDS, OPERATION_FIELDS, applyImportedRoster, mergeImportedOverride,
+  GROWTH_FIELDS, OPERATION_FIELDS, applyImportedRoster, mergeImportedOverride, mergeImportedRoster,
 } from './roster-merge';
 
 const imported = (over: Partial<CharacterOverrides> = {}): CharacterOverrides => ({
@@ -71,6 +71,27 @@ describe('取込マージの規則', () => {
     expect(merged.weaponModeSwapAt).toBe(6);
   });
 
+  it('オーバーロードは来たキーだけ重ねる (列が一部だけの CSV で残りを消さない)', () => {
+    // 9種のうち「優越」列しか無い CSV。項目ごと差し替えると残り8種が消える。
+    const partial: CharacterOverrides = { overload: { element_bonus: 90 } };
+    const existing = manual({ overload: { element_bonus: 10, atk_pct: 43, max_ammo_pct: 109 } });
+    expect(mergeImportedOverride(partial, existing).overload)
+      .toEqual({ element_bonus: 90, atk_pct: 43, max_ammo_pct: 109 });
+  });
+
+  it('装備も部位ごとに重ねる', () => {
+    const partial: CharacterOverrides = { equipLevels: { 머리: 3 } };
+    const existing = manual({ equipLevels: { 머리: 5, 몸통: 5, 팔: 5, 다리: 5 } });
+    expect(mergeImportedOverride(partial, existing).equipLevels)
+      .toEqual({ 머리: 3, 몸통: 5, 팔: 5, 다리: 5 });
+  });
+
+  it('キューブとコレクションは来たら丸ごと差し替える (半端に混ぜると壊れる)', () => {
+    const next: CharacterOverrides = { cube: { name: '전탄', level: 7 } };
+    const existing = manual({ cube: { name: '재장', level: 15 } });
+    expect(mergeImportedOverride(next, existing).cube).toEqual({ name: '전탄', level: 7 });
+  });
+
   it('取込が持たない育成項目は既存の値を残す (CSV はキューブを持たない)', () => {
     // CSV 取込 = キューブとコレクションが無い
     const csv: CharacterOverrides = { growthStage: 9, skillLevels: { '1': 7, '2': 7, '3': 7 } };
@@ -94,6 +115,34 @@ describe('取込マージの規則', () => {
     const tried = manual({ overload: { atk_pct: 80 } });   // 「もし盛ったら」を手で入れた状態
     const merged = mergeImportedOverride(imported(), tried);
     expect(merged.overload).toEqual({ atk_pct: 20 });
+  });
+});
+
+describe('ロスター全体への重ね方', () => {
+  it('取込に無いキャラの行は消さない (一部だけの CSV で他が既定に戻らない)', () => {
+    const before = { 라피: imported(), 크라운: imported({ growthStage: 9 }) };
+    const after = mergeImportedRoster(before, { 라피: { growthStage: 2 } });
+    expect(after.크라운!.growthStage).toBe(9);      // CSV に無かった → そのまま
+    expect(after.라피!.growthStage).toBe(2);        // 来た → 更新
+    expect(after.라피!.cube).toEqual(imported().cube); // 来なかった項目は残る
+  });
+
+  it('新しく現れたキャラは足す', () => {
+    const after = mergeImportedRoster({}, { 앨리스: imported() });
+    expect(after.앨리스!.growthStage).toBe(7);
+  });
+
+  it('元のロスターを書き換えない', () => {
+    const before = { 라피: imported() };
+    mergeImportedRoster(before, { 라피: { growthStage: 1 } });
+    expect(before.라피!.growthStage).toBe(7);
+  });
+
+  it('操作設定は取込後も残る', () => {
+    const before = { 라피: manual() };
+    const after = mergeImportedRoster(before, { 라피: imported() });
+    expect(after.라피!.control).toBeDefined();
+    expect(after.라피!.burst).toEqual({ mode: 'endgame', seconds: 20 });
   });
 });
 

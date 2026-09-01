@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { StorageLike } from './cache';
 import {
-  BEATS, ELEMENT_PLANS_KEY, baselineBattle, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans,
+  BEATS, ELEMENT_PLANS_KEY, baselineBattle, bossConditionBattle, counterOf, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans,
   isEmptySquad, loadPlans, plansOf, removePlan, sameSquad, savePlans, type ElementPlans,
 } from './element-plans';
 
@@ -150,6 +150,55 @@ describe('基準戦闘', () => {
     baselineBattle(base, '전격');
     expect(base.coreEnabled).toBe(true);
     expect(base.immuneWindows).toHaveLength(1);
+  });
+});
+
+describe('ボス条件', () => {
+  const base = {
+    duration: 180, enemyDef: 31_784, enemyCode: '', coreEnabled: false, corePx: 60,
+    hasParts: false, immuneWindows: [{ from: 10, to: 20 }], elementWindows: [],
+  };
+
+  it('ボスのコードに有利な編成を引ける (BEATS の逆引き)', () => {
+    expect(counterOf('수냉')).toBe('전격');   // 水冷ボスには電撃編成
+    expect(counterOf('풍압')).toBe('작열');
+    expect(counterOf('무속성')).toBeNull();
+  });
+
+  it('5属性すべてに対抗コードがある', () => {
+    for (const element of PLAN_ELEMENTS) {
+      expect(counterOf(BEATS[element])).toBe(element);
+    }
+  });
+
+  it('ボスのコードと防御力を載せ、コア・パーツは指定どおりにする', () => {
+    const battle = bossConditionBattle(base,
+      { elementCode: '전격', enemyDef: 50_000 },
+      { coreEnabled: true, hasParts: true });
+    expect(battle.enemyCode).toBe('전격');
+    expect(battle.enemyDef).toBe(50_000);
+    expect(battle.coreEnabled).toBe(true);
+    expect(battle.hasParts).toBe(true);
+  });
+
+  it('ボスが防御力を持たなければ今の設定を使う', () => {
+    const battle = bossConditionBattle(base,
+      { elementCode: '전격', enemyDef: null },
+      { coreEnabled: false, hasParts: false });
+    expect(battle.enemyDef).toBe(31_784);
+  });
+
+  it('回避区間などの手入力は引き継ぐ (毎回入れ直させない)', () => {
+    const battle = bossConditionBattle(base,
+      { elementCode: '전격', enemyDef: null }, { coreEnabled: false, hasParts: false });
+    expect(battle.immuneWindows).toEqual([{ from: 10, to: 20 }]);
+    expect(battle.duration).toBe(180);
+  });
+
+  it('元のオブジェクトを書き換えない', () => {
+    bossConditionBattle(base, { elementCode: '전격', enemyDef: 1 }, { coreEnabled: true, hasParts: true });
+    expect(base.coreEnabled).toBe(false);
+    expect(base.enemyDef).toBe(31_784);
   });
 });
 
