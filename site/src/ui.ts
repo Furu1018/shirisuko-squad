@@ -1,4 +1,4 @@
-import { labelFor } from './display-name';
+import { elementLabel, growthLabel, labelFor, labelForClass, labelForMaker } from './display-name';
 import { ResultCache, type StorageLike, type StorageSource } from './cache';
 import { renderCharacterSettings, type CharPanelKind } from './character-settings';
 import {
@@ -116,7 +116,7 @@ interface CalculatorDependencies {
 
 const element = <T extends Element>(root: ParentNode, selector: string): T => {
   const found = root.querySelector<T>(selector);
-  if (!found) throw new Error(`화면 요소를 찾을 수 없습니다: ${selector}`);
+  if (!found) throw new Error(`画面要素が見つかりません: ${selector}`);
   return found;
 };
 
@@ -138,8 +138,8 @@ const createElementIcon = (elementCode: string, className: string): HTMLElement 
   if (!slug) return null;
   const icon = document.createElement('span');
   icon.className = `${className} element-icon is-${slug}`;
-  icon.title = elementCode;
-  icon.ariaLabel = elementCode;
+  icon.title = elementLabel(elementCode);
+  icon.ariaLabel = elementLabel(elementCode);
   return icon;
 };
 
@@ -233,7 +233,7 @@ function renderCharacterRows(
     body.append(head, track);
     row.append(body);
 
-    row.append(createText('strong', Math.round(value).toLocaleString('ko-KR'), 'result-row-total'));
+    row.append(createText('strong', Math.round(value).toLocaleString('ja-JP'), 'result-row-total'));
     rows.append(row);
   }
   container.append(rows);
@@ -275,11 +275,11 @@ function renderCharacterCards(
       image.loading = 'lazy';
       portrait.append(image);
     }
-    if (rank) portrait.append(createText('b', `${rank}위`, 'result-rank-badge'));
+    if (rank) portrait.append(createText('b', `${rank}位`, 'result-rank-badge'));
     card.append(portrait);
 
     card.append(createText('h3', labelFor(name)));
-    card.append(createText('span', `${share.toFixed(1)}% 기여`, 'result-card-share'));
+    card.append(createText('span', `${share.toFixed(1)}% 貢献`, 'result-card-share'));
     card.append(createText('strong', fmt.dmg(value)));
     card.append(createText('small', fmt.dps(value / entry.result.duration)));
 
@@ -300,8 +300,8 @@ function renderCharacterCards(
       const normalPct = breakdown.normal / value * 100;
       const skillPct = breakdown.skill / value * 100;
       const summary = document.createElement('summary');
-      summary.append(createText('span', `평타 ${normalPct.toFixed(0)}%`, 'legend-normal'));
-      summary.append(createText('span', `스킬 ${skillPct.toFixed(0)}%`, 'legend-skill'));
+      summary.append(createText('span', `通常攻撃 ${normalPct.toFixed(0)}%`, 'legend-normal'));
+      summary.append(createText('span', `スキル ${skillPct.toFixed(0)}%`, 'legend-skill'));
       details.append(summary);
 
       const splitTrack = document.createElement('div');
@@ -318,8 +318,8 @@ function renderCharacterCards(
       const legend = document.createElement('p');
       legend.className = 'split-legend';
       legend.append(
-        createText('span', `평타 ${fmt.dmg(breakdown.normal)}`, 'legend-normal'),
-        createText('span', `스킬 ${fmt.dmg(breakdown.skill)}`, 'legend-skill'),
+        createText('span', `通常攻撃 ${fmt.dmg(breakdown.normal)}`, 'legend-normal'),
+        createText('span', `スキル ${fmt.dmg(breakdown.skill)}`, 'legend-skill'),
       );
       details.append(legend);
 
@@ -330,7 +330,7 @@ function renderCharacterCards(
           const item = document.createElement('li');
           item.append(
             createText('span', skill.name),
-            createText('span', `${fmt.dmg(skill.damage)} · ${(skill.damage / value * 100).toFixed(1)}% · ${skill.hits}히트`),
+            createText('span', `${fmt.dmg(skill.damage)} · ${(skill.damage / value * 100).toFixed(1)}% · ${skill.hits}ヒット`),
           );
           list.append(item);
         }
@@ -484,86 +484,86 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   root.innerHTML = `
     <div class="site-shell">
-      <p class="site-notice"><a href="https://gall.dcinside.com/mgallery/board/view/?id=gov&amp;no=6038781" target="_blank" rel="noreferrer">설명서 확인, 문의, 피드백, 착한말 등은 여기로 →</a></p>
+      <p class="site-notice"><a href="https://gall.dcinside.com/mgallery/board/view/?id=gov&amp;no=6038781" target="_blank" rel="noreferrer">説明書の確認、お問い合わせ、フィードバック、あたたかい一言などはこちらへ →</a></p>
       <header class="hero">
         <div class="hero-copy">
           <p class="eyebrow">BROWSER SIM <span>·</span> 60 FPS TIMELINE</p>
-          <h1><span>NIKKE</span> 스쿼드 계산기</h1>
-          <p class="hero-lede">캐릭터별 오버로드와 큐브, 전투 조건을 반영해 프레임 단위 예상 대미지를 계산합니다.</p>
-          <div class="trust-row" aria-label="서비스 특징"><span>${catalog.length}명 지원</span><span class="online-now" data-online hidden title="최근 1~2분 사이에 이 계산기를 연 사람 수입니다. 탭을 숨기면 세지 않습니다"><b class="online-dot" aria-hidden="true"></b><span data-online-text></span></span><button type="button" class="notice-open" data-notice-open title="지금까지 무엇이 바뀌었는지 봅니다">업데이트 내역</button><a class="credit-link" href="https://github.com/Jgaram/nikke-calc" target="_blank" rel="noreferrer noopener" title="이 계산기의 원본 저장소">원본 알고리즘 개발자에게 무한한 감사를</a></div>
+          <h1><span>NIKKE</span> スカッド計算機</h1>
+          <p class="hero-lede">キャラクターごとのオーバーロードとキューブ、戦闘条件を反映して、フレーム単位の予想ダメージを計算します。</p>
+          <div class="trust-row" aria-label="サービスの特徴"><span>${catalog.length}名対応</span><span class="online-now" data-online hidden title="直近1~2分の間にこの計算機を開いた人数です。タブを非表示にすると数えません"><b class="online-dot" aria-hidden="true"></b><span data-online-text></span></span><button type="button" class="notice-open" data-notice-open title="これまでに何が変わったかを見ます">更新履歴</button><a class="credit-link" href="https://github.com/Jgaram/nikke-calc" target="_blank" rel="noreferrer noopener" title="この計算機の元のリポジトリ">元のアルゴリズム開発者に無限の感謝を</a></div>
         </div>
         <div class="hero-orbit" aria-hidden="true"><span>01</span><strong>LOCAL<br />SIM</strong></div>
       </header>
 
-      <nav class="view-tabs" aria-label="화면 전환">
-        <button type="button" class="view-tab is-on" data-view-tab="calc" aria-pressed="true">계산기</button>
-        ${blablaProxy ? '<button type="button" class="view-tab" data-view-tab="union" aria-pressed="false">유니온 레이드<b class="tab-beta">BETA</b></button>' : ''}
+      <nav class="view-tabs" aria-label="画面切り替え">
+        <button type="button" class="view-tab is-on" data-view-tab="calc" aria-pressed="true">計算機</button>
+        ${blablaProxy ? '<button type="button" class="view-tab" data-view-tab="union" aria-pressed="false">ユニオンレイド<b class="tab-beta">BETA</b></button>' : ''}
         <button type="button" class="view-tab" data-view-tab="enikk" aria-pressed="false">ENIKK 조합 가져오기</button>
-        <button type="button" class="view-tab" data-view-tab="links" aria-pressed="false">외부고리</button>
+        <button type="button" class="view-tab" data-view-tab="links" aria-pressed="false">外部リンク</button>
       </nav>
 
       <section class="panel links-panel" data-view="links" aria-labelledby="links-heading" hidden>
         <div class="section-heading">
-          <div><p class="step">LINKS</p><h2 id="links-heading">외부고리</h2></div>
+          <div><p class="step">LINKS</p><h2 id="links-heading">外部リンク</h2></div>
         </div>
-        <p class="links-lede">니케를 굴리는 데 쓰는 <b>다른 사람들의 도구</b>입니다. 새 탭에서 열립니다.</p>
-        <p class="links-warn"><b>여기 적힌 곳은 우리가 운영하지 않습니다.</b> 계산기에 넣어 둔 값이나 계정 정보가 저쪽으로 넘어가지 않고, 저쪽 내용·주소가 바뀌어도 우리가 알지 못합니다.</p>
+        <p class="links-lede">ニケを回すのに使う<b>他の方々のツール</b>です。新しいタブで開きます。</p>
+        <p class="links-warn"><b>ここに載っている先は私たちが運営しているものではありません。</b>計算機に入れておいた値やアカウント情報が先方へ渡ることはなく、先方の内容やアドレスが変わっても私たちには分かりません。</p>
         <div class="links-grid" data-links-grid></div>
       </section>
 
       ${blablaProxy ? `
       <section class="panel union-panel" data-view="union" aria-labelledby="union-heading" hidden>
         <div class="section-heading">
-          <div><p class="step">UNION</p><h2 id="union-heading">유니온 레이드 <b class="beta-tag">BETA</b></h2></div>
+          <div><p class="step">UNION</p><h2 id="union-heading">ユニオンレイド <b class="beta-tag">BETA</b></h2></div>
         </div>
-        <div class="union-modes" role="group" aria-label="계산 대상">
-          <button type="button" class="union-mode is-on" data-union-mode="union" aria-pressed="true">유니온</button>
-          <button type="button" class="union-mode" data-union-mode="personal" aria-pressed="false">개인용</button>
+        <div class="union-modes" role="group" aria-label="計算対象">
+          <button type="button" class="union-mode is-on" data-union-mode="union" aria-pressed="true">ユニオン</button>
+          <button type="button" class="union-mode" data-union-mode="personal" aria-pressed="false">個人用</button>
         </div>
-        <p class="union-lede" data-union-lede-union>유니온원 <b>각자의 실제 스펙과 싱크로 레벨</b>로 같은 보스·같은 덱을 돌려, 누가 얼마나 기여할 수 있는지 견줍니다. 니케 목록을 공개한 사람만 계산할 수 있습니다.</p>
-        <p class="union-lede" data-union-lede-personal hidden><b>내 스펙만</b> 씁니다. 명단을 가져올 필요 없이, 보스마다 다른 전투 조건을 걸고 덱을 세 개까지 돌려 한눈에 견줍니다 — 계산기에 잡아 둔 싱크로·콘솔·니케 육성을 그대로 씁니다.</p>
+        <p class="union-lede" data-union-lede-union>ユニオンメンバー<b>それぞれの実際のスペックとシンクロレベル</b>で同じボス・同じデッキを回し、誰がどれだけ貢献できるかを見比べます。ニケ一覧を公開している人だけ計算できます。</p>
+        <p class="union-lede" data-union-lede-personal hidden><b>自分のスペックだけ</b>を使います。名簿を取り込む必要はなく、ボスごとに異なる戦闘条件をかけてデッキを3つまで回し、一目で見比べます — 計算機に設定してあるシンクロ・コンソール・ニケ育成をそのまま使います。</p>
 
         <div class="union-step" data-union-step="1">
-          <h3>유니온 명단 가져오기</h3>
-          <p class="field-note">유니온원 명단은 <b>지휘관님 로그인으로만</b> 열립니다(우리 서버로는 막혀 있습니다). 그래서 한 번만 직접 떠 오시면 됩니다 — 쿠키나 비밀번호는 저희가 만지지 않습니다.</p>
+          <h3>ユニオン名簿の取り込み</h3>
+          <p class="field-note">ユニオンメンバーの名簿は<b>指揮官ご自身のログインでのみ</b>開けます(私たちのサーバーからは遮断されています)。そのため一度だけご自身で取り出していただきます — Cookie やパスワードには一切触れません。</p>
           <ol class="union-guide">
-            <li>블라블라링크에 로그인한 채 <b>유니온 스퀘어</b>를 엽니다.</li>
-            <li><kbd>F12</kbd> → <b>Console</b> 탭에 아래 내용을 붙여넣고 <kbd>Enter</kbd>.</li>
-            <li>명단이 클립보드에 담깁니다. 아래 상자에 붙여넣으세요.</li>
-            <li>클립보드가 막혀 있으면 <b>페이지에 상자가 뜨고 내용이 전부 선택돼 있습니다</b> — <kbd>Ctrl</kbd>+<kbd>A</kbd> → <kbd>Ctrl</kbd>+<kbd>C</kbd>로 복사한 뒤 <b>✕</b>나 <kbd>Esc</kbd>, 또는 상자 바깥을 눌러 닫으면 됩니다.</li>
+            <li>Blablalink にログインしたまま<b>ユニオンスクエア</b>を開きます。</li>
+            <li><kbd>F12</kbd> → <b>Console</b> タブに下の内容を貼り付けて <kbd>Enter</kbd>。</li>
+            <li>名簿がクリップボードに入ります。下の欄に貼り付けてください。</li>
+            <li>クリップボードが使えない場合は<b>ページ上に欄が表示され、内容がすべて選択された状態になります</b> — <kbd>Ctrl</kbd>+<kbd>A</kbd> → <kbd>Ctrl</kbd>+<kbd>C</kbd> でコピーしたあと、<b>✕</b> か <kbd>Esc</kbd>、または欄の外を押して閉じてください。</li>
           </ol>
           <textarea class="union-snippet" data-union-snippet rows="3" readonly spellcheck="false"></textarea>
           <div class="union-actions">
-            <button type="button" class="roster-import" data-union-copy>스니펫 복사</button>
+            <button type="button" class="roster-import" data-union-copy>スニペットをコピー</button>
           </div>
-          <textarea class="union-paste" data-union-paste rows="3" placeholder="여기에 명단을 붙여넣으세요" spellcheck="false"></textarea>
+          <textarea class="union-paste" data-union-paste rows="3" placeholder="ここに名簿を貼り付けてください" spellcheck="false"></textarea>
           <div class="union-actions">
-            <button type="button" class="roster-import" data-union-read>명단 읽기</button>
+            <button type="button" class="roster-import" data-union-read>名簿を読み込む</button>
             <span class="union-status" data-union-list-status></span>
           </div>
         </div>
 
         <div class="union-step" data-union-step="2" hidden>
-          <h3>공개여부 확인</h3>
-          <p class="field-note">한 명씩 실제로 조회해 봐야 알 수 있습니다. 셋씩 동시에 부르며, 공개한 사람은 니케 상세까지 함께 받아 둡니다.</p>
+          <h3>公開状況の確認</h3>
+          <p class="field-note">一人ずつ実際に照会してみないと分かりません。3人ずつ同時に問い合わせ、公開している人はニケ詳細まで一緒に取得しておきます。</p>
           <div class="union-actions">
-            <button type="button" class="roster-import" data-union-scan>공개여부 스캔</button>
-            <button type="button" class="roster-import" data-union-scan-stop hidden>중단</button>
+            <button type="button" class="roster-import" data-union-scan>公開状況をスキャン</button>
+            <button type="button" class="roster-import" data-union-scan-stop hidden>中断</button>
             <span class="union-status" data-union-scan-status></span>
           </div>
           <div class="union-progress" data-union-scan-progress hidden><i></i></div>
 
           <details class="union-direct">
-            <summary>내 브라우저로 직접 긁기 — 「유니온원에게만 공개」까지 봅니다</summary>
-            <p class="field-note">위 스캔은 저희 서버를 거칩니다. 저희 계정은 이 유니온 소속이 아니라서, <b>「유니온원에게만 공개」로 둔 사람은 영원히 비공개로 보입니다</b>. 지휘관님 브라우저로 직접 긁으면 그분들까지 보입니다 — 서버를 안 거치는 쪽이 편한 분께도 이 길이 낫습니다.</p>
-            <p class="field-note">유니온원 수만큼 조회하므로 <b>32명이면 2~3분</b> 걸리고, 진행 상황이 콘솔에 한 줄씩 찍힙니다. 다 되면 위와 같은 방법으로 복사해 아래에 붙여넣으세요.</p>
+            <summary>自分のブラウザで直接取得する — 「ユニオンメンバーにのみ公開」まで見えます</summary>
+            <p class="field-note">上のスキャンは私たちのサーバーを経由します。私たちのアカウントはこのユニオンに所属していないため、<b>「ユニオンメンバーにのみ公開」にしている人は永遠に非公開に見えます</b>。指揮官ご自身のブラウザで直接取得すればその方々まで見えます — サーバーを経由しないほうが安心な方にもこちらの方法が向いています。</p>
+            <p class="field-note">ユニオンメンバーの人数分だけ照会するため<b>32名なら2~3分</b>かかり、進行状況がコンソールに1行ずつ表示されます。終わったら上と同じ方法でコピーして下に貼り付けてください。</p>
             <textarea class="union-snippet" data-union-direct-snippet rows="3" readonly spellcheck="false"></textarea>
             <div class="union-actions">
-              <button type="button" class="roster-import" data-union-direct-copy>직접 긁기 스니펫 복사</button>
+              <button type="button" class="roster-import" data-union-direct-copy>直接取得スニペットをコピー</button>
             </div>
-            <textarea class="union-paste" data-union-direct-paste rows="3" placeholder="직접 긁은 자료를 여기에 붙여넣으세요 (NKU1-…)" spellcheck="false"></textarea>
+            <textarea class="union-paste" data-union-direct-paste rows="3" placeholder="直接取得したデータをここに貼り付けてください (NKU1-…)" spellcheck="false"></textarea>
             <div class="union-actions">
-              <button type="button" class="roster-import" data-union-direct-read>직접 긁은 자료 읽기</button>
+              <button type="button" class="roster-import" data-union-direct-read>直接取得したデータを読み込む</button>
               <span class="union-status" data-union-direct-status></span>
             </div>
           </details>
@@ -571,34 +571,34 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <div class="union-members" data-union-members></div>
           <div class="union-ask" data-union-ask hidden>
             <p data-union-ask-text></p>
-            <button type="button" class="roster-import" data-union-pick-all>공개된 사람 전부 고르기</button>
-            <button type="button" class="roster-import" data-union-pick-none>전부 해제</button>
+            <button type="button" class="roster-import" data-union-pick-all>公開している人を全員選ぶ</button>
+            <button type="button" class="roster-import" data-union-pick-none>全員解除</button>
           </div>
         </div>
 
         <div class="union-step" data-union-step="3" hidden>
-          <h3>보스와 덱</h3>
-          <p class="field-note">보스는 <b>전투 조건 코드</b>(NK3-), 덱은 <b>조합 코드</b>(NK2-)로 채웁니다. 계산기에 잡아 둔 설정을 가져오거나, <b>공유 목록에서 골라</b> 넣을 수도 있습니다. 체크를 끈 보스는 계산하지 않습니다 — 풍압엔 강한데 전격엔 약한 사람이 있으니까요.</p>
+          <h3>ボスとデッキ</h3>
+          <p class="field-note">ボスは<b>戦闘条件コード</b>(NK3-)、デッキは<b>編成コード</b>(NK2-)で埋めます。計算機に設定してある内容を取り込むことも、<b>共有一覧から選んで</b>入れることもできます。チェックを外したボスは計算しません — 風圧には強いのに電撃には弱い人もいますから。</p>
           <div class="union-board-bar">
-            <span class="union-board-label">판 전체</span>
-            <button type="button" class="roster-import" data-union-set-share>공유에서 판 고르기</button>
-            <button type="button" class="roster-import" data-union-set-paste>판 코드 붙여넣기</button>
-            <button type="button" class="roster-import" data-union-set-copy>이 판 코드 복사</button>
+            <span class="union-board-label">盤面全体</span>
+            <button type="button" class="roster-import" data-union-set-share>共有から盤面を選ぶ</button>
+            <button type="button" class="roster-import" data-union-set-paste>盤面コードを貼り付け</button>
+            <button type="button" class="roster-import" data-union-set-copy>この盤面コードをコピー</button>
             <span class="union-status" data-union-set-status></span>
           </div>
-          <p class="field-note">보스 다섯과 각 칸의 덱까지 <b>한 코드</b>(NK4-)에 담깁니다 — 지난 시즌 판을 통째로 옮기거나 유니온방에 뿌릴 때 스무 번 붙여넣지 않아도 됩니다. <b>유니온원 명단은 담기지 않습니다.</b></p>
+          <p class="field-note">ボス5体と各枠のデッキまで<b>1つのコード</b>(NK4-)に収まります — 前シーズンの盤面をまるごと移したりユニオンの部屋に配ったりするとき、20回も貼り付けずに済みます。<b>ユニオンメンバーの名簿は含まれません。</b></p>
           <div class="union-set-box" data-union-set-box hidden>
-            <textarea class="custom-json" data-union-set-code rows="3" placeholder="판 코드 (NK4-…)"></textarea>
+            <textarea class="custom-json" data-union-set-code rows="3" placeholder="盤面コード (NK4-…)"></textarea>
             <div class="deck-copy-actions">
-              <button type="button" class="deck-copy-apply" data-union-set-apply>이 판 적용</button>
-              <button type="button" class="deck-copy-cancel" data-union-set-close>닫기</button>
+              <button type="button" class="deck-copy-apply" data-union-set-apply>この盤面を適用</button>
+              <button type="button" class="deck-copy-cancel" data-union-set-close>閉じる</button>
             </div>
           </div>
           <div class="union-bosses" data-union-bosses></div>
 
           <div class="custom-modal" data-union-share-modal hidden>
-            <div class="custom-card share-card" role="dialog" aria-label="공유에서 고르기">
-              <div class="custom-head"><h2 data-union-share-title>공유에서 고르기</h2><button type="button" class="custom-close" data-union-share-close aria-label="닫기">✕</button></div>
+            <div class="custom-card share-card" role="dialog" aria-label="共有から選ぶ">
+              <div class="custom-head"><h2 data-union-share-title>共有から選ぶ</h2><button type="button" class="custom-close" data-union-share-close aria-label="閉じる">✕</button></div>
               <p class="custom-desc" data-union-share-desc></p>
               <div data-union-share-body></div>
               <p class="custom-msg" data-union-share-msg hidden></p>
@@ -607,11 +607,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         </div>
 
         <div class="union-step" data-union-step="4" hidden>
-          <h3>시뮬레이션</h3>
-          <p class="field-note">유니온원 × 보스 × 덱을 하나씩 돌립니다. <b>오래 걸리니 창을 열어 둔 채 기다려 주세요</b> — 결과는 나오는 대로 아래에 쌓입니다.</p>
+          <h3>シミュレーション</h3>
+          <p class="field-note">ユニオンメンバー × ボス × デッキを1つずつ回します。<b>時間がかかるのでウィンドウを開いたままお待ちください</b> — 結果は出た順に下へ積み上がります。</p>
           <div class="union-actions">
-            <button type="button" class="roster-import union-run" data-union-run disabled>시뮬레이션 실행</button>
-            <button type="button" class="roster-import" data-union-stop hidden>중단</button>
+            <button type="button" class="roster-import union-run" data-union-run disabled>シミュレーション実行</button>
+            <button type="button" class="roster-import" data-union-stop hidden>中断</button>
             <span class="union-status" data-union-run-status></span>
           </div>
           <div class="union-progress" data-union-run-progress hidden><i></i></div>
@@ -648,65 +648,65 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       <form class="calculator-layout" data-view="calc" novalidate>
         <section class="panel squad-panel" aria-labelledby="squad-heading">
           <div class="section-heading">
-            <div><h2 id="squad-heading">편성 및 캐릭터 설정</h2></div>
+            <div><h2 id="squad-heading">編成とキャラクター設定</h2></div>
             <div class="squad-tools">
               <span class="roster-import-group">
-                <label class="roster-import" title="렛츠도로 니케정보 CSV를 불러와 모든 니케 설정에 적용">
+                <label class="roster-import" title="Letsdoro のニケ情報 CSV を読み込み、すべてのニケ設定に適用します">
                   <input id="roster-csv" type="file" accept=".csv,text/csv" hidden />
-                  <span>렛츠도로 CSV 불러오기</span>
+                  <span>Letsdoro CSV を読み込む</span>
                 </label>
-                <button type="button" class="roster-info" data-doro-open aria-label="렛츠도로 CSV 받는 법" title="렛츠도로에서 CSV 받는 법">i</button>
+                <button type="button" class="roster-info" data-doro-open aria-label="Letsdoro CSV の入手方法" title="Letsdoro で CSV を入手する方法">i</button>
               </span>
-              ${blablaProxy ? '<button type="button" class="roster-import" data-blabla-open title="블라블라링크 프로필 URL로 보유 니케의 육성을 한 번에 불러옵니다">블라블라링크 연동</button>' : ''}
-              <button type="button" class="roster-import" data-add-nikke title="미출시·미등록 니케를 직접 추가">새 니케 추가</button>
-              <button type="button" class="roster-import" data-share-open title="편성을 이 브라우저에 이름 붙여 저장하거나, 코드·링크로 주고받습니다. 개인 스펙과 전투 조건은 담기지 않습니다">프리셋 / 조합 공유</button>
-              <button type="button" class="roster-import danger" data-reset-all title="편성·설정·CSV 로스터·추가한 니케·저장된 결과를 모두 지우고 처음 상태로 되돌립니다">완전 초기화</button>
-              <label class="toggle-field mode-toggle" title="다른 덱에서 이미 만져 둔 개별 설정을 편성할 때 그대로 가져옵니다"><input id="carry-settings" type="checkbox" checked /><span class="toggle"></span><span>설정 이어받기</span></label>
-              <label class="toggle-field mode-toggle"><input id="squad-mode" type="checkbox" /><span class="toggle"></span><span>5덱 모드</span></label>
+              ${blablaProxy ? '<button type="button" class="roster-import" data-blabla-open title="Blablalink のプロフィール URL から所持ニケの育成状況を一括で読み込みます">Blablalink 連携</button>' : ''}
+              <button type="button" class="roster-import" data-add-nikke title="未実装・未登録のニケを自分で追加します">新しいニケを追加</button>
+              <button type="button" class="roster-import" data-share-open title="編成に名前を付けてこのブラウザに保存したり、コードやリンクでやり取りします。個人スペックと戦闘条件は含まれません">プリセット / 編成共有</button>
+              <button type="button" class="roster-import danger" data-reset-all title="編成・設定・CSV ロスター・追加したニケ・保存された結果をすべて消して初期状態に戻します">完全初期化</button>
+              <label class="toggle-field mode-toggle" title="他のデッキで既に設定済みの個別設定を、編成時にそのまま引き継ぎます"><input id="carry-settings" type="checkbox" checked /><span class="toggle"></span><span>設定を引き継ぐ</span></label>
+              <label class="toggle-field mode-toggle"><input id="squad-mode" type="checkbox" /><span class="toggle"></span><span>5デッキモード</span></label>
             </div>
             <p class="roster-note" data-roster-note hidden></p>
           </div>
           <div class="deck-tabs" data-deck-tabs hidden></div>
           <div class="deck-controls">
-            <button type="button" class="burst-order-open" data-burst-order-open title="사이클마다 1버·2버·3버를 누가 쓸지 직접 정합니다. 정한 만큼만 따르고 그 뒤는 평소 순서로 돌아갑니다"><span class="burst-order-mark" aria-hidden="true">1·2·3</span><span>버스트 순서</span><b class="burst-order-badge" data-burst-order-badge hidden></b></button>
+            <button type="button" class="burst-order-open" data-burst-order-open title="サイクルごとに1バ・2バ・3バを誰が使うかを自分で決めます。決めた分だけ従い、その後は通常の順序に戻ります"><span class="burst-order-mark" aria-hidden="true">1·2·3</span><span>バースト順序</span><b class="burst-order-badge" data-burst-order-badge hidden></b></button>
             <span class="deck-moves" data-deck-moves hidden></span>
-            <button type="button" class="deck-clear" data-deck-clear title="지금 보고 있는 덱의 편성과 개별 설정을 비웁니다">덱 비우기</button>
+            <button type="button" class="deck-clear" data-deck-clear title="今見ているデッキの編成と個別設定を空にします">デッキを空にする</button>
           <div class="deck-copy" data-deck-copy hidden>
-            <button type="button" class="deck-copy-open" data-deck-copy-open>현재 덱 복사</button>
+            <button type="button" class="deck-copy-open" data-deck-copy-open>現在のデッキをコピー</button>
             <div class="deck-copy-panel" data-deck-copy-panel hidden>
               <p class="deck-copy-title" data-deck-copy-title></p>
               <div class="deck-copy-targets" data-deck-copy-targets></div>
               <div class="deck-copy-actions">
-                <button type="button" class="deck-copy-apply" data-deck-copy-apply>복사</button>
-                <button type="button" class="deck-copy-cancel" data-deck-copy-cancel>취소</button>
+                <button type="button" class="deck-copy-apply" data-deck-copy-apply>コピー</button>
+                <button type="button" class="deck-copy-cancel" data-deck-copy-cancel>キャンセル</button>
               </div>
             </div>
           </div>
           </div>
-          <p class="deck-note" data-deck-note hidden>덱 사이에는 같은 캐릭터를 다시 편성할 수 있습니다.</p>
+          <p class="deck-note" data-deck-note hidden>デッキ間では同じキャラクターを重ねて編成できます。</p>
           <div class="squad-grid" data-squad-grid></div>
 
           <!-- 니케 고르기. 창을 띄우지 않고 늘 펼쳐 두고, 검색은 이 판을 거른다.
                「이름을 쳤는데 아무 일도 안 일어난다」가 지적된 지점이라, 결과를
                감추는 자리를 없앴다. -->
-          <section class="picker" aria-label="니케 고르기">
+          <section class="picker" aria-label="ニケを選ぶ">
             <div class="picker-head">
-              <h3>니케 고르기 <span data-roster-count></span></h3>
+              <h3>ニケを選ぶ <span data-roster-count></span></h3>
               <p class="picker-target" data-roster-desc></p>
             </div>
-            <input type="search" class="roster-search" data-roster-search placeholder="이름 · 초성 · 속성으로 찾기 (ㄹㅍ, 라피레드, 전격)" autocomplete="off" aria-label="니케 이름 검색" />
+            <input type="search" class="roster-search" data-roster-search placeholder="名前・頭文字・属性で検索 (ㄹㅍ, 라피레드, 전격)" autocomplete="off" aria-label="ニケ名検索" />
             <!-- 정렬·필터는 판을 눌러 펼친다. 칩을 늘 깔아 두면 목록이 화면 밖으로
                  밀리고, 필터가 몇 개 걸렸는지도 한눈에 안 들어온다. -->
             <div class="picker-bar">
               <button type="button" class="filter-open" data-filter-open aria-expanded="false">
-                <span>정렬 및 필터</span>
+                <span>並べ替えとフィルター</span>
                 <b class="filter-badge" data-filter-badge hidden></b>
                 <span class="filter-caret" aria-hidden="true">▾</span>
               </button>
               <!-- 버스트는 가장 자주 거르는 축이라 판 안에 넣지 않는다 — 판을 펼치지
                    않고 바로 누를 수 있어야 한다. -->
               <div class="filter-chips burst-chips" data-burst-group></div>
-              <button type="button" class="filter-reset" data-filter-reset hidden>필터 지우기</button>
+              <button type="button" class="filter-reset" data-filter-reset hidden>フィルターを解除</button>
               <span class="filter-summary" data-filter-summary></span>
             </div>
             <!-- 판은 목록을 밀어내지 않고 그 «위에» 얹힌다. 밀어내면 펼칠 때마다
@@ -714,26 +714,26 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             <div class="picker-body">
               <div class="filter-panel" data-filter-panel hidden>
                 <div class="filter-section">
-                  <p class="filter-title">정렬</p>
+                  <p class="filter-title">並べ替え</p>
                   <div class="filter-chips" data-sort-group></div>
                 </div>
                 <div class="filter-rule"></div>
-                <p class="filter-title">필터</p>
+                <p class="filter-title">フィルター</p>
                 <div class="filter-groups" data-filter-groups></div>
               </div>
               <div class="picker-scroll"><div class="roster-grid" data-roster-grid></div></div>
             </div>
-            <p class="roster-empty" data-roster-empty hidden>검색과 일치하는 니케가 없습니다.</p>
+            <p class="roster-empty" data-roster-empty hidden>検索に一致するニケがいません。</p>
           </section>
         </section>
 
         <section class="panel settings-panel" aria-labelledby="settings-heading">
           <div class="section-heading compact target-heading">
-            <div><h2 id="settings-heading">전투 조건</h2></div>
+            <div><h2 id="settings-heading">戦闘条件</h2></div>
             <div class="target-actions">
-              <button type="button" class="reset-enemy" data-battle-share-open title="전투 조건을 코드로 만들어 공유하거나, 받은 코드를 붙여넣어 적용합니다">전투 조건 공유</button>
-              <button type="button" class="reset-enemy" data-reset-enemy>적 수치 초기화</button>
-              <button type="button" class="reset-enemy" data-clear-cache title="같은 조건에 저장된 결과를 지우고 다음 실행부터 새로 계산합니다">저장된 결과 지우기</button>
+              <button type="button" class="reset-enemy" data-battle-share-open title="戦闘条件をコードにして共有したり、受け取ったコードを貼り付けて適用します">戦闘条件を共有</button>
+              <button type="button" class="reset-enemy" data-reset-enemy>敵の数値を初期化</button>
+              <button type="button" class="reset-enemy" data-clear-cache title="同じ条件で保存された結果を消し、次の実行から計算し直します">保存された結果を消す</button>
             </div>
           </div>
           <!-- 조건은 한 번 정해 두면 계속 쓰는 값이다. 그 자리에서 펼치면 편성이 화면
@@ -742,81 +742,81 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
                없애고, «이 조건으로 → 실행»이 한 줄로 읽히게 하려는 것이다. -->
           <div class="cond-bar">
             <button type="button" class="battle-open" data-battle-open aria-expanded="false">
-              <span class="battle-open-label">전투 조건</span>
+              <span class="battle-open-label">戦闘条件</span>
               <span class="battle-summary" data-battle-summary></span>
-              <span class="disclosure-hint" aria-hidden="true">열기 ›</span>
+              <span class="disclosure-hint" aria-hidden="true">開く ›</span>
             </button>
-            <button class="calculate-button run-inline" type="submit"><span>시뮬레이션 실행</span><b aria-hidden="true">→</b></button>
+            <button class="calculate-button run-inline" type="submit"><span>シミュレーション実行</span><b aria-hidden="true">→</b></button>
           </div>
           <!-- 계산이 얼마나 빨리 끝나는지를 정하는 설정이라 실행 단추 바로 아래에 둔다. -->
           <div class="parallel-row">
-            <label class="toggle-field mode-toggle parallel-pick" title="계산을 여러 작업 스레드에 나눠 돌립니다. 이 기기의 코어를 더 쓰는 대신 5덱 계산이 몇 배 빨라집니다 — 계산은 이 기기에서 도는 것이라 서버 비용과는 무관합니다">
-              <input type="checkbox" data-parallel-toggle checked /><span class="toggle"></span><span>병렬 계산</span>
+            <label class="toggle-field mode-toggle parallel-pick" title="計算を複数のワーカースレッドに分けて回します。この端末のコアを多く使う代わりに、5デッキ計算が数倍速くなります — 計算はこの端末上で走るのでサーバー費用とは無関係です">
+              <input type="checkbox" data-parallel-toggle checked /><span class="toggle"></span><span>並列計算</span>
               <select data-parallel-size></select>
             </label>
           </div>
-          <p class="status" data-status aria-live="polite">계산 엔진 준비 중…</p>
-          <p class="battle-first-note" data-battle-first-note>계산하기 전에 <b>전투 조건을 한 번 확인해 주세요</b> — 몇 초짜리 전투인지, 적 코드가 무엇인지에 따라 결과가 완전히 달라집니다.</p>
+          <p class="status" data-status aria-live="polite">計算エンジンを準備中…</p>
+          <p class="battle-first-note" data-battle-first-note>計算する前に<b>戦闘条件を一度確認してください</b> — 何秒の戦闘か、敵コードが何かによって結果がまったく変わります。</p>
           <!-- 막힌 이유는 누른 단추 바로 아래에서 읽혀야 한다. -->
           <div class="error-box" data-errors hidden role="alert"></div>
 
           <!-- 창은 조건 패널 «안»에 둔다 — 설정 입력을 지켜보는 리스너가 이 패널을
                기준으로 걸려 있어, 밖으로 빼면 값을 바꿔도 저장되지 않는다. -->
           <div class="custom-modal" data-battle-modal hidden>
-          <div class="custom-card battle-card" role="dialog" aria-label="전투 조건">
-          <div class="custom-head"><h2>전투 조건</h2><button type="button" class="custom-close" data-battle-modal-close aria-label="닫기">✕</button></div>
+          <div class="custom-card battle-card" role="dialog" aria-label="戦闘条件">
+          <div class="custom-head"><h2>戦闘条件</h2><button type="button" class="custom-close" data-battle-modal-close aria-label="閉じる">✕</button></div>
           <div class="battle-body" data-battle-body>
           <div class="field-grid">
-            <label><span>전투 시간</span><div class="input-unit"><input id="duration" type="number" min="10" max="180" step="1" value="180" /><em>초</em></div></label>
-            <label><span>적 코드</span><select id="enemy-code"><option value="">없음</option><option value="풍압">풍압(작열weak)</option><option value="수냉">수냉(전격weak)</option><option value="작열">작열(수냉weak)</option><option value="전격">전격(철갑weak)</option><option value="철갑">철갑(풍압weak)</option></select></label>
-            <label><span>싱크로 레벨</span><div class="input-unit"><input id="synchro-level" type="number" min="1" max="${SYNCHRO_MAX}" step="1" value="${DEFAULT_SYNCHRO_LEVEL}" title="싱크로 디바이스 소대에 넣은 니케는 전원이 이 레벨이 됩니다. 계정 육성 상태라 전투 조건 공유 코드에는 담기지 않습니다. ${SYNCHRO_MEASURED_MAX}레벨까지는 실측값이고, 그 위는 같은 성장 곡선을 이어 붙여 계산합니다" /><em>Lv</em></div></label>
-            <label class="toggle-field"><input id="has-core" type="checkbox" /><span class="toggle"></span><span>코어 있음</span></label>
-            <label data-core-size><span>코어 직경</span><div class="input-unit"><input id="core-px" type="number" min="0" max="1000" step="1" value="52" disabled /><em>px</em></div></label>
-            <label class="toggle-field"><input id="has-parts" type="checkbox" /><span class="toggle"></span><span>파괴 가능 파츠</span></label>
+            <label><span>戦闘時間</span><div class="input-unit"><input id="duration" type="number" min="10" max="180" step="1" value="180" /><em>秒</em></div></label>
+            <label><span>敵コード</span><select id="enemy-code"><option value="">なし</option><option value="풍압">風圧(灼熱に弱い)</option><option value="수냉">水冷(電撃に弱い)</option><option value="작열">灼熱(水冷に弱い)</option><option value="전격">電撃(鉄甲に弱い)</option><option value="철갑">鉄甲(風圧に弱い)</option></select></label>
+            <label><span>シンクロレベル</span><div class="input-unit"><input id="synchro-level" type="number" min="1" max="${SYNCHRO_MAX}" step="1" value="${DEFAULT_SYNCHRO_LEVEL}" title="シンクロデバイスの部隊に入れたニケは全員このレベルになります。アカウントの育成状態なので戦闘条件の共有コードには含まれません。${SYNCHRO_MEASURED_MAX}レベルまでは実測値で、それ以上は同じ成長曲線を延長して計算します" /><em>Lv</em></div></label>
+            <label class="toggle-field"><input id="has-core" type="checkbox" /><span class="toggle"></span><span>コアあり</span></label>
+            <label data-core-size><span>コア直径</span><div class="input-unit"><input id="core-px" type="number" min="0" max="1000" step="1" value="52" disabled /><em>px</em></div></label>
+            <label class="toggle-field"><input id="has-parts" type="checkbox" /><span class="toggle"></span><span>破壊可能パーツ</span></label>
           </div>
           <fieldset class="range-field">
-            <legend>적정거리</legend>
+            <legend>適正距離</legend>
             <div class="range-options" data-optimal-range></div>
-            <p class="field-note">고른 무기군의 <b>일반 공격</b>에만 대미지 보너스 +30%가 붙습니다 — 스킬 대미지에는 붙지 않습니다. 적과의 거리에 달린 조건이라 무기군 단위로 켭니다.</p>
+            <p class="field-note">選んだ武器種の<b>通常攻撃</b>にだけダメージボーナス +30% が付きます — スキルダメージには付きません。敵との距離に依存する条件なので武器種単位でオンにします。</p>
           </fieldset>
 
           <!-- 고급 설정 — 자주 손대지 않는 값과 보스 페이즈를 한자리에 접어 둔다. -->
           <button type="button" class="disclosure" data-advanced-battle aria-expanded="false">
-            <span class="disclosure-label">고급 설정</span><span class="disclosure-hint">펼치기</span>
+            <span class="disclosure-label">詳細設定</span><span class="disclosure-hint">展開</span>
           </button>
           <div class="disclosure-panel" data-advanced-battle-panel hidden>
             <div class="field-grid">
-              <label><span>적 방어력</span><input id="enemy-def" type="number" min="0" max="999999" step="1" value="31784" /></label>
-              <label><span>난수 시드</span><input id="seed" type="number" min="0" max="2147483647" step="1" value="42" /></label>
-              <label title="게이지 충전만의 시간입니다. 여기에 단계 전환 0.3초와 버스트 쿨 여유가 더해져 실제 공백은 더 깁니다."><span>버스트 게이지 충전</span><div class="input-unit"><input id="burst-regen" type="number" min="0" max="20" step="0.1" value="2" /><em>초</em></div></label>
-              <label class="toggle-field deck-regen-toggle" title="버스트 쿨이 밀리는 덱만 다른 값으로 재고 싶을 때 켭니다"><input id="burst-regen-per-deck" type="checkbox" /><span class="toggle"></span><span>버스트 충전을 덱마다 따로</span></label>
-              <label title="조건이 갖춰진 뒤 실제로 버스트를 누르기까지 걸리는 시간입니다. 버스트 하나하나마다 더해지므로 3단계까지 쓰면 그 세 배만큼 늦어집니다."><span>버스트 반응속도</span><div class="input-unit"><input id="burst-reaction" type="number" min="0" max="3" step="0.01" value="${DEFAULT_BURST_REACTION}" /><em>초</em></div></label>
-              <label><span>난수 처리</span><select id="rng-mode"><option value="expected">기대값 (권장)</option><option value="random">난수</option></select></label>
-              <label class="toggle-field" title="족자 구간에는 평타가 빗나가므로 게이지도 차지 않는 것으로 계산합니다. 켜면 그만큼 버스트가 밀립니다."><input id="immune-blocks-burst" type="checkbox" checked /><span class="toggle"></span><span>족자 중 버스트 충전 정지</span></label>
+              <label><span>敵防御力</span><input id="enemy-def" type="number" min="0" max="999999" step="1" value="31784" /></label>
+              <label><span>乱数シード</span><input id="seed" type="number" min="0" max="2147483647" step="1" value="42" /></label>
+              <label title="ゲージチャージだけの時間です。これに段階切り替えの0.3秒とバーストクールの余裕が加わるため、実際の空白はもっと長くなります。"><span>バーストゲージチャージ</span><div class="input-unit"><input id="burst-regen" type="number" min="0" max="20" step="0.1" value="2" /><em>秒</em></div></label>
+              <label class="toggle-field deck-regen-toggle" title="バーストクールがずれるデッキだけ別の値で測りたいときにオンにします"><input id="burst-regen-per-deck" type="checkbox" /><span class="toggle"></span><span>バーストチャージをデッキごとに分ける</span></label>
+              <label title="条件が揃ってから実際にバーストを押すまでにかかる時間です。バースト1つごとに加算されるため、3段階まで使うとその3倍だけ遅れます。"><span>バースト反応速度</span><div class="input-unit"><input id="burst-reaction" type="number" min="0" max="3" step="0.01" value="${DEFAULT_BURST_REACTION}" /><em>秒</em></div></label>
+              <label><span>乱数処理</span><select id="rng-mode"><option value="expected">期待値 (推奨)</option><option value="random">乱数</option></select></label>
+              <label class="toggle-field" title="回避区間では通常攻撃が外れるため、ゲージも溜まらないものとして計算します。オンにするとその分バーストが遅れます。"><input id="immune-blocks-burst" type="checkbox" checked /><span class="toggle"></span><span>回避区間中はバーストチャージ停止</span></label>
             </div>
             <div class="deck-regen-grid" data-deck-regen hidden></div>
-            <p class="field-note">기대값은 확률 대신 기대치를 태워 <b>같은 설정이면 언제나 같은 값</b>이 나옵니다. 난수는 인게임과 같은 분산을 재현하며 시드에 따라 결과가 흔들립니다.</p>
+            <p class="field-note">期待値は確率の代わりに期待値を使うため、<b>同じ設定なら常に同じ値</b>になります。乱数はゲーム内と同じ分散を再現し、シードによって結果が揺れます。</p>
 
             <fieldset class="range-field">
-              <legend>평타 계수</legend>
+              <legend>通常攻撃係数</legend>
               <div class="coeff-options" data-hit-coeff></div>
-              <p class="field-note">실전에서 탄퍼짐으로 빗나가는 탄을 보정합니다. <b>평타에만</b> 곱하며 스킬·버스트와 변신 모드 사격은 조준 판정이라 손대지 않습니다. 기본값은 실측 대조로 뽑은 값이고(SG 0.90), 1.00이면 보정 없음입니다.</p>
+              <p class="field-note">実戦で弾のばらつきにより外れる弾を補正します。<b>通常攻撃にだけ</b>掛け、スキル・バーストと変身モードの射撃は照準判定なので触りません。既定値は実測との照合で得た値で(SG 0.90)、1.00なら補正なしです。</p>
             </fieldset>
 
             <fieldset class="range-field phase-field">
-              <legend>보스 페이즈</legend>
+              <legend>ボスフェーズ</legend>
               <div class="phase-head">
-                <button type="button" class="phase-add" data-phase-add="immune">족자 추가 <b>+</b></button>
-                <button type="button" class="phase-add" data-phase-add="element">속저 추가 <b>+</b></button>
+                <button type="button" class="phase-add" data-phase-add="immune">回避区間を追加 <b>+</b></button>
+                <button type="button" class="phase-add" data-phase-add="element">属性制限を追加 <b>+</b></button>
               </div>
               <div class="phase-list" data-phase-list></div>
-              <p class="field-note"><b>족자</b>는 평타만 빗나갑니다. 지속 대미지·스킬 대미지와 평타로 발동한 후속 공격은 계속 들어갑니다. <b>속저</b>는 고른 속성에 <b>우월한</b> 캐릭터의 딜만 통과시킵니다 — 풍압으로 두면 작열 캐릭터만 들어갑니다. 인게임처럼 <b>우월 코드 버프</b>로 우월해진 캐릭터도 통과합니다(라피 : 레드 후드 «부착형 유탄» 등).</p>
+              <p class="field-note"><b>回避区間</b>は通常攻撃だけが外れます。持続ダメージ・スキルダメージと、通常攻撃で発動した追加攻撃は入り続けます。<b>属性制限</b>は選んだ属性に<b>優越する</b>キャラクターのダメージだけを通します — 風圧にすると灼熱のキャラクターだけが入ります。ゲーム内と同様に<b>優越コードバフ</b>で優越になったキャラクターも通ります(ラピ:レッドフードの «付着型榴弾» など)。</p>
             </fieldset>
           </div>
           <section class="console-editor">
-            <h3>콘솔 <span>전초기지 재활용 연구실</span></h3>
+            <h3>コンソール <span>前哨基地 リサイクルルーム</span></h3>
             <div class="console-grid" data-console-grid></div>
-            <p class="field-note">계정 설정이라 스쿼드 전원에게 같이 적용됩니다. 클래스·기업은 인게임에서 소속별로 따로 크므로 각각 받습니다. 기업은 공격력, 공통·클래스는 체력을 올립니다 — 체력 계수를 쓰는 캐릭터(신데렐라 등)는 공통·클래스도 딜에 반영됩니다.</p>
+            <p class="field-note">アカウント設定なのでスカッド全員に同じく適用されます。クラス・企業はゲーム内で所属ごとに別々に成長するため、それぞれ入力します。企業は攻撃力、共通・クラスはHPを上げます — HP係数を使うキャラクター(シンデレラなど)は共通・クラスもダメージに反映されます。</p>
           </section>
           </div>
           </div>
@@ -824,41 +824,41 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         </section>
 
         <section class="panel result-panel" aria-labelledby="result-heading" data-result-panel>
-          <div class="result-empty"><h2 id="result-heading">전투 결과</h2><div class="radar-mark" aria-hidden="true"><i></i><i></i><i></i></div><p>편성과 조건을 확인한 뒤<br />시뮬레이션을 실행해 주세요.</p></div>
+          <div class="result-empty"><h2 id="result-heading">戦闘結果</h2><div class="radar-mark" aria-hidden="true"><i></i><i></i><i></i></div><p>編成と条件を確認してから<br />シミュレーションを実行してください。</p></div>
         </section>
       </form>
 
       <section class="panel timeline-panel" data-view="calc" aria-labelledby="timeline-heading" data-timeline-panel hidden>
-        <div class="section-heading compact"><div><h2 id="timeline-heading">전투 타임라인</h2></div></div>
+        <div class="section-heading compact"><div><h2 id="timeline-heading">戦闘タイムライン</h2></div></div>
         <div data-timeline-body></div>
       </section>
-      <footer><p>비공식 팬 제작 도구 · 실제 전투 환경과 차이가 있을 수 있습니다.</p><a href="https://github.com/Furu1018/shirisuko-squad" target="_blank" rel="noreferrer">SOURCE / GITHUB ↗</a></footer>
+      <footer><p>非公式ファン制作ツール · 実際の戦闘環境とは差がある場合があります。</p><a href="https://github.com/Furu1018/shirisuko-squad" target="_blank" rel="noreferrer">SOURCE / GITHUB ↗</a></footer>
 
       <div class="custom-modal" data-history-modal hidden>
-        <div class="custom-card roster-card" role="dialog" aria-label="계산 기록">
-          <div class="custom-head"><h2>계산 기록</h2><button type="button" class="custom-close" data-history-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">결과에서 «결과 저장»을 누른 시점의 편성과 수치가 이 브라우저에 남습니다. 편성을 되살려 그때 조합으로 돌아갈 수 있습니다. <b>수치는 그때의 스펙·전투 조건으로 낸 값</b>이라, 지금 설정과 다르면 다시 계산해야 맞습니다.</p>
+        <div class="custom-card roster-card" role="dialog" aria-label="計算履歴">
+          <div class="custom-head"><h2>計算履歴</h2><button type="button" class="custom-close" data-history-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">結果で«結果を保存»を押した時点の編成と数値がこのブラウザに残ります。編成を復元してそのときの編成に戻れます。<b>数値はそのときのスペック・戦闘条件で出した値</b>なので、今の設定と違う場合は計算し直す必要があります。</p>
           <div class="history-list" data-history-list></div>
         </div>
       </div>
 
       <div class="custom-modal" data-battle-share-modal hidden>
-        <div class="custom-card share-card" role="dialog" aria-label="전투 조건 공유">
-          <div class="custom-head"><h2>전투 조건 공유</h2><button type="button" class="custom-close" data-battle-share-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">전투 시간·적 코드·코어·족자·속저·난수 처리 같은 <b>«어떤 상황에서 쟀나»</b>를 주고받습니다. <b>콘솔과 싱크로 레벨은 담기지 않습니다</b> — 계정 육성 상태라 남의 값이 딸려 오면 자기 스펙으로 잰 결과가 아니게 됩니다. 편성과 개인 스펙도 담기지 않습니다(그쪽은 «조합 공유»).</p>
+        <div class="custom-card share-card" role="dialog" aria-label="戦闘条件の共有">
+          <div class="custom-head"><h2>戦闘条件の共有</h2><button type="button" class="custom-close" data-battle-share-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">戦闘時間・敵コード・コア・回避区間・属性制限・乱数処理といった<b>«どんな状況で測ったか»</b>をやり取りします。<b>コンソールとシンクロレベルは含まれません</b> — アカウントの育成状態なので、他人の値が付いてくると自分のスペックで測った結果ではなくなります。編成と個人スペックも含まれません(そちらは«編成共有»)。</p>
           ${SHARE_API ? '<div class="share-tabs" data-battle-share-tabs></div>' : ''}
           <div class="share-pane" data-battle-share-pane="upload" hidden></div>
           <div class="share-pane" data-battle-share-pane="list" hidden></div>
           <div class="share-pane" data-battle-share-pane="code">
             <div class="squad-code-block">
-              <h4>내 전투 조건 코드</h4>
+              <h4>自分の戦闘条件コード</h4>
               <textarea class="share-out" data-battle-share-out readonly rows="3"></textarea>
-              <button type="button" class="share-copy" data-battle-share-copy>코드 복사</button>
+              <button type="button" class="share-copy" data-battle-share-copy>コードをコピー</button>
             </div>
             <div class="squad-code-block">
-              <h4>받은 코드 적용</h4>
-              <textarea class="share-in" data-battle-share-in rows="3" placeholder="NK3- 로 시작하는 코드를 붙여넣으세요"></textarea>
-              <button type="button" class="share-apply" data-battle-share-apply>적용</button>
+              <h4>受け取ったコードを適用</h4>
+              <textarea class="share-in" data-battle-share-in rows="3" placeholder="NK3- で始まるコードを貼り付けてください"></textarea>
+              <button type="button" class="share-apply" data-battle-share-apply>適用</button>
             </div>
           </div>
           <p class="share-msg" data-battle-share-msg hidden></p>
@@ -868,11 +868,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       <!-- 업데이트 공지. 새 내용이 있을 때 처음 들어오면 한 번 뜨고, 닫으면 그 판을
            본 것으로 적어 다시 뜨지 않는다. 「업데이트 내역」으로 언제든 다시 연다. -->
       <div class="custom-modal" data-notice-modal hidden>
-        <div class="custom-card notice-card" role="dialog" aria-label="업데이트 내역">
-          <div class="custom-head"><h2>업데이트 내역</h2><button type="button" class="custom-close" data-notice-close aria-label="닫기">✕</button></div>
+        <div class="custom-card notice-card" role="dialog" aria-label="更新履歴">
+          <div class="custom-head"><h2>更新履歴</h2><button type="button" class="custom-close" data-notice-close aria-label="閉じる">✕</button></div>
           <div class="notice-body" data-notice-body></div>
           <div class="deck-copy-actions">
-            <button type="button" class="deck-copy-apply" data-notice-dismiss>확인 · 다시 보지 않기</button>
+            <button type="button" class="deck-copy-apply" data-notice-dismiss>確認 · 次回から表示しない</button>
           </div>
         </div>
       </div>
@@ -880,32 +880,32 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       <!-- 캐릭터 설정 뭉치를 띄우는 창. 카드가 좁아 그 자리에서 펼치면 다섯 장이
            서로를 밀어낸다 — 필터 판과 같은 방식으로 창을 띄운다. -->
       <div class="custom-modal" data-char-panel-modal hidden>
-        <div class="custom-card char-panel-card" role="dialog" aria-label="캐릭터 설정">
-          <div class="custom-head"><h2 data-char-panel-title>캐릭터 설정</h2><button type="button" class="custom-close" data-char-panel-close aria-label="닫기">✕</button></div>
+        <div class="custom-card char-panel-card" role="dialog" aria-label="キャラクター設定">
+          <div class="custom-head"><h2 data-char-panel-title>キャラクター設定</h2><button type="button" class="custom-close" data-char-panel-close aria-label="閉じる">✕</button></div>
           <div class="char-panel-body" data-char-panel-body></div>
         </div>
       </div>
 
       <div class="custom-modal" data-buff-order-modal hidden>
-        <div class="custom-card buff-order-card" role="dialog" aria-label="버프 대상 순서">
-          <div class="custom-head"><h2 data-buff-order-title>버프 대상 순서</h2><button type="button" class="custom-close" data-buff-order-close aria-label="닫기">✕</button></div>
+        <div class="custom-card buff-order-card" role="dialog" aria-label="バフ対象の順序">
+          <div class="custom-head"><h2 data-buff-order-title>バフ対象の順序</h2><button type="button" class="custom-close" data-buff-order-close aria-label="閉じる">✕</button></div>
           <p class="custom-desc" data-buff-order-desc></p>
           <div class="buff-order-list" data-buff-order-list></div>
         </div>
       </div>
 
       <div class="custom-modal" data-burst-order-modal hidden>
-        <div class="custom-card burst-order-card" role="dialog" aria-label="버스트 순서">
-          <div class="custom-head"><h2>버스트 순서</h2><button type="button" class="custom-close" data-burst-order-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">사이클마다 <b>1버 → 2버 → 3버</b>를 누가 쓸지 직접 정합니다. <b>정한 사이클까지만 따릅니다</b> — 전투가 더 길면 그 뒤는 계산기가 평소 순서로 고릅니다. 초상화를 누르거나 <b>A·S·D·F·G</b> 키로 고르고, <b>←</b>로 한 칸 되돌립니다.</p>
+        <div class="custom-card burst-order-card" role="dialog" aria-label="バースト順序">
+          <div class="custom-head"><h2>バースト順序</h2><button type="button" class="custom-close" data-burst-order-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">サイクルごとに<b>1バ → 2バ → 3バ</b>を誰が使うかを自分で決めます。<b>決めたサイクルまでだけ従います</b> — 戦闘がそれより長ければ、その後は計算機が通常の順序で選びます。ポートレートを押すか <b>A·S·D·F·G</b> キーで選び、<b>←</b> で1つ戻します。</p>
           <div class="burst-order-bar">
-            <label class="burst-cycles">풀버스트 횟수
-              <button type="button" class="burst-step-btn" data-burst-cycles-down aria-label="한 사이클 줄이기">−</button>
+            <label class="burst-cycles">フルバースト回数
+              <button type="button" class="burst-step-btn" data-burst-cycles-down aria-label="1サイクル減らす">−</button>
               <output data-burst-cycles>0</output>
-              <button type="button" class="burst-step-btn" data-burst-cycles-up aria-label="한 사이클 늘리기">+</button>
+              <button type="button" class="burst-step-btn" data-burst-cycles-up aria-label="1サイクル増やす">+</button>
             </label>
             <span class="burst-order-progress" data-burst-progress></span>
-            <button type="button" class="roster-import" data-burst-order-reset>처음부터</button>
+            <button type="button" class="roster-import" data-burst-order-reset>最初から</button>
           </div>
           <p class="burst-order-hint" data-burst-cycles-note></p>
           <div class="burst-now" data-burst-now></div>
@@ -913,20 +913,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <div class="burst-order-list" data-burst-list></div>
           <p class="custom-msg" data-burst-order-msg hidden></p>
           <div class="deck-copy-actions">
-            <button type="button" class="deck-copy-apply" data-burst-order-save>이 순서로 두기</button>
-            <button type="button" class="deck-copy-cancel" data-burst-order-clear>순서 지우기(자동)</button>
+            <button type="button" class="deck-copy-apply" data-burst-order-save>この順序にする</button>
+            <button type="button" class="deck-copy-cancel" data-burst-order-clear>順序を消す(自動)</button>
           </div>
         </div>
       </div>
 
       <div class="custom-modal" data-share-modal hidden>
-        <div class="custom-card share-card" role="dialog" aria-label="프리셋 / 조합 공유">
-          <div class="custom-head"><h2>프리셋 / 조합 공유</h2><button type="button" class="custom-close" data-share-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">누가 편성됐는지(캐릭터 조합)만 주고받습니다. <b>오버로드·공격력·돌파 같은 개인 스펙과 전투 조건은 담기지 않습니다</b> — 적용하면 캐릭터만 바뀌고 스펙은 각자 자기 설정(CSV 로스터를 넣었다면 그 값)이 그대로 쓰입니다. ${SHARE_API ? '<b>서버로는 «올리기»를 누를 때만 전송됩니다.</b>' : '서버로 전송되지 않습니다.'}</p>
+        <div class="custom-card share-card" role="dialog" aria-label="プリセット / 編成共有">
+          <div class="custom-head"><h2>プリセット / 編成共有</h2><button type="button" class="custom-close" data-share-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">誰を編成したか(キャラクターの組み合わせ)だけをやり取りします。<b>オーバーロード・攻撃力・限界突破といった個人スペックと戦闘条件は含まれません</b> — 適用するとキャラクターだけが変わり、スペックは各自の設定(CSV ロスターを入れていればその値)がそのまま使われます。${SHARE_API ? '<b>サーバーへは«投稿»を押したときだけ送信されます。</b>' : 'サーバーへは送信されません。'}</p>
           <div class="share-scope" data-share-scope>
-            <span class="share-scope-label">범위</span>
-            <button type="button" class="share-scope-pick is-on" data-share-scope-pick="one">이 덱만</button>
-            <button type="button" class="share-scope-pick" data-share-scope-pick="all">5덱 전부</button>
+            <span class="share-scope-label">範囲</span>
+            <button type="button" class="share-scope-pick is-on" data-share-scope-pick="one">このデッキのみ</button>
+            <button type="button" class="share-scope-pick" data-share-scope-pick="all">5デッキすべて</button>
             <span class="share-scope-note" data-share-scope-note></span>
           </div>
           ${SHARE_API ? '<div class="share-tabs" data-share-tabs></div>' : ''}
@@ -934,25 +934,25 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <div class="share-pane" data-share-pane="list" hidden></div>
           <div class="share-pane" data-share-pane="code">
           <div class="squad-code-block">
-            <h4>내 조합 코드</h4>
+            <h4>自分の編成コード</h4>
             <textarea class="custom-json" data-share-out rows="3" readonly></textarea>
-            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-copy>코드 복사</button></div>
+            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-copy>コードをコピー</button></div>
           </div>
           <div class="squad-code-block">
-            <h4>공유 링크</h4>
+            <h4>共有リンク</h4>
             <textarea class="custom-json" data-share-url rows="2" readonly></textarea>
-            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-url-copy>링크 복사</button></div>
+            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-url-copy>リンクをコピー</button></div>
           </div>
           <div class="squad-code-block">
-            <h4>받은 코드 적용</h4>
-            <textarea class="custom-json" data-share-in rows="3" placeholder="받은 조합 코드나 공유 링크를 붙여넣으세요"></textarea>
-            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-apply>이 조합 적용</button></div>
+            <h4>受け取ったコードを適用</h4>
+            <textarea class="custom-json" data-share-in rows="3" placeholder="受け取った編成コードか共有リンクを貼り付けてください"></textarea>
+            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-apply>この編成を適用</button></div>
           </div>
           <div class="squad-code-block">
-            <h4>이 브라우저에 저장</h4>
+            <h4>このブラウザに保存</h4>
             <div class="preset-row">
-              <input type="text" class="preset-name" data-preset-name placeholder="프리셋 이름 (예: 수냉 솔레 1덱)" maxlength="40" />
-              <button type="button" class="deck-copy-apply" data-preset-save>저장</button>
+              <input type="text" class="preset-name" data-preset-name placeholder="プリセット名 (例: 水冷ソロレイド 1デッキ)" maxlength="40" />
+              <button type="button" class="deck-copy-apply" data-preset-save>保存</button>
             </div>
             <div class="preset-list" data-preset-list></div>
           </div>
@@ -962,97 +962,97 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       </div>
 
       <div class="custom-modal" data-report-modal hidden>
-        <div class="custom-card report-card" role="dialog" aria-label="보고서 이미지">
-          <div class="custom-head"><h2>보고서 이미지</h2><button type="button" class="custom-close" data-report-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">아래 이미지를 복사해 커뮤니티에 바로 붙여넣을 수 있습니다. 복사가 막히면 PNG로 저장하거나, 이미지를 우클릭해 복사해도 됩니다. 이 브라우저 안에서만 만들어집니다.</p>
+        <div class="custom-card report-card" role="dialog" aria-label="レポート画像">
+          <div class="custom-head"><h2>レポート画像</h2><button type="button" class="custom-close" data-report-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">下の画像をコピーしてコミュニティにそのまま貼り付けられます。コピーが使えない場合は PNG で保存するか、画像を右クリックしてコピーしてください。このブラウザ内でのみ生成されます。</p>
           <div class="report-preview" data-report-preview></div>
           <p class="report-msg" data-report-msg hidden></p>
           <div class="deck-copy-actions">
-            <button type="button" class="deck-copy-apply" data-report-copy>이미지 복사</button>
-            <button type="button" class="deck-copy-cancel" data-report-save>PNG 저장</button>
+            <button type="button" class="deck-copy-apply" data-report-copy>画像をコピー</button>
+            <button type="button" class="deck-copy-cancel" data-report-save>PNG 保存</button>
           </div>
         </div>
       </div>
 
       <div class="custom-modal" data-reset-modal hidden>
-        <div class="custom-card reset-card" role="dialog" aria-label="완전 초기화 확인">
-          <div class="custom-head"><h2>완전 초기화</h2><button type="button" class="custom-close" data-reset-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">아래 항목을 모두 지우고 처음 상태로 되돌립니다. 되돌릴 수 없습니다.</p>
+        <div class="custom-card reset-card" role="dialog" aria-label="完全初期化の確認">
+          <div class="custom-head"><h2>完全初期化</h2><button type="button" class="custom-close" data-reset-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">以下の項目をすべて消して初期状態に戻します。元に戻せません。</p>
           <ul class="reset-list">
-            <li>모든 덱의 편성과 캐릭터별 설정</li>
-            <li>CSV로 불러온 로스터</li>
-            <li>직접 추가한 니케</li>
-            <li>저장된 계산 결과</li>
-            <li>전투 조건</li>
+            <li>すべてのデッキの編成とキャラクターごとの設定</li>
+            <li>CSV から読み込んだロスター</li>
+            <li>自分で追加したニケ</li>
+            <li>保存された計算結果</li>
+            <li>戦闘条件</li>
           </ul>
           <div class="deck-copy-actions">
-            <button type="button" class="deck-copy-apply danger" data-reset-confirm>초기화</button>
-            <button type="button" class="deck-copy-cancel" data-reset-cancel>취소</button>
+            <button type="button" class="deck-copy-apply danger" data-reset-confirm>初期化</button>
+            <button type="button" class="deck-copy-cancel" data-reset-cancel>キャンセル</button>
           </div>
         </div>
       </div>
 
       ${blablaProxy ? `
       <div class="custom-modal" data-blabla-modal hidden>
-        <div class="custom-card doro-card" role="dialog" aria-label="블라블라링크 연동">
-          <div class="custom-head"><h2>블라블라링크 연동</h2><button type="button" class="custom-close" data-blabla-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">블라블라링크에서 <b>내 프로필 주소</b>를 복사해 넣으면 보유 니케의 육성 상태를 한 번에 가져옵니다. 돌파·코강·스킬·오버로드·장비 강화에 더해, CSV에는 없는 <b>큐브와 소장품</b>까지 들어옵니다.</p>
-          <p class="custom-desc"><a href="https://www.blablalink.com/user" target="_blank" rel="noreferrer noopener">blablalink.com/user</a> 에 들어가면 주소창에 뜨는 주소가 그것입니다. 블라블라링크에서 <b>프로필과 니케 목록을 공개</b>로 바꿔야 조회됩니다 — 하나라도 비공개면 막힙니다. 전초기지까지 공개하면 콘솔(재활용 연구실) 레벨도 함께 들어옵니다.</p>
+        <div class="custom-card doro-card" role="dialog" aria-label="Blablalink 連携">
+          <div class="custom-head"><h2>Blablalink 連携</h2><button type="button" class="custom-close" data-blabla-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">Blablalink で<b>自分のプロフィールのアドレス</b>をコピーして入れると、所持ニケの育成状態を一括で取り込みます。限界突破・コア強化・スキル・オーバーロード・装備強化に加え、CSV にはない<b>キューブとコレクション</b>まで入ります。</p>
+          <p class="custom-desc"><a href="https://www.blablalink.com/user" target="_blank" rel="noreferrer noopener">blablalink.com/user</a> を開いたときにアドレスバーに出るアドレスがそれです。Blablalink で<b>プロフィールとニケ一覧を公開</b>に変えないと照会できません — どちらか一方でも非公開だと遮断されます。前哨基地まで公開すると、コンソール(リサイクルルーム)のレベルも一緒に入ります。</p>
           <div class="blabla-row">
-            <select class="blabla-server" data-blabla-server aria-label="블라블라링크 서버">
-              <option value="">자동 (보유 니케가 가장 많은 서버)</option>
+            <select class="blabla-server" data-blabla-server aria-label="Blablalink サーバー">
+              <option value="">自動 (所持ニケが最も多いサーバー)</option>
               ${BLABLA_SERVERS.map(({ area, label }) => `<option value="${area}">${label}</option>`).join('')}
             </select>
             <input type="url" class="blabla-url" data-blabla-url placeholder="https://www.blablalink.com/user?openid=..." spellcheck="false" />
-            <button type="button" class="roster-import" data-blabla-sync>동기화</button>
+            <button type="button" class="roster-import" data-blabla-sync>同期</button>
           </div>
           <p class="custom-desc blabla-status" data-blabla-status hidden></p>
-          <p class="custom-desc">받아 온 값은 이 브라우저에만 저장됩니다. 호감도는 계산기가 돌파 단계에서 끌어내므로 따로 반영하지 않습니다.</p>
+          <p class="custom-desc">取得した値はこのブラウザにのみ保存されます。好感度は計算機が限界突破段階から導くため、別途反映しません。</p>
         </div>
       </div>` : ''}
       <div class="custom-modal" data-doro-modal hidden>
-        <div class="custom-card doro-card" role="dialog" aria-label="렛츠도로 CSV 받는 법">
-          <div class="custom-head"><h2>렛츠도로 CSV 받는 법</h2><button type="button" class="custom-close" data-doro-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">렛츠도로 <b>니케 정보</b> 페이지에서 목록 오른쪽 아래 <b>내려받기 아이콘</b>을 누르면 CSV가 저장됩니다. 그 파일을 <b>렛츠도로 CSV 불러오기</b>로 넣으면 보유 니케 설정이 한 번에 적용됩니다.</p>
-          <p class="doro-link"><a href="https://letsdoro.com/mypage?tab=nikke" target="_blank" rel="noreferrer">letsdoro.com 니케 정보 열기 ↗</a></p>
-          <p class="field-note">CSV에는 <b>큐브와 호감도</b>가 들어 있지 않습니다 — 그 둘은 기본값(기본 큐브 · 돌파별 최대 호감도)으로 계산하며, 카드의 <b>개별 설정</b>에서 실제 값으로 고칠 수 있습니다.</p>
-          <img class="doro-shot" src="${import.meta.env.BASE_URL}letsdoro-csv.png" alt="렛츠도로 니케 정보 페이지에서 CSV 내려받기 위치" loading="lazy" />
+        <div class="custom-card doro-card" role="dialog" aria-label="Letsdoro CSV の入手方法">
+          <div class="custom-head"><h2>Letsdoro CSV の入手方法</h2><button type="button" class="custom-close" data-doro-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">Letsdoro の<b>ニケ情報</b>ページで、一覧の右下にある<b>ダウンロードアイコン</b>を押すと CSV が保存されます。そのファイルを<b>Letsdoro CSV を読み込む</b>で入れると、所持ニケの設定が一括で適用されます。</p>
+          <p class="doro-link"><a href="https://letsdoro.com/mypage?tab=nikke" target="_blank" rel="noreferrer">letsdoro.com のニケ情報を開く ↗</a></p>
+          <p class="field-note">CSV には<b>キューブと好感度</b>が含まれていません — この2つは既定値(既定のキューブ · 限界突破ごとの最大好感度)で計算し、カードの<b>個別設定</b>で実際の値に直せます。</p>
+          <img class="doro-shot" src="${import.meta.env.BASE_URL}letsdoro-csv.png" alt="Letsdoro のニケ情報ページでの CSV ダウンロード位置" loading="lazy" />
         </div>
       </div>
 
       <div class="custom-modal" data-custom-modal hidden>
-        <div class="custom-card" role="dialog" aria-label="새 니케 추가">
-          <div class="custom-head"><h2>새 니케 추가</h2><button type="button" class="custom-close" data-custom-close aria-label="닫기">✕</button></div>
-          <p class="custom-desc">미출시·미등록 니케를 직접 추가합니다. 서버로 전송되지 않고 이 브라우저에만 저장됩니다.</p>
+        <div class="custom-card" role="dialog" aria-label="新しいニケを追加">
+          <div class="custom-head"><h2>新しいニケを追加</h2><button type="button" class="custom-close" data-custom-close aria-label="閉じる">✕</button></div>
+          <p class="custom-desc">未実装・未登録のニケを自分で追加します。サーバーへは送信されず、このブラウザにのみ保存されます。</p>
           <ol class="custom-steps">
-            <li>아래 <b>프롬프트 복사</b>를 눌러 다른 LLM(챗봇)에 붙여넣고, 그 아래에 니케 이름·스킬 설명을 붙여 결과 JSON을 받으세요.</li>
-            <li>받은 JSON을 아래 칸에 붙여넣고 <b>추가</b>를 누르세요. 또는 <b>직접 입력 도움말</b>을 보고 손으로 작성해도 됩니다.</li>
+            <li>下の<b>プロンプトをコピー</b>を押して他の LLM(チャットボット)に貼り付け、その下にニケの名前・スキル説明を付けて結果の JSON を受け取ってください。</li>
+            <li>受け取った JSON を下の欄に貼り付けて<b>追加</b>を押してください。または<b>手入力ヘルプ</b>を見て手で作成しても構いません。</li>
           </ol>
           <div class="custom-caution">
-            <b>참고하세요</b>
+            <b>ご注意ください</b>
             <ul>
-              <li>특이하거나 복잡한 스킬(조건부 발동·게이지·모드 전환·스택 조건 등)은 계산에 <b>반영되지 않습니다.</b> 기본 사격·버프·버스트 위주로만 근사됩니다. 그런 스킬이 주력 딜인 캐릭터(예: 게이지로 대미지가 커지는 캐릭터)는 <b>결과가 실제보다 훨씬 낮게</b> 나오니 참고만 하세요.</li>
-              <li>LLM 성능에 따라 <b>정확한 변환이 어려울 수 있으니 참고용</b>으로 쓰고, 값을 직접 확인·보정하시길 권합니다.</li>
-              <li>가능하면 아래 <b>직접 입력 도움말</b>을 보고 사람이 직접 값을 넣는 편이 정확합니다.</li>
+              <li>特殊または複雑なスキル(条件付き発動・ゲージ・モード切り替え・スタック条件など)は計算に<b>反映されません。</b>基本射撃・バフ・バーストを中心に近似されるだけです。そうしたスキルが主力ダメージのキャラクター(例: ゲージでダメージが伸びるキャラクター)は<b>結果が実際よりかなり低く</b>出るので参考程度にしてください。</li>
+              <li>LLM の性能によっては<b>正確な変換が難しいことがあるので参考用</b>として使い、値をご自身で確認・補正することをおすすめします。</li>
+              <li>可能であれば下の<b>手入力ヘルプ</b>を見て人が直接値を入れるほうが正確です。</li>
             </ul>
           </div>
           <details class="custom-help">
-            <summary>직접 입력 도움말 (스키마 · 사람이 작성할 때)</summary>
+            <summary>手入力ヘルプ (スキーマ · 人が作成するとき)</summary>
             <div class="custom-help-body">
-              <p><b>최상위</b>: <code>{ "name": "정식 명칭", "nikke": {…스탯}, "skills": [ …효과 ] }</code></p>
-              <p><b>nikke 공통</b>: rarity(SSR/SR/R) · element_code(전격/작열/수냉/풍압/철갑) · class(화력형/방어형/지원형) · manufacturer(엘리시온/미실리스/테트라/필그림/어브노멀) · weapon_type(AR/SMG/MG/SR/RL/SG) · burst_stage(1~3) · burst_cooldown(초) · max_ammo · reload_time(초) · fire_rate(초당 발사) · pellets(SG만 2↑) · muzzles(대개 1) · damage_coeff(1발 계수 %)</p>
-              <p><b>무기별 추가</b>: 연사형(AR·SMG·MG·SG)은 <code>core_dmg_mult</code>(코어 %, 예 200). 차지형(SR·RL)은 <code>charge_time</code>(풀차지 초, 예 1.0~1.5)과 <code>full_charge_mult</code>(풀차지 %, 예 250·350). 차지형에 안 넣으면 각각 1.0·250으로 기본 적용됩니다.</p>
-              <p><b>skills 각 원소</b>: source(스킬1/스킬2/버스트스킬) · type(buff 또는 damage) · name · trigger:{ timing:[…], condition:[…] } · target · stat · polarity(beneficial/harmful) · max_stack(대개 1) · values:{ "1":값, "10":값 } 또는 fixed_value:값 · duration(지속 초, 즉발/영구는 생략 또는 -1)</p>
-              <p><b>인식되는 timing</b>: battle_start · full_burst_start · full_burst_start_count:N · full_burst_end · burst_cast · burst_cast_count:N · last_bullet · last_bullet_fire · hit_count:N · full_charge_hit · passive</p>
-              <p><b>인식되는 target</b>: self · all_allies · all_allies_excl_self · all_enemies · target · same_target · allies:N · allies_top_atk:N · allies_weapon:&lt;무기&gt; · allies_class:공격|방어|지원 · allies_code:&lt;속성&gt; · allies_code_weapon:&lt;속성&gt;:&lt;무기&gt; · enemies_top_atk:N</p>
-              <p><b>인식되는 buff stat</b>: atk_pct · atk_flat · atk_dmg_pct · normal_atk_dmg_pct · crit_rate · crit_dmg · core_dmg_pct · element_bonus_pct · burst_dmg_pct · pierce_dmg_pct · charge_dmg_pct · charge_speed_pct · max_ammo_pct · max_ammo_flat · reload_speed_pct · attack_speed_pct · accuracy_pct · def_pct · def_ignore_pct · enemy_def_down_pct · received_dmg(적이 받는 대미지 증가) · burst_cooldown(초)</p>
-              <p><b>damage stat</b>(type이 damage): bonus_damage · burst_damage · damage (values가 대미지 계수)</p>
-              <p class="custom-help-note">목록에 없는 stat·timing·target은 계산에서 무시됩니다. 애매하면 가장 가까운 표준값을 쓰세요.</p>
+              <p><b>最上位</b>: <code>{ "name": "正式名称", "nikke": {…ステータス}, "skills": [ …効果 ] }</code></p>
+              <p><b>nikke 共通</b>: rarity(SSR/SR/R) · element_code(전격/작열/수냉/풍압/철갑 ※韓国語の内部キーのまま) · class(화력형/방어형/지원형 ※同上) · manufacturer(엘리시온/미실리스/테트라/필그림/어브노멀 ※同上) · weapon_type(AR/SMG/MG/SR/RL/SG) · burst_stage(1~3) · burst_cooldown(秒) · max_ammo · reload_time(秒) · fire_rate(秒あたりの発射数) · pellets(SG のみ 2↑) · muzzles(通常 1) · damage_coeff(1発の係数 %)</p>
+              <p><b>武器別の追加項目</b>: 連射型(AR·SMG·MG·SG)は <code>core_dmg_mult</code>(コア %、例 200)。チャージ型(SR·RL)は <code>charge_time</code>(フルチャージ秒、例 1.0~1.5)と <code>full_charge_mult</code>(フルチャージ %、例 250·350)。チャージ型で省略するとそれぞれ 1.0·250 が既定で適用されます。</p>
+              <p><b>skills の各要素</b>: source(스킬1/스킬2/버스트스킬 ※韓国語のまま) · type(buff または damage) · name · trigger:{ timing:[…], condition:[…] } · target · stat · polarity(beneficial/harmful) · max_stack(通常 1) · values:{ "1":値, "10":値 } または fixed_value:値 · duration(持続秒。即時/永続は省略または -1)</p>
+              <p><b>認識される timing</b>: battle_start · full_burst_start · full_burst_start_count:N · full_burst_end · burst_cast · burst_cast_count:N · last_bullet · last_bullet_fire · hit_count:N · full_charge_hit · passive</p>
+              <p><b>認識される target</b>: self · all_allies · all_allies_excl_self · all_enemies · target · same_target · allies:N · allies_top_atk:N · allies_weapon:&lt;武器&gt; · allies_class:공격|방어|지원 · allies_code:&lt;属性&gt; · allies_code_weapon:&lt;属性&gt;:&lt;武器&gt; · enemies_top_atk:N</p>
+              <p><b>認識される buff stat</b>: atk_pct · atk_flat · atk_dmg_pct · normal_atk_dmg_pct · crit_rate · crit_dmg · core_dmg_pct · element_bonus_pct · burst_dmg_pct · pierce_dmg_pct · charge_dmg_pct · charge_speed_pct · max_ammo_pct · max_ammo_flat · reload_speed_pct · attack_speed_pct · accuracy_pct · def_pct · def_ignore_pct · enemy_def_down_pct · received_dmg(敵の被ダメージ増加) · burst_cooldown(秒)</p>
+              <p><b>damage stat</b>(type が damage): bonus_damage · burst_damage · damage (values がダメージ係数)</p>
+              <p class="custom-help-note">一覧にない stat·timing·target は計算で無視されます。迷ったら最も近い標準値を使ってください。</p>
             </div>
           </details>
-          <button type="button" class="custom-btn" data-copy-prompt>① 프롬프트 복사</button>
-          <textarea class="custom-json" data-custom-json placeholder="② 여기에 결과 JSON을 붙여넣거나, 도움말을 보고 직접 작성하세요" rows="8"></textarea>
-          <div class="custom-actions"><button type="button" class="custom-btn primary" data-custom-submit>추가</button></div>
+          <button type="button" class="custom-btn" data-copy-prompt>① プロンプトをコピー</button>
+          <textarea class="custom-json" data-custom-json placeholder="② ここに結果の JSON を貼り付けるか、ヘルプを見て直接作成してください" rows="8"></textarea>
+          <div class="custom-actions"><button type="button" class="custom-btn primary" data-custom-submit>追加</button></div>
           <p class="custom-msg" data-custom-msg hidden></p>
           <div class="custom-list" data-custom-list></div>
         </div>
@@ -1101,7 +1101,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       button.dataset.deckTab = String(deck.id);
       button.className = deck.id === activeDeckId ? 'is-active' : '';
       const count = deck.squad.filter(Boolean).length;
-      button.textContent = `덱 ${deck.id}${count ? ` · ${count}` : ''}`;
+      button.textContent = `デッキ ${deck.id}${count ? ` · ${count}` : ''}`;
       button.addEventListener('click', () => {
         activeDeckId = deck.id;
         // 덱을 옮기면 판이 겨냥하는 칸도 그 덱 기준으로 다시 잡는다.
@@ -1137,15 +1137,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderSquad();
     };
     for (const [delta, label, title] of [
-      [-1, '‹', '앞으로'], [1, '›', '뒤로'],
+      [-1, '‹', '前へ'], [1, '›', '後ろへ'],
     ] as const) {
       const move = document.createElement('button');
       move.type = 'button';
       move.className = 'deck-move';
       move.dataset.deckMove = String(delta);
       move.textContent = label;
-      move.title = `현재 덱을 ${title} 옮기기`;
-      move.ariaLabel = `덱 ${activeDeckId}을 ${title} 옮기기`;
+      move.title = `現在のデッキを${title}移動`;
+      move.ariaLabel = `デッキ ${activeDeckId} を${title}移動`;
       const index = decks.findIndex((deck) => deck.id === activeDeckId);
       move.disabled = index + delta < 0 || index + delta >= decks.length;
       move.addEventListener('click', () => swapDeck(delta));
@@ -1162,7 +1162,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   const renderDeckCopy = () => {
     const source = activeDeck();
-    deckCopyTitle.textContent = `덱 ${source.id}의 편성과 캐릭터 설정을 복사할 대상`;
+    deckCopyTitle.textContent = `デッキ ${source.id} の編成とキャラクター設定のコピー先`;
     deckCopyTargets.replaceChildren();
     for (const deck of decks) {
       if (deck.id === source.id) continue;
@@ -1176,7 +1176,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       box.checked = count === 0;
       label.append(
         box,
-        createText('span', count === 0 ? `덱 ${deck.id} · 비어 있음` : `덱 ${deck.id} · ${count}명 (덮어씀)`,
+        createText('span', count === 0 ? `デッキ ${deck.id} · 空き` : `デッキ ${deck.id} · ${count}名 (上書き)`,
           count === 0 ? undefined : 'deck-copy-warn'),
       );
       deckCopyTargets.append(label);
@@ -1189,7 +1189,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       deckCopyTargets.querySelectorAll<HTMLInputElement>('[data-deck-copy-target]'),
     ).filter((box) => box.checked).map((box) => Number(box.dataset.deckCopyTarget));
     if (targets.length === 0) {
-      showErrors(['복사할 대상 덱을 하나 이상 선택하세요.']);
+      showErrors(['コピー先のデッキを1つ以上選んでください。']);
       return;
     }
     for (const id of targets) {
@@ -1206,7 +1206,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     showErrors([]);
     saveState();
     renderDeckTabs();
-    status.textContent = `덱 ${source.id}을(를) ${targets.map((id) => `덱 ${id}`).join(' · ')}에 복사했습니다.`;
+    status.textContent = `デッキ ${source.id} を ${targets.map((id) => `デッキ ${id}`).join(' · ')} にコピーしました。`;
   };
 
   deckCopyOpen.addEventListener('click', () => {
@@ -1306,8 +1306,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       `${labelFor(caster)} · ${row.label}`;
     element<HTMLElement>(root, '[data-buff-order-desc]').textContent =
       row.targets.length > 1
-        ? `${row.buff} — ${row.count}회 발동. 대상이 ${row.targets.length}명 사이에서 갈립니다.`
-        : `${row.buff} — ${row.count}회 발동. 전투 내내 같은 대상입니다.`;
+        ? `${row.buff} — ${row.count}回発動。対象が ${row.targets.length}名の間で分かれます。`
+        : `${row.buff} — ${row.count}回発動。戦闘中ずっと同じ対象です。`;
     const list = element<HTMLElement>(root, '[data-buff-order-list]');
     list.replaceChildren();
     for (const [index, step] of (row.sequence ?? []).entries()) {
@@ -1326,7 +1326,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       item.append(shot);
       item.append(createText('strong', labelFor(step.target)));
-      item.append(createText('span', `${step.t.toFixed(2)}초`));
+      item.append(createText('span', `${step.t.toFixed(2)}秒`));
       list.append(item);
     }
     buffOrderModal.hidden = false;
@@ -1473,7 +1473,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       // 한 덱에 같은 니케를 두 번 넣을 수 없다 — 누르는 길에서 막는 것과 같은 규칙이다.
       const already = deck.squad.indexOf(name);
       if (already >= 0 && already !== index) {
-        showErrors([`${labelFor(name)}은(는) 이미 ${already + 1}번 칸에 있습니다.`]);
+        showErrors([`${labelFor(name)} はすでに枠 ${already + 1} にいます。`]);
         return;
       }
       pickCharacter(name, index);
@@ -1527,15 +1527,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const moves = document.createElement('div');
       moves.className = 'slot-moves';
       for (const [delta, label, title] of [
-        [-1, '‹', '왼쪽으로'], [1, '›', '오른쪽으로'],
+        [-1, '‹', '左へ'], [1, '›', '右へ'],
       ] as const) {
         const move = document.createElement('button');
         move.type = 'button';
         move.className = 'slot-move';
         move.dataset.slotMove = `${index}:${delta}`;
         move.textContent = label;
-        move.title = `${title} 이동`;
-        move.ariaLabel = `슬롯 ${index + 1} ${title} 이동`;
+        move.title = `${title}移動`;
+        move.ariaLabel = `枠 ${index + 1} を${title}移動`;
         const target = index + delta;
         move.disabled = target < 0 || target > 4;
         move.addEventListener('click', () => {
@@ -1551,7 +1551,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (char?.image) {
         const image = document.createElement('img');
         image.src = `${import.meta.env.BASE_URL}${char.image}`;
-        image.alt = `${labelFor(char.name)} 초상화`;
+        image.alt = `${labelFor(char.name)} のポートレート`;
         image.loading = 'lazy';
         portrait.append(image);
       }
@@ -1566,10 +1566,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       choose.className = 'slot-choose';
       choose.dataset.slotChoose = String(index);
       choose.setAttribute('aria-pressed', String(activeSlot === index));
-      choose.append(createText('strong', char ? labelFor(char.name) : '빈 칸'));
+      choose.append(createText('strong', char ? labelFor(char.name) : '空き枠'));
       choose.append(createText(
         'span',
-        char ? `B${char.burstStage} · ${char.elementCode} · ${char.weaponType}` : '눌러서 이 칸에 넣기',
+        char ? `B${char.burstStage} · ${elementLabel(char.elementCode)} · ${char.weaponType}` : '押してこの枠に入れる',
       ));
       choose.addEventListener('click', () => {
         activeSlot = index;
@@ -1588,8 +1588,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       clear.type = 'button';
       clear.className = 'slot-clear';
       clear.textContent = '✕';
-      clear.title = `${index + 1}번 칸 비우기`;
-      clear.ariaLabel = `${index + 1}번 칸 비우기`;
+      clear.title = `枠 ${index + 1} を空にする`;
+      clear.ariaLabel = `枠 ${index + 1} を空にする`;
       clear.hidden = !name;
       clear.addEventListener('click', () => {
         if (name) delete deck.characters[name];
@@ -1665,9 +1665,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         plus.dataset.growthStep = 'plus';
         plus.textContent = '+';
         const stageOf = (): number => deck.characters[cname]?.growthStage ?? defStage;
-        const labelOf = (stage: number): string =>
-          growthDefaults?.growthOptions.find((option) => option.value === stage)?.label
-          ?? `단계 ${stage}`;
+        const labelOf = (stage: number): string => {
+          const found = growthDefaults?.growthOptions.find((option) => option.value === stage)?.label;
+          return found ? growthLabel(found) : `段階 ${stage}`;
+        };
         function renderGrowthStepper(): void {
           const stage = stageOf();
           const slots = Math.min(maxStage, 3);
@@ -1689,9 +1690,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           minus.disabled = stage <= 0;
           plus.disabled = stage >= maxStage;
           const text = labelOf(stage);
-          minus.ariaLabel = `${cname} 돌파 한 단계 낮추기 (현재 ${text})`;
-          plus.ariaLabel = `${cname} 돌파 한 단계 높이기 (현재 ${text})`;
-          stepper.title = `돌파·코어 강화 · ${text}`;
+          minus.ariaLabel = `${labelFor(cname)} の限界突破を1段階下げる (現在 ${text})`;
+          plus.ariaLabel = `${labelFor(cname)} の限界突破を1段階上げる (現在 ${text})`;
+          stepper.title = `限界突破・コア強化 · ${text}`;
         }
         const setStage = (next: number) => {
           const clamped = Math.max(0, Math.min(maxStage, next));
@@ -1766,14 +1767,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       return box;
     };
 
-    const [commonWrap, commonInput] = field('전체', CONSOLE_DEFAULTS.common);
+    const [commonWrap, commonInput] = field('全体', CONSOLE_DEFAULTS.common);
     commonInput.id = 'console-common';
     consoleCommon = commonInput;
 
     const axisGroup = (axis: 'class' | 'company', title: string) => group(
       title,
       consoleBuckets(axis).map((bucket) => {
-        const [wrap, input] = field(bucket, CONSOLE_DEFAULTS[axis]);
+        // 表示は日本語、dataset と読み書きのキーは韓国語の内部キーのまま。
+        const shown = axis === 'class' ? labelForClass(bucket) : labelForMaker(bucket);
+        const [wrap, input] = field(shown, CONSOLE_DEFAULTS[axis]);
         input.dataset.consoleBucket = `${axis}:${bucket}`;
         consoleInputs[axis].set(bucket, input);
         return wrap;
@@ -1782,9 +1785,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
     grid.append(
       // 인게임·블라블라링크와 같은 순서 — 공통 → 기업 → 클래스.
-      group('공통', [commonWrap]),
-      axisGroup('company', '기업'),
-      axisGroup('class', '클래스'),
+      group('共通', [commonWrap]),
+      axisGroup('company', '企業'),
+      axisGroup('class', 'クラス'),
     );
   };
   renderConsole();
@@ -1891,7 +1894,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const box = document.createElement('div');
       box.className = `phase-row is-${kind}`;
       box.dataset.phaseRow = `${kind}:${index}`;
-      box.append(createText('span', kind === 'immune' ? '족자' : '속저', 'phase-tag'));
+      box.append(createText('span', kind === 'immune' ? '回避区間' : '属性制限', 'phase-tag'));
       box.append(numberField(from, (v) => {
         if (kind === 'immune') immuneWindows[index]!.from = v;
         else elementWindows[index]!.from = v;
@@ -1903,7 +1906,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         else elementWindows[index]!.to = v;
         saveState();
       }));
-      box.append(createText('span', '초', 'phase-sep'));
+      box.append(createText('span', '秒', 'phase-sep'));
       return box;
     };
 
@@ -1914,7 +1917,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       drop.className = 'phase-drop';
       drop.dataset.phaseDrop = `immune:${index}`;
       drop.textContent = '✕';
-      drop.ariaLabel = `족자 ${index + 1} 삭제`;
+      drop.ariaLabel = `回避区間 ${index + 1} を削除`;
       drop.addEventListener('click', () => {
         immuneWindows.splice(index, 1);
         saveState();
@@ -1931,7 +1934,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       for (const value of ['풍압', '수냉', '작열', '전격', '철갑']) {
         const option = document.createElement('option');
         option.value = value;
-        option.textContent = value;
+        option.textContent = elementLabel(value);
         code.append(option);
       }
       code.value = w.code || '풍압';
@@ -1945,7 +1948,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       drop.className = 'phase-drop';
       drop.dataset.phaseDrop = `element:${index}`;
       drop.textContent = '✕';
-      drop.ariaLabel = `속저 ${index + 1} 삭제`;
+      drop.ariaLabel = `属性制限 ${index + 1} を削除`;
       drop.addEventListener('click', () => {
         elementWindows.splice(index, 1);
         saveState();
@@ -1976,7 +1979,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     advancedBattle.setAttribute('aria-expanded', String(next));
     advancedBattlePanel.hidden = !next;
     const hint = advancedBattle.querySelector('.disclosure-hint');
-    if (hint) hint.textContent = next ? '접기' : '펼치기';
+    if (hint) hint.textContent = next ? '折りたたむ' : '展開';
   });
 
   const readOptimalRange = (): string[] =>
@@ -2004,7 +2007,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     deckRegenBox.replaceChildren();
     for (let id = 1; id <= 5; id += 1) {
       const label = document.createElement('label');
-      label.append(createText('span', `덱 ${id}`));
+      label.append(createText('span', `デッキ ${id}`));
       const wrap = document.createElement('div');
       wrap.className = 'input-unit';
       const input = document.createElement('input');
@@ -2014,7 +2017,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       input.step = '0.1';
       input.value = String(values[id] ?? 2);
       input.dataset.deckRegenInput = String(id);
-      wrap.append(input, createText('em', '초'));
+      wrap.append(input, createText('em', '秒'));
       label.append(wrap);
       deckRegenBox.append(label);
     }
@@ -2138,7 +2141,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         || custom.growthStage > (characterDefaults?.maxGrowthStage ?? -1)
       )) {
         messages.push(
-          `덱 ${deck.id} · ${labelFor(name)}: 돌파 단계는 0~${characterDefaults?.maxGrowthStage ?? 0} 정수여야 합니다.`,
+          `デッキ ${deck.id} · ${labelFor(name)}: 限界突破段階は 0~${characterDefaults?.maxGrowthStage ?? 0} の整数である必要があります。`,
         );
       }
       if (custom.skillLevels) {
@@ -2147,33 +2150,33 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           && keys.every((key) => key === '1' || key === '2' || key === '3');
         const values = Object.values(custom.skillLevels);
         if (!hasExactKeys || values.some((value) => !Number.isInteger(value) || value < 1 || value > 10)) {
-          messages.push(`덱 ${deck.id} · ${labelFor(name)}: 스킬 레벨은 1~10 정수여야 합니다.`);
+          messages.push(`デッキ ${deck.id} · ${labelFor(name)}: スキルレベルは 1~10 の整数である必要があります。`);
         } else if (characterDefaults?.skillLevelsLocked
           && values.some((value) => value !== 10)) {
-          messages.push(`덱 ${deck.id} · ${labelFor(name)}: 수치 미공개 캐릭터는 스킬 Lv10만 사용할 수 있습니다.`);
+          messages.push(`デッキ ${deck.id} · ${labelFor(name)}: 数値未公開のキャラクターはスキル Lv10 のみ使用できます。`);
         }
       }
       for (const [key, value] of Object.entries(custom.overload ?? {})) {
         const meta = settings.overloadFields[key];
         if (!meta || !Number.isFinite(value) || value < meta.min || value > meta.max) {
-          messages.push(`덱 ${deck.id} · ${labelFor(name)}: ${meta?.label ?? key} 값이 허용 범위를 벗어났습니다.`);
+          messages.push(`デッキ ${deck.id} · ${labelFor(name)}: ${meta?.label ?? key} の値が許容範囲を外れています。`);
         }
       }
       if (custom.cube && (!settings.cubes[custom.cube.name] || !Number.isInteger(custom.cube.level)
         || custom.cube.level < 1 || custom.cube.level > 15)) {
-        messages.push(`덱 ${deck.id} · ${labelFor(name)}: 큐브 설정을 확인해 주세요.`);
+        messages.push(`デッキ ${deck.id} · ${labelFor(name)}: キューブ設定を確認してください。`);
       }
       if (custom.weaponModeSwapAt !== undefined && (
         !Number.isFinite(custom.weaponModeSwapAt)
         || custom.weaponModeSwapAt < 0
         || custom.weaponModeSwapAt > 180
       )) {
-        messages.push(`덱 ${deck.id} · ${labelFor(name)}: 저격 모드 변경 시점은 0~180초여야 합니다.`);
+        messages.push(`デッキ ${deck.id} · ${labelFor(name)}: 狙撃モード切り替え時点は 0~180秒である必要があります。`);
       }
       for (const [key, value] of Object.entries(custom.manualStats ?? {})) {
         const meta = settings.manualStats[key];
         if (!meta || !Number.isFinite(value) || value < meta.min || value > meta.max) {
-          messages.push(`덱 ${deck.id} · ${labelFor(name)}: ${meta?.label ?? key} 값이 허용 범위를 벗어났습니다.`);
+          messages.push(`デッキ ${deck.id} · ${labelFor(name)}: ${meta?.label ?? key} の値が許容範囲を外れています。`);
         }
       }
     }
@@ -2228,7 +2231,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const renderPresets = () => {
     presetList.replaceChildren();
     if (presets.length === 0) {
-      presetList.append(createText('p', '저장된 프리셋이 없습니다.', 'preset-empty'));
+      presetList.append(createText('p', '保存されたプリセットはありません。', 'preset-empty'));
       return;
     }
     for (const preset of presets) {
@@ -2239,7 +2242,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       load.type = 'button';
       load.className = 'preset-load';
       load.textContent = preset.name;
-      load.title = `${preset.at.slice(0, 10)} 저장 · 눌러서 불러오기`;
+      load.title = `${preset.at.slice(0, 10)} 保存 · 押して読み込む`;
       load.addEventListener('click', () => {
         applyShareText(preset.code);
         refreshShareFields();
@@ -2247,8 +2250,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'preset-remove';
-      remove.textContent = '삭제';
-      remove.setAttribute('aria-label', `${preset.name} 삭제`);
+      remove.textContent = '削除';
+      remove.setAttribute('aria-label', `${preset.name} を削除`);
       remove.addEventListener('click', () => {
         presets = presets.filter((item) => item.name !== preset.name);
         savePresets();
@@ -2261,18 +2264,18 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-preset-save]').addEventListener('click', () => {
     const name = presetName.value.trim();
     if (!name) {
-      showShareMsg('프리셋 이름을 적어 주세요.');
+      showShareMsg('プリセット名を入力してください。');
       presetName.focus();
       return;
     }
     if (!decksInScope().some((deck) => deck.squad.some(Boolean))) {
       showShareMsg(shareScope === 'all'
-        ? '편성이 비어 있어 저장할 것이 없습니다.'
-        : `덱 ${activeDeckId}이 비어 있습니다. 다른 덱을 담으려면 위에서 «5덱 전부»를 고르세요.`);
+        ? '編成が空なので保存するものがありません。'
+        : `デッキ ${activeDeckId} が空です。他のデッキを含めるには上で«5デッキすべて»を選んでください。`);
       return;
     }
     if (presets.length >= PRESET_MAX && !presets.some((p) => p.name === name)) {
-      showShareMsg(`프리셋은 ${PRESET_MAX}개까지 저장합니다. 쓰지 않는 것을 지워 주세요.`);
+      showShareMsg(`プリセットは ${PRESET_MAX}件まで保存できます。使わないものを消してください。`);
       return;
     }
     const code = shareScopeCode();
@@ -2281,9 +2284,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     savePresets();
     renderPresets();
     presetName.value = '';
-    showShareMsg(`«${name}» 으로 저장했습니다`
-      + `(${shareScope === 'all' ? '5덱 전부' : `덱 ${activeDeckId}만`}).`
-      + ' 편성만 담기므로 스펙이 바뀌어도 그대로 씁니다.', true);
+    showShareMsg(`«${name}» として保存しました`
+      + `(${shareScope === 'all' ? '5デッキすべて' : `デッキ ${activeDeckId} のみ`})。`
+      + ' 編成だけを含むので、スペックが変わってもそのまま使えます。', true);
   });
 
   // 계산 기록 — 그때의 편성(공유 코드)과 수치·조건을 남긴다. 편성만 되살릴 수 있게
@@ -2325,9 +2328,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         total: deck.result.squadTotal,
         squad: deck.request.squad.filter(Boolean),
       })),
-      conditions: `${battle.duration}초 · 방어력 ${battle.enemyDef.toLocaleString('en-US')}`
-        + `${battle.enemyCode ? ` · ${battle.enemyCode}` : ' · 코드 없음'}`
-        + `${battle.coreEnabled ? ` · 코어 ${battle.corePx}px` : ''} · 시드 ${battle.seed}`,
+      conditions: `${battle.duration}秒 · 防御力 ${battle.enemyDef.toLocaleString('en-US')}`
+        + `${battle.enemyCode ? ` · ${elementLabel(battle.enemyCode)}` : ' · コードなし'}`
+        + `${battle.coreEnabled ? ` · コア ${battle.corePx}px` : ''} · シード ${battle.seed}`,
     };
     calcHistory = [entry, ...calcHistory].slice(0, HISTORY_MAX);
     persistHistory();
@@ -2337,7 +2340,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const renderHistory = () => {
     historyList.replaceChildren();
     if (calcHistory.length === 0) {
-      historyList.append(createText('p', '아직 저장된 결과가 없습니다. 결과에서 «결과 저장»을 눌러 주세요.', 'preset-empty'));
+      historyList.append(createText('p', 'まだ保存された結果がありません。結果で«結果を保存»を押してください。', 'preset-empty'));
       return;
     }
     for (const entry of calcHistory) {
@@ -2348,13 +2351,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       head.className = 'history-head';
       head.append(
         createText('strong', formatDamage(entry.total)),
-        createText('span', new Date(entry.at).toLocaleString('ko-KR')),
+        createText('span', new Date(entry.at).toLocaleString('ja-JP')),
       );
       row.append(head, createText('p', entry.conditions, 'history-cond'));
       for (const deck of entry.decks) {
         row.append(createText(
           'p',
-          `덱 ${deck.id} · ${formatDamage(deck.total)} — ${deck.squad.map(labelFor).join(', ') || '빈 덱'}`,
+          `デッキ ${deck.id} · ${formatDamage(deck.total)} — ${deck.squad.map(labelFor).join(', ') || '空のデッキ'}`,
           'history-deck',
         ));
       }
@@ -2363,7 +2366,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const restore = document.createElement('button');
       restore.type = 'button';
       restore.className = 'preset-load';
-      restore.textContent = '이 편성 되살리기';
+      restore.textContent = 'この編成を復元';
       restore.addEventListener('click', () => {
         // 기록은 «그때 그 판»이다 — 범위 고르개와 무관하게 판 전체를 되살린다.
         applyShareText(entry.code, 'all');
@@ -2372,7 +2375,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'preset-remove';
-      remove.textContent = '삭제';
+      remove.textContent = '削除';
       remove.addEventListener('click', () => {
         calcHistory = calcHistory.filter((item) => item.at !== entry.at);
         persistHistory();
@@ -2423,8 +2426,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       button.classList.toggle('is-on', button.dataset.shareScopePick === shareScope);
     }
     scopeNote.textContent = shareScope === 'all'
-      ? '5덱을 한 코드에 담고, 받으면 판 전체가 바뀝니다.'
-      : `덱 ${activeDeckId}만 담고, 받으면 덱 ${activeDeckId}에만 들어갑니다.`;
+      ? '5デッキを1つのコードに収め、受け取ると盤面全体が変わります。'
+      : `デッキ ${activeDeckId} だけを収め、受け取るとデッキ ${activeDeckId} にのみ入ります。`;
   };
 
   for (const button of scopeBox.querySelectorAll<HTMLButtonElement>('[data-share-scope-pick]')) {
@@ -2468,10 +2471,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-share-copy]').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(shareOut.value);
-      showShareMsg('조합 코드를 복사했습니다. 이대로 공유하면 됩니다.', true);
+      showShareMsg('編成コードをコピーしました。このまま共有できます。', true);
     } catch {
       shareOut.select();
-      showShareMsg('자동 복사가 막혀 코드를 선택해 뒀습니다. Ctrl+C로 복사해 주세요.');
+      showShareMsg('自動コピーが使えないためコードを選択しておきました。Ctrl+C でコピーしてください。');
     }
   });
   // 링크째 붙여넣어도 되게, #deck= 뒤의 코드만 뽑아 쓴다.
@@ -2512,17 +2515,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderSquad();
       showErrors([]);
       const missing = skipped.length > 0
-        ? ` · 목록에 없는 니케 ${skipped.length}명 제외(${skipped.slice(0, 3).map(labelFor).join(', ')}${skipped.length > 3 ? '…' : ''})`
+        ? ` · 一覧にないニケ ${skipped.length}名を除外(${skipped.slice(0, 3).map(labelFor).join(', ')}${skipped.length > 3 ? '…' : ''})`
         : '';
       // 5덱짜리를 한 칸에 받았으면 나머지가 어디 갔는지 반드시 말해 준다.
       const carried = payload.decks.filter((deck) => deck.squad.some((n) => n.trim() !== '')).length;
       if (scope === 'all') {
-        showShareMsg(`덱 ${applied}개를 적용했습니다${missing}.`, skipped.length === 0);
+        showShareMsg(`デッキ ${applied}件を適用しました${missing}。`, skipped.length === 0);
       } else if (carried > 1) {
-        showShareMsg(`코드에 덱이 ${carried}개 들어 있어 첫 덱만 덱 ${landed}에 넣었습니다`
-          + `${missing}. 판 전체를 받으려면 위에서 «5덱 전부»를 고르세요.`);
+        showShareMsg(`コードにデッキが ${carried}件入っていたため、最初のデッキだけをデッキ ${landed} に入れました`
+          + `${missing}。盤面全体を受け取るには上で«5デッキすべて»を選んでください。`);
       } else {
-        showShareMsg(`덱 ${landed}에 적용했습니다${missing}. 다른 덱은 그대로입니다.`,
+        showShareMsg(`デッキ ${landed} に適用しました${missing}。他のデッキはそのままです。`,
           skipped.length === 0);
       }
     } catch (error) {
@@ -2569,10 +2572,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-share-url-copy]').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(shareUrl.value);
-      showShareMsg('링크를 복사했습니다. 받는 사람은 열기만 하면 편성이 들어갑니다.', true);
+      showShareMsg('リンクをコピーしました。受け取った人は開くだけで編成が入ります。', true);
     } catch {
       shareUrl.select();
-      showShareMsg('자동 복사가 막혀 링크를 선택해 뒀습니다. Ctrl+C로 복사해 주세요.');
+      showShareMsg('自動コピーが使えないためリンクを選択しておきました。Ctrl+C でコピーしてください。');
     }
   });
   // ── 보고서 이미지 ────────────────────────────────────────────────────────
@@ -2596,9 +2599,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
    * 불러온 경우 등) 손에 있는 1초 표로 내보낸다 — 수치 자체는 어느 쪽이든 정확하다.
    */
   const exportDamageCsv = async (batch: BatchResult, button: HTMLButtonElement) => {
-    const label = button.textContent ?? '정밀 수치 CSV';
+    const label = button.textContent ?? '精密数値 CSV';
     button.disabled = true;
-    button.textContent = '수치 모으는 중…';
+    button.textContent = '数値を集計中…';
     try {
       const parts: string[] = [];
       let coarseOnly = false;
@@ -2612,17 +2615,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const timeline = result.fineTimeline ?? result.timeline;
         if (!result.fineTimeline) coarseOnly = true;
         const names = entry.request.squad.filter(Boolean);
-        const note = `${entry.request.duration}초 · 적 방어력 ${entry.request.enemyDef}`;
-        if (batch.decks.length > 1) parts.push(csvText([[`덱 ${entry.deckId}`]]));
+        const note = `${entry.request.duration}秒 · 敵防御力 ${entry.request.enemyDef}`;
+        if (batch.decks.length > 1) parts.push(csvText([[`デッキ ${entry.deckId}`]]));
         parts.push(damageCsv({ ...result, timeline }, names, note));
       }
       downloadImage(csvBlob(parts.join('\r\n\r\n')),
-        csvFileName(batch.decks.length > 1 ? '5덱' : `덱 ${batch.decks[0]?.deckId ?? 1}`));
+        csvFileName(batch.decks.length > 1 ? '5デッキ' : `デッキ ${batch.decks[0]?.deckId ?? 1}`));
       status.textContent = coarseOnly
-        ? '정밀 수치 CSV를 내려받았습니다 (1초 단위 — 0.1초 표는 다시 계산해야 나옵니다).'
-        : '정밀 수치 CSV를 내려받았습니다 (0.1초 단위).';
+        ? '精密数値 CSV をダウンロードしました (1秒単位 — 0.1秒の表は計算し直すと出ます)。'
+        : '精密数値 CSV をダウンロードしました (0.1秒単位)。';
     } catch (error) {
-      status.textContent = `정밀 수치 CSV를 만들지 못했습니다: ${(error as Error).message}`;
+      status.textContent = `精密数値 CSV を作成できませんでした: ${(error as Error).message}`;
     } finally {
       button.disabled = false;
       button.textContent = label;
@@ -2633,7 +2636,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     if (!lastBatch) return;
     const batch = lastBatch;
     showReportMsg('');
-    reportPreview.replaceChildren(createText('p', '보고서를 그리는 중…', 'report-loading'));
+    reportPreview.replaceChildren(createText('p', 'レポートを描画中…', 'report-loading'));
     reportModal.hidden = false;
     try {
       const names = batch.decks.flatMap((entry) => entry.request.squad);
@@ -2650,13 +2653,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       reportBlob = await canvasToBlob(canvas);
       const image = document.createElement('img');
       image.src = URL.createObjectURL(reportBlob);
-      image.alt = '전투 결과 보고서';
+      image.alt = '戦闘結果レポート';
       image.dataset.reportImage = '';
       reportPreview.replaceChildren(image);
     } catch (error) {
       reportBlob = null;
       reportPreview.replaceChildren();
-      showReportMsg(error instanceof Error ? error.message : '보고서를 만들지 못했습니다.');
+      showReportMsg(error instanceof Error ? error.message : 'レポートを作成できませんでした。');
     }
   };
 
@@ -2671,9 +2674,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       // 이미지 클립보드 쓰기를 막는 브라우저가 있어 실패하면 저장으로 안내한다.
       const outcome = await copyImage(reportBlob);
       const message = {
-        copied: '이미지를 복사했습니다. 커뮤니티 글에 붙여넣으세요.',
-        unsupported: '이 브라우저는 이미지 복사를 지원하지 않습니다. PNG 저장을 사용해 주세요.',
-        blocked: '복사가 차단됐습니다. 이 창을 한 번 클릭한 뒤 다시 눌러 보세요. 계속 막히면 PNG 저장을 사용해 주세요.',
+        copied: '画像をコピーしました。コミュニティの投稿に貼り付けてください。',
+        unsupported: 'このブラウザは画像のコピーに対応していません。PNG 保存を使ってください。',
+        blocked: 'コピーがブロックされました。このウィンドウを一度クリックしてからもう一度押してみてください。それでも駄目なら PNG 保存を使ってください。',
       }[outcome];
       showReportMsg(message, outcome === 'copied');
     })();
@@ -2681,7 +2684,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-report-save]').addEventListener('click', () => {
     if (!reportBlob || !lastBatch) return;
     downloadImage(reportBlob, reportFilename(lastBatch));
-    showReportMsg('PNG로 저장했습니다.', true);
+    showReportMsg('PNG で保存しました。', true);
   });
 
   // ── 자세히 보기 ─────────────────────────────────────────────────────────
@@ -2723,13 +2726,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const header = document.createElement('div');
     header.className = 'result-header';
     const copy = document.createElement('div');
-    copy.append(createText('h2', batch.decks.length > 1 ? '5덱 전투 결과' : '전투 결과'));
+    copy.append(createText('h2', batch.decks.length > 1 ? '5デッキ戦闘結果' : '戦闘結果'));
     const summary = document.createElement('div');
     summary.className = 'total-block';
     const total = createText('strong', dmg(batch.total));
     total.dataset.resultTotal = '';
     total.dataset.batchTotal = '';
-    summary.append(createText('span', batch.decks.length > 1 ? '전체 덱 총 대미지' : '스쿼드 총 대미지'), total, createText('small', dps(batch.total / duration)));
+    summary.append(createText('span', batch.decks.length > 1 ? '全デッキ総ダメージ' : 'スカッド総ダメージ'), total, createText('small', dps(batch.total / duration)));
     header.append(copy, summary);
     resultPanel.append(header);
 
@@ -2741,21 +2744,21 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     reportButton.type = 'button';
     reportButton.className = 'report-open';
     reportButton.dataset.reportOpen = '';
-    reportButton.textContent = '보고서 이미지 만들기';
-    reportButton.title = '결과를 한 장짜리 PNG로 만들어 복사하거나 저장합니다';
+    reportButton.textContent = 'レポート画像を作成';
+    reportButton.title = '結果を1枚の PNG にしてコピーまたは保存します';
     reportButton.addEventListener('click', () => { void openReport(); });
     const historySave = document.createElement('button');
     historySave.type = 'button';
     historySave.className = 'report-open';
     historySave.dataset.historySave = '';
-    historySave.textContent = '결과 저장';
-    historySave.title = '이때의 편성과 수치를 이 브라우저에 남깁니다';
+    historySave.textContent = '結果を保存';
+    historySave.title = 'このときの編成と数値をこのブラウザに残します';
     historySave.addEventListener('click', () => saveHistory(batch));
     const historyOpen = document.createElement('button');
     historyOpen.type = 'button';
     historyOpen.className = 'report-open';
     historyOpen.dataset.historyOpen = '';
-    historyOpen.textContent = '결과 불러오기';
+    historyOpen.textContent = '結果を読み込む';
     historyOpen.addEventListener('click', () => { renderHistory(); historyModal.hidden = false; });
     // 정밀 수치 — 화면은 「1.24억」으로 줄여 적지만 엔진은 처음부터 정수로 정확히 센다.
     // 1의 자리까지 놓고 따지려는 사람에게 그 정수를 표로 내준다.
@@ -2763,8 +2766,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     csvButton.type = 'button';
     csvButton.className = 'report-open';
     csvButton.dataset.csvExport = '';
-    csvButton.textContent = '정밀 수치 CSV';
-    csvButton.title = '구간별·최종 대미지를 1의 자리까지 담은 표를 내려받습니다 (0.1초 단위)';
+    csvButton.textContent = '精密数値 CSV';
+    csvButton.title = '区間ごと・最終ダメージを1の位まで収めた表をダウンロードします (0.1秒単位)';
     csvButton.addEventListener('click', () => { void exportDamageCsv(batch, csvButton); });
     // 자세히 보기 — 「1.24억」 대신 1의 자리까지. 내려받지 않고 그 자리에서 본다.
     const detailLabel = document.createElement('label');
@@ -2773,7 +2776,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     detailBox.type = 'checkbox';
     detailBox.dataset.detailDamage = '';
     detailBox.checked = detailDamage;
-    detailLabel.title = '대미지를 줄여 쓰지 않고 1의 자리까지 적습니다';
+    detailLabel.title = 'ダメージを省略せず1の位まで表示します';
     detailBox.addEventListener('change', () => {
       detailDamage = detailBox.checked;
       try {
@@ -2781,7 +2784,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       } catch { /* 저장 실패는 무시한다 — 이번 판만 못 기억할 뿐이다 */ }
       renderBatchResult(batch);
     });
-    detailLabel.append(detailBox, createText('span', '자세히 보기'));
+    detailLabel.append(detailBox, createText('span', '詳細表示'));
     reportTools.append(historySave, historyOpen, reportButton, csvButton, detailLabel);
     resultPanel.append(reportTools);
 
@@ -2803,7 +2806,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const deckHeader = document.createElement('div');
       deckHeader.className = 'deck-result-header';
       deckHeader.append(
-        createText('h3', `덱 ${entry.deckId}`),
+        createText('h3', `デッキ ${entry.deckId}`),
         createText('strong', dmg(entry.result.squadTotal)),
         createText('small', dps(entry.result.squadTotal / entry.result.duration)),
       );
@@ -2814,8 +2817,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const badge = createText(
           'p',
           rank === 1
-            ? '1위 · 기준'
-            : `${rank}위 · 1위 대비 ${gap.toFixed(1)}% (${dmg(entry.result.squadTotal - best)})`,
+            ? '1位 · 基準'
+            : `${rank}位 · 1位比 ${gap.toFixed(1)}% (${dmg(entry.result.squadTotal - best)})`,
           'deck-rank',
         );
         badge.dataset.deckRank = String(rank);
@@ -2831,9 +2834,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const facts = document.createElement('div');
       facts.className = 'result-facts';
       facts.append(
-        createText('span', `${entry.result.duration}초 전투`),
-        createText('span', `${entry.result.hitCount.toLocaleString('ko-KR')} 히트`),
-        createText('span', `시드 ${entry.request.seed}`),
+        createText('span', `${entry.result.duration}秒の戦闘`),
+        createText('span', `${entry.result.hitCount.toLocaleString('ja-JP')} ヒット`),
+        createText('span', `シード ${entry.request.seed}`),
       );
       section.append(facts, createText('pre', entry.result.deviations, 'deviations'));
       host.append(section);
@@ -2865,11 +2868,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         tab.dataset.deckResultTab = String(entry.deckId);
         tab.dataset.deckRank = String(rank);
         const head = document.createElement('b');
-        head.append(document.createTextNode(`덱 ${entry.deckId}`));
-        head.append(createText('em', `${rank}위`, 'deck-tab-rank'));
+        head.append(document.createTextNode(`デッキ ${entry.deckId}`));
+        head.append(createText('em', `${rank}位`, 'deck-tab-rank'));
         // 덱끼리 견주는 자리라 줄이지 않고 온전한 숫자를 적는다 — «1.14억»으로는
         // 2위와의 차이가 읽히지 않는다.
-        tab.append(head, createText('span', Math.round(entry.result.squadTotal).toLocaleString('ko-KR')));
+        tab.append(head, createText('span', Math.round(entry.result.squadTotal).toLocaleString('ja-JP')));
         tab.addEventListener('click', () => show(entry));
         buttons.set(entry.deckId, tab);
         tabs.append(tab);
@@ -2914,7 +2917,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         tab.type = 'button';
         tab.className = 'deck-result-tab';
         tab.dataset.timelineTab = String(deckId);
-        tab.append(createText('b', `덱 ${deckId}`));
+        tab.append(createText('b', `デッキ ${deckId}`));
         tab.addEventListener('click', () => show(deckId));
         buttons.set(deckId, tab);
         tabs.append(tab);
@@ -3001,28 +3004,28 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     burstCyclesOut.textContent = String(burstCycles);
 
     const { done, total } = progressOf(burstPicks, burstSteps);
-    burstProgress.textContent = `${done} / ${total}칸`;
+    burstProgress.textContent = `${done} / ${total}枠`;
 
     // ── 지금 걸음 ──
     burstNow.replaceChildren();
     burstPicksBox.replaceChildren();
     const step = burstSteps[burstAt];
     if (!step) {
-      burstNow.append(el('p', 'burst-empty', '사이클을 하나 이상 두세요.'));
+      burstNow.append(el('p', 'burst-empty', 'サイクルを1つ以上置いてください。'));
     } else {
       const head = el('div', 'burst-now-head');
       head.append(
-        el('span', 'burst-now-cycle', `${step.cycle}번째 풀버스트`),
-        el('span', `burst-now-stage stage-${step.stage}`, `${step.stage}버`),
+        el('span', 'burst-now-cycle', `${step.cycle}回目のフルバースト`),
+        el('span', `burst-now-stage stage-${step.stage}`, `${step.stage}バ`),
       );
       const picked = burstPicks[stepKey(step)];
-      head.append(el('span', 'burst-now-pick', picked ? `→ ${labelFor(picked)}` : '→ 자동'));
+      head.append(el('span', 'burst-now-pick', picked ? `→ ${labelFor(picked)}` : '→ 自動'));
       burstNow.append(head);
 
       const candidates = burstCandidates(step.stage);
       if (candidates.length === 0) {
         burstPicksBox.append(el('p', 'burst-empty',
-          `편성에 ${step.stage}버가 없습니다. 이 단계는 건너뜁니다.`));
+          `編成に ${step.stage}バがいません。この段階はスキップします。`));
       }
       candidates.forEach((name, index) => {
         const button = el('button', 'burst-pick' + (picked === name ? ' is-on' : ''));
@@ -3048,7 +3051,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       // 「이 단계는 자동으로」 — 고른 것을 무르는 자리다.
       const auto = el('button', 'burst-pick is-auto' + (picked ? '' : ' is-on'));
       (auto as HTMLButtonElement).type = 'button';
-      auto.append(el('span', 'burst-pick-name', '자동'));
+      auto.append(el('span', 'burst-pick-name', '自動'));
       auto.append(el('b', 'burst-pick-key', '0'));
       auto.addEventListener('click', () => pickBurst(null));
       burstPicksBox.append(auto);
@@ -3072,7 +3075,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const slot = el('button', 'burst-slot'
           + (name ? ' is-filled' : '') + (here ? ' is-here' : ''));
         (slot as HTMLButtonElement).type = 'button';
-        slot.append(el('span', `burst-slot-stage stage-${stage}`, `${stage}버`));
+        slot.append(el('span', `burst-slot-stage stage-${stage}`, `${stage}バ`));
 
         const face = el('span', 'burst-slot-face');
         if (name) {
@@ -3086,9 +3089,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           } else {
             face.textContent = labelFor(name).slice(0, 2);
           }
-          slot.title = `${cycleNo}번째 ${stage}버 — ${labelFor(name)}`;
+          slot.title = `${cycleNo}回目 ${stage}バ — ${labelFor(name)}`;
         } else {
-          slot.title = `${cycleNo}번째 ${stage}버 — 아직 안 정함(자동)`;
+          slot.title = `${cycleNo}回目 ${stage}バ — 未設定(自動)`;
         }
         slot.append(face);
         slot.addEventListener('click', () => {
@@ -3117,7 +3120,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   function openBurstOrder(): void {
     const deck = activeDeck();
     if (!deck.squad.some((name) => name.trim())) {
-      showErrors(['버스트 순서를 정하려면 편성을 먼저 채워 주세요.']);
+      showErrors(['バースト順序を決めるには先に編成を埋めてください。']);
       return;
     }
     const kept = sequenceForDeck(deck);
@@ -3128,10 +3131,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       lastBatch?.decks.find((entry) => entry.deckId === deck.id)?.result.timeline);
     burstCycles = kept?.length ?? measured ?? estimateCycles(readBattle().duration);
     burstCyclesNote.textContent = kept
-      ? '적어 둔 순서를 불러왔습니다.'
+      ? '保存してあった順序を読み込みました。'
       : (measured !== null
-        ? `지난 계산에서 풀버스트가 ${measured}번 돌았습니다.`
-        : `전투 ${readBattle().duration}초로 어림한 값입니다. 한 번 계산해 보면 실제 횟수로 맞춰집니다.`);
+        ? `前回の計算ではフルバーストが ${measured}回回りました。`
+        : `戦闘 ${readBattle().duration}秒から概算した値です。一度計算すると実際の回数に合わせられます。`);
     burstSteps = stepsFor(burstCycles);
     burstAt = firstUnpicked();
     showBurstMsg('');
@@ -3177,7 +3180,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     saveState();
     renderBurstBadge();
     renderBurstOrder();
-    showBurstMsg('순서를 지웠습니다. 계산기가 평소 순서로 고릅니다.', true);
+    showBurstMsg('順序を消しました。計算機が通常の順序で選びます。', true);
   });
 
   // 키보드는 창이 열려 있을 때만 가져간다. 조합키가 눌린 입력은 브라우저 것이다.
@@ -3283,7 +3286,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }),
       apply: (item) => {
         applyBattleCode(item.code);
-        showBattleShareMsg(`«${item.name}»을(를) 적용했습니다. 콘솔은 내 값 그대로입니다.`, true);
+        showBattleShareMsg(`«${item.name}» を適用しました。コンソールは自分の値のままです。`, true);
       },
       notify: showBattleShareMsg,
     },
@@ -3305,16 +3308,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-battle-share-copy]').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(battleShareOut.value);
-      showBattleShareMsg('코드를 복사했습니다.', true);
+      showBattleShareMsg('コードをコピーしました。', true);
     } catch {
       battleShareOut.select();
-      showBattleShareMsg('자동 복사가 막혀 코드를 선택해 뒀습니다. Ctrl+C로 복사해 주세요.');
+      showBattleShareMsg('自動コピーが使えないためコードを選択しておきました。Ctrl+C でコピーしてください。');
     }
   });
   element<HTMLButtonElement>(root, '[data-battle-share-apply]').addEventListener('click', () => {
     try {
       applyBattleCode(battleShareIn.value);
-      showBattleShareMsg('전투 조건을 적용했습니다. 콘솔은 내 값 그대로입니다.', true);
+      showBattleShareMsg('戦闘条件を適用しました。コンソールは自分の値のままです。', true);
     } catch (error) {
       showBattleShareMsg(error instanceof Error ? error.message : String(error));
     }
@@ -3352,10 +3355,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 정렬은 «내 로스터에서 이 캐릭터가 얼마나 굴려졌나»를 본다. 오버로드 수치가
   // 그 척도라, CSV·프로필로 불러온 내 값이 있으면 그걸 쓰고 없으면 기본 스펙을 쓴다.
   const SORTS: Array<{ key: SortKey; label: string; hint: string }> = [
-    { key: 'power', label: '전투력', hint: '인게임 투력 — 다시 누르면 뒤집습니다' },
-    { key: 'name', label: '이름', hint: '가나다순 — 다시 누르면 뒤집습니다' },
-    { key: 'element', label: '우월코드', hint: '오버로드 우월 코드 대미지 — 다시 누르면 뒤집습니다' },
-    { key: 'elementAtk', label: '우공합', hint: '우월 코드 + 공격력 증가 합 — 다시 누르면 뒤집습니다' },
+    { key: 'power', label: '戦闘力', hint: 'ゲーム内の戦闘力 — もう一度押すと逆順になります' },
+    { key: 'name', label: '名前', hint: '五十音順 — もう一度押すと逆順になります' },
+    { key: 'element', label: '優越コード', hint: 'オーバーロードの優越コードダメージ — もう一度押すと逆順になります' },
+    { key: 'elementAtk', label: '優越+攻撃', hint: '優越コード + 攻撃力増加の合計 — もう一度押すと逆順になります' },
   ];
 
   /** 처음 고를 때의 방향. 이름은 오름차순, 수치는 높은 순이 자연스럽다. */
@@ -3398,15 +3401,21 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   /** 버스트만 판 밖에 있다 — 값은 여기 두고 그리는 자리만 다르다. */
   const BURST_VALUES = ['1', '2', '3', 'A'];
   const FILTER_GROUPS: Array<{ key: FilterKey; title: string; values: string[] }> = [
-    { key: 'rarity', title: '등급', values: ['SSR', 'SR', 'R'] },
-    { key: 'class', title: '클래스', values: ['화력형', '방어형', '지원형'] },
-    { key: 'code', title: '코드', values: ['작열', '수냉', '풍압', '전격', '철갑'] },
-    { key: 'weapon', title: '무기', values: ['AR', 'SMG', 'SG', 'SR', 'RL', 'MG'] },
-    { key: 'corp', title: '기업', values: ['엘리시온', '미실리스', '테트라', '필그림', '어브노말'] },
+    { key: 'rarity', title: 'レアリティ', values: ['SSR', 'SR', 'R'] },
+    { key: 'class', title: 'クラス', values: ['화력형', '방어형', '지원형'] },
+    { key: 'code', title: 'コード', values: ['작열', '수냉', '풍압', '전격', '철갑'] },
+    { key: 'weapon', title: '武器', values: ['AR', 'SMG', 'SG', 'SR', 'RL', 'MG'] },
+    { key: 'corp', title: '企業', values: ['엘리시온', '미실리스', '테트라', '필그림', '어브노말'] },
   ];
 
-  const labelOf = (key: FilterKey, value: string) =>
-    key === 'burst' ? `B${value}` : value;
+  // 値 (dataset・照合キー) は韓国語の内部キーのまま。チップに出す文字だけ日本語にする。
+  const labelOf = (key: FilterKey, value: string) => {
+    if (key === 'burst') return `B${value}`;
+    if (key === 'class') return labelForClass(value);
+    if (key === 'code') return elementLabel(value);
+    if (key === 'corp') return labelForMaker(value);
+    return value;
+  };
 
   /** 고른 필터 개수. 0이면 뱃지를 감춘다. */
   const pickedCount = (): number =>
@@ -3443,7 +3452,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const parts: string[] = [];
     const label = SORTS.find((s) => s.key === sortKey)?.label;
     const pending = sortKey === 'power' && Object.keys(combatPower).length === 0;
-    parts.push(`${label}${pending ? ' 계산중' : sortDesc ? ' ▼' : ' ▲'}`);
+    parts.push(`${label}${pending ? ' 計算中' : sortDesc ? ' ▼' : ' ▲'}`);
     for (const key of ['burst', ...FILTER_GROUPS.map((group) => group.key)] as FilterKey[]) {
       const set = picked[key];
       if (set.size > 0) {
@@ -3563,7 +3572,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     // 「ㅋㄹㅇ」·「라피레드」가 걸리고, 친 이름이 맨 앞에 온다.
     const shown = filterByQuery(narrowed, rosterSearch.value, buildIndex);
     rosterCount.textContent = shown.length === all.length
-      ? `${all.length}명` : `${shown.length} / ${all.length}명`;
+      ? `${all.length}名` : `${shown.length} / ${all.length}名`;
     const deck = activeDeck();
     rosterGrid.replaceChildren();
     for (const char of shown) {
@@ -3576,7 +3585,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (takenAt >= 0 && takenAt !== activeSlot) {
         cell.disabled = true;
         cell.classList.add('is-taken');
-        cell.title = `이미 덱 ${deck.id}의 ${takenAt + 1}번에 있습니다`;
+        cell.title = `すでにデッキ ${deck.id} の枠 ${takenAt + 1} にいます`;
       }
       const portrait = document.createElement('div');
       portrait.className = 'roster-portrait';
@@ -3596,14 +3605,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (codeIcon) portrait.append(codeIcon);
       if (char.preview) {
         // (임시) — 스킬 미공개라 창작한 값으로 도는 캐릭터. 고르기 전에 보여야 한다.
-        const temp = createText('i', '임시', 'roster-temp');
-        temp.title = '스킬이 공개되지 않아 임의로 창작한 값으로 계산합니다';
+        const temp = createText('i', '仮', 'roster-temp');
+        temp.title = 'スキルが公開されていないため、仮に作成した値で計算します';
         portrait.append(temp);
       }
       cell.append(
         portrait,
-        createText('strong', char.preview ? `${labelFor(char.name)} (임시)` : labelFor(char.name)),
-        createText('span', [char.elementCode, char.weaponType, char.className].filter(Boolean).join(' · ')),
+        createText('strong', char.preview ? `${labelFor(char.name)} (仮)` : labelFor(char.name)),
+        createText('span', [elementLabel(char.elementCode), char.weaponType, labelForClass(char.className)].filter(Boolean).join(' · ')),
       );
       cell.addEventListener('click', () => pickCharacter(char.name));
       // 끌어다 칸에 놓을 수도 있다. 이미 이 덱에 있는 니케는 누를 수 없으니 끌 수도 없다.
@@ -3670,8 +3679,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     renderRosterGrid();
     // (임시) 캐릭터는 넣는 순간 바로 알린다 — 결과까지 가서야 알면 이미 늦다.
     if (catalogByName.get(name)?.preview) {
-      status.textContent = `${labelFor(name)}은(는) 아직 (임시) 등록입니다 — 스킬이 공개되지 않아 `
-        + '임의로 창작한 값으로 계산합니다. 실제 성능과 무관하니 참고용으로만 봐 주세요.';
+      status.textContent = `${labelFor(name)} はまだ(仮)登録です — スキルが公開されていないため、`
+        + '仮に作成した値で計算します。実際の性能とは無関係なので参考程度にご覧ください。';
     }
   };
 
@@ -3681,8 +3690,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const filled = deck.squad.filter(Boolean).length;
     const current = deck.squad[activeSlot];
     rosterDesc.textContent = current
-      ? `${activeSlot + 1}번 칸을 ${labelFor(current)} 대신 채웁니다 · ${filled}/5명`
-      : `${activeSlot + 1}번 빈 칸을 채웁니다 · ${filled}/5명`;
+      ? `枠 ${activeSlot + 1} を ${labelFor(current)} の代わりに埋めます · ${filled}/5名`
+      : `空き枠 ${activeSlot + 1} を埋めます · ${filled}/5名`;
   };
 
   // 접힌 채로 시작한다 — 무엇으로 재는지 한 줄은 처음부터 적혀 있어야 한다.
@@ -3721,7 +3730,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-clear-cache]').addEventListener('click', () => {
     cache.clear();
     showErrors([]);
-    status.textContent = '저장된 결과를 지웠습니다. 다시 실행하면 새로 계산합니다.';
+    status.textContent = '保存された結果を消しました。再実行すると計算し直します。';
   });
   const applyRosterToDecks = () => {
     for (const deck of decks) {
@@ -3735,7 +3744,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const updateRosterNote = (message?: string) => {
     const count = Object.keys(roster).length;
     if (message) rosterNote.textContent = message;
-    else if (count > 0) rosterNote.textContent = `CSV 로스터 ${count}명 적용 중`;
+    else if (count > 0) rosterNote.textContent = `CSV ロスター ${count}名を適用中`;
     rosterNote.hidden = !message && count === 0;
   };
   rosterInput.addEventListener('change', async () => {
@@ -3745,7 +3754,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const text = await file.text();
       const { overrides, matched, unmatched } = parseRosterCsv(text, settings);
       if (matched.length === 0) {
-        updateRosterNote('CSV에서 지원 캐릭터를 찾지 못했습니다. 정식 명칭이 일치하는지 확인해 주세요.');
+        updateRosterNote('CSV に対応キャラクターが見つかりませんでした。正式名称が一致しているか確認してください。');
         return;
       }
       roster = overrides;
@@ -3755,11 +3764,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       saveState();
       renderDeckTabs();
       renderSquad();
-      const skipped = unmatched.length > 0 ? ` · 미지원 ${unmatched.length}명 제외` : '';
-      updateRosterNote(`CSV 로스터 ${matched.length}명 적용${skipped}`
-        + ' · 큐브와 호감도는 CSV에 없어 기본값으로 계산합니다(카드의 개별 설정에서 수정)');
+      const skipped = unmatched.length > 0 ? ` · 未対応 ${unmatched.length}名を除外` : '';
+      updateRosterNote(`CSV ロスター ${matched.length}名を適用${skipped}`
+        + ' · キューブと好感度は CSV にないため既定値で計算します(カードの個別設定で修正可)');
     } catch (error) {
-      updateRosterNote(`CSV 불러오기 실패: ${error instanceof Error ? error.message : String(error)}`);
+      updateRosterNote(`CSV の読み込みに失敗: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       rosterInput.value = '';
     }
@@ -3781,13 +3790,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const runSync = async () => {
       const url = blablaUrl.value.trim();
       if (!looksLikeProfileUrl(url)) {
-        setStatus('블라블라링크 프로필 주소를 붙여넣어 주세요.');
+        setStatus('Blablalink のプロフィールのアドレスを貼り付けてください。');
         return;
       }
       const selectedArea = blablaServer.value === '' ? undefined : Number(blablaServer.value);
       blablaSync.disabled = true;
       blablaServer.disabled = true;
-      setStatus('블라블라링크에서 받는 중… 니케가 많으면 몇 초 걸립니다.');
+      setStatus('Blablalink から取得中… ニケが多いと数秒かかります。');
       try {
         const response = await fetch(`${blablaProxy}/sync`, {
           method: 'POST',
@@ -3798,14 +3807,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           }),
         });
         const payload = await response.json() as RawProfile & { error?: string };
-        if (!response.ok) throw new Error(payload.error ?? `동기화에 실패했습니다 (${response.status}).`);
+        if (!response.ok) throw new Error(payload.error ?? `同期に失敗しました (${response.status})。`);
 
         const area = pickArea(payload, selectedArea);
-        if (!area) throw new Error('니케 목록이 비어 있습니다.');
+        if (!area) throw new Error('ニケ一覧が空です。');
         const serverLabel = blablaServerLabel(area.area);
         const { overrides, matched, unmatched, notes } = areaToOverrides(area, settings, catalog);
         if (matched.length === 0) {
-          setStatus('계산기가 다루는 니케를 찾지 못했습니다. 프로필이 공개인지 확인해 주세요.');
+          setStatus('計算機が扱えるニケが見つかりませんでした。プロフィールが公開になっているか確認してください。');
           return;
         }
 
@@ -3823,11 +3832,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         renderDeckTabs();
         renderSquad();
 
-        const parts = [`블라블라링크 ${serverLabel} ${matched.length}명 적용`];
-        if (unmatched.length > 0) parts.push(`미지원 ${unmatched.length}명 제외`);
-        if (consoleLevels) parts.push('콘솔 레벨 함께 적용');
+        const parts = [`Blablalink ${serverLabel} ${matched.length}名を適用`];
+        if (unmatched.length > 0) parts.push(`未対応 ${unmatched.length}名を除外`);
+        if (consoleLevels) parts.push('コンソールレベルも適用');
         updateRosterNote(parts.join(' · '));
-        setStatus([`${serverLabel} 서버에서 ${matched.length}명을 불러왔습니다.`, ...notes].join(' '));
+        setStatus([`${serverLabel}サーバーから ${matched.length}名を読み込みました。`, ...notes].join(' '));
       } catch (error) {
         setStatus(error instanceof Error ? error.message : String(error));
       } finally {
@@ -4264,7 +4273,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const onlineBox = element<HTMLElement>(root, '[data-online]');
     const onlineText = element<HTMLElement>(root, '[data-online-text]');
     startPresence(SHARE_API, (online) => {
-      onlineText.textContent = `지금 ${online.toLocaleString('ko-KR')}명`;
+      onlineText.textContent = `現在 ${online.toLocaleString('ja-JP')}名`;
       onlineBox.hidden = false;
     });
   }
@@ -4293,12 +4302,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   for (let n = 1; n <= poolMax; n += 1) {
     const option = document.createElement('option');
     option.value = String(n);
-    option.textContent = `${n}개`;
+    option.textContent = `${n}個`;
     parallelSize.append(option);
   }
   // 권장값은 칸을 넓히지 않게 설명 쪽에만 적는다 — 토글 줄이 길어지면 줄이 접힌다.
-  parallelSize.title = `띄울 작업 스레드 수. 이 기기 권장 ${poolDefault}개. `
-    + '하나마다 계산 런타임이 떠서 메모리를 50~80MB씩 씁니다.';
+  parallelSize.title = `起動するワーカースレッド数。この端末の推奨は ${poolDefault}個。`
+    + '1つごとに計算ランタイムが立ち上がり、メモリを 50~80MB ずつ使います。';
   const applyParallel = (save: boolean) => {
     parallelToggle.checked = parallelOn;
     parallelSize.value = String(parallelCount);
@@ -4343,7 +4352,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       me: () => {
         const battle = readBattle();
         return {
-          name: '내 설정',
+          name: '自分の設定',
           synchro: battle.synchroLevel,
           console: battle.console,
           // 가져온 로스터(CSV·블라블라링크)가 내 스펙이다. 없으면 기본 스펙으로 돈다.
@@ -4415,7 +4424,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const go = document.createElement('span');
     go.className = 'link-go';
     go.setAttribute('aria-hidden', 'true');
-    go.textContent = '새 탭에서 열기 ↗';
+    go.textContent = '新しいタブで開く ↗';
 
     card.append(head, note, go);
     linksGrid.append(card);
@@ -4448,16 +4457,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     customList.replaceChildren();
     const names = Object.keys(customChars);
     if (names.length === 0) return;
-    customList.append(createText('p', '추가된 니케', 'custom-list-title'));
+    customList.append(createText('p', '追加したニケ', 'custom-list-title'));
     for (const name of names) {
       const meta = customToMeta(customChars[name]!);
       const row = document.createElement('div');
       row.className = 'custom-list-row';
-      row.append(createText('span', `${name} · B${meta.burstStage} · ${meta.elementCode} · ${meta.weaponType}`, 'custom-list-name'));
+      row.append(createText('span', `${name} · B${meta.burstStage} · ${elementLabel(meta.elementCode)} · ${meta.weaponType}`, 'custom-list-name'));
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'custom-remove';
-      remove.textContent = '삭제';
+      remove.textContent = '削除';
       remove.addEventListener('click', () => {
         delete customChars[name];
         saveCustom();
@@ -4492,9 +4501,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-copy-prompt]').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(buildAddPrompt());
-      showCustomMsg('프롬프트를 복사했습니다. 다른 LLM에 붙여넣고 니케 설명을 이어 붙이세요.', true);
+      showCustomMsg('プロンプトをコピーしました。他の LLM に貼り付け、続けてニケの説明を付けてください。', true);
     } catch {
-      showCustomMsg('자동 복사에 실패했습니다. 브라우저 권한을 확인하거나 직접 복사해 주세요.');
+      showCustomMsg('自動コピーに失敗しました。ブラウザの権限を確認するか、手動でコピーしてください。');
     }
   });
   element<HTMLButtonElement>(root, '[data-custom-submit]').addEventListener('click', () => {
@@ -4510,13 +4519,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const ignored = unsupportedEffects(custom.skills);
       if (ignored.length > 0) {
         showCustomMsg(
-          `'${custom.name}' 추가됨. 다만 인식되지 않는 효과가 있어 반영되지 않습니다: `
-          + `${ignored.join(', ')}. 이 효과가 캐릭터의 주력 딜이면 결과가 실제보다 크게 낮게 나옵니다`
-          + `(게이지·모드 전환·조건부 스택형 스킬은 이 방식으로 재현하기 어렵습니다). `
-          + `도움말의 어휘와 대조해 stat·timing·target을 고치면 일부는 반영됩니다.`,
+          `'${custom.name}' を追加しました。ただし認識されない効果があり、反映されません: `
+          + `${ignored.join(', ')}。この効果がキャラクターの主力ダメージなら結果は実際よりかなり低く出ます`
+          + `(ゲージ・モード切り替え・条件付きスタック型のスキルはこの方式では再現しにくいです)。`
+          + `ヘルプの語彙と照らし合わせて stat·timing·target を直せば一部は反映されます。`,
         );
       } else {
-        showCustomMsg(`'${custom.name}' 추가됨 · 스쿼드 슬롯에서 선택할 수 있습니다.`, true);
+        showCustomMsg(`'${custom.name}' を追加しました · スカッドの枠から選べます。`, true);
       }
     } catch (error) {
       showCustomMsg(error instanceof Error ? error.message : String(error));
@@ -4606,12 +4615,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     .then(() => {
       if (activity !== 'preparing') return;
       activity = 'ready';
-      status.textContent = '계산 준비 완료 · 모든 연산은 이 기기에서 실행됩니다.';
+      status.textContent = '計算の準備完了 · すべての演算はこの端末上で実行されます。';
     })
     .catch((error: unknown) => {
       if (activity !== 'preparing') return;
       activity = 'error';
-      status.textContent = `초기화 실패 · ${error instanceof Error ? error.message : String(error)}`;
+      status.textContent = `初期化に失敗 · ${error instanceof Error ? error.message : String(error)}`;
     });
 
   // 기본 정렬이 전투력이라 목록을 열기 전에 미리 받아 둔다. 오는 동안은 이름순으로
@@ -4633,7 +4642,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       request: requestForDeck(deck, battle, Object.keys(custom).length > 0 ? custom : undefined),
     }));
     for (const { deck, request } of requests) {
-      validation.push(...validateRequest(request).map((message) => `덱 ${deck.id}: ${message}`));
+      validation.push(...validateRequest(request).map((message) => `デッキ ${deck.id}: ${message}`));
     }
     showErrors([...new Set(validation)]);
     if (validation.length > 0) return;
@@ -4660,7 +4669,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           cache.set(key, result);
         }
         done += 1;
-        status.textContent = `계산 중 · ${done}/${requests.length}덱`;
+        status.textContent = `計算中 · ${done}/${requests.length}デッキ`;
         completed.push({ deckId: deck.id, request, result });
         completed.sort((a, b) => a.deckId - b.deckId);
         renderBatchResult(aggregateDeckResults(completed));
@@ -4685,23 +4694,23 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       activity = cachedCount === requests.length ? 'cached' : 'complete';
       status.textContent = cachedCount === requests.length
-        ? '저장된 결과를 불러왔습니다.'
-        : `${requests.length}개 덱 계산 완료 · 같은 조건은 이 기기에 저장됩니다.`;
+        ? '保存された結果を読み込みました。'
+        : `${requests.length}件のデッキ計算完了 · 同じ条件はこの端末に保存されます。`;
     } catch (error) {
       if (completed.length > 0) renderBatchResult(aggregateDeckResults(completed));
       const failedEntry = requests[failedIndex >= 0 ? failedIndex : completed.length];
       const failed = failedEntry?.deck.id;
       const detail = cleanEngineError(error instanceof Error ? error.message : String(error));
-      const messages = [`덱 ${failed ?? '?'} 계산 실패: ${detail}`];
+      const messages = [`デッキ ${failed ?? '?'} の計算に失敗: ${detail}`];
       const hasBurstOverride = failedEntry
         ? Object.values(failedEntry.deck.characters).some((custom) => custom.burst)
         : false;
       if (hasBurstOverride) {
-        messages.push('이 조합은 버스트 운용 지정을 지원하지 않을 수 있습니다. 해당 캐릭터의 버스트 운용을 \'자동\'으로 바꿔 다시 실행해 주세요.');
+        messages.push('この編成はバースト運用の指定に対応していない可能性があります。該当キャラクターのバースト運用を「自動」に戻して再実行してください。');
       }
       showErrors(messages);
       activity = 'error';
-      status.textContent = '계산에 실패했습니다. 입력값을 확인하고 다시 실행해 주세요.';
+      status.textContent = '計算に失敗しました。入力値を確認して再実行してください。';
     } finally {
       submit.disabled = false;
       submit.classList.remove('is-running');
