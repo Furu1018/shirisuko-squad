@@ -16,15 +16,18 @@ import { chromium } from 'playwright-core';
 const outDir = resolve(process.argv[2] ?? 'shots');
 const url = process.argv[3] ?? 'http://localhost:4173/shirisuko-squad/';
 mkdirSync(outDir, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const errors = [];
-page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text().slice(0, 200)}`); });
 const t0 = Date.now();
 const lap = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
-const status = async () => (await page.locator('[data-board-status]').textContent().catch(() => '')) ?? '';
+// 失敗は必ず非ゼロで終わる — 自動化で「緑に見えるが通っていない」が一番まずい
+let failed = false;
+let browser;
 try {
+  browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text().slice(0, 200)}`); });
+  const status = async () => (await page.locator('[data-board-status]').textContent().catch(() => '')) ?? '';
   await page.goto(url, { waitUntil: 'networkidle' });
   // Pyodide の準備 (計算機タブの状態行)
   await page.locator('[data-view-tab="calc"]').click();
@@ -67,9 +70,10 @@ try {
   await waitIdle('search open slot');
   await page.screenshot({ path: `${outDir}/e2e-board.png`, fullPage: true });
 } catch (e) {
+  failed = true;
   console.log(`[${lap()}] FAILED: ${e.message}`);
-  await page.screenshot({ path: `${outDir}/e2e-fail.png`, fullPage: true }).catch(() => {});
 } finally {
   console.log('errors:', errors.length ? errors.slice(0, 10) : 'none');
-  await browser.close();
+  if (browser) await browser.close().catch(() => {});   // 起動できていれば必ず閉じる
 }
+process.exit(failed || errors.length > 0 ? 1 : 0);

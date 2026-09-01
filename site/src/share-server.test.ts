@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { ShareServer, summarizeBattle, summarizeSquad } from './share-server';
+import { setDisplayNames } from './display-name';
+import { ShareServer, summarizeBattle, summarizeSquad, summarizeUnion } from './share-server';
+import type { CharacterMeta } from './types';
 import type { BattleShare } from './share-code';
 
 const battle: BattleShare = {
@@ -98,5 +100,28 @@ describe('auto summaries', () => {
       [{ squad: ['크라운', '아니스 : 스타', '라피 : 레드 후드', '미하라 : 본딩 체인', '마스트 : 로망틱 메이드'] }],
       false,
     )).toBe('크라운/아니스 : 스타/라피 : 레드 후드/미하라 : 본딩 체인/마스트 : 로망틱 메이드');
+  });
+
+  it('対訳があれば名前は日本語で出る (内部キーは韓国語のまま渡ってくる)', () => {
+    const meta = (name: string, displayName: string): CharacterMeta => ({
+      name, displayName, burstStage: '3', elementCode: '철갑', weaponType: 'AR', className: '화력형',
+      manufacturer: '엘리시온', preview: false, image: '', nameCode: null, resourceId: null, aliases: [],
+    } as CharacterMeta);
+    setDisplayNames([meta('리타', 'リター'), meta('크라운', 'クラウン')]);
+    try {
+      expect(summarizeSquad([{ squad: ['리타', '크라운', '앨리스', '', ''] }], false)).toBe('リター/クラウン/앨리스');
+      expect(summarizeBattle({ ...battle, enemyCode: '철갑' })).toContain('敵 鉄甲');
+    } finally {
+      setDisplayNames([]);   // 他のテストに対訳を残さない
+    }
+  });
+
+  it('盤面の要約はボス名を並べ、名前が無ければ番号、何も無ければ「空の盤面」', () => {
+    expect(summarizeUnion([])).toBe('空の盤面');
+    expect(summarizeUnion([
+      { name: 'レイタンス', enabled: true, battleCode: 'NK3-a', deckCodes: ['NK2-a', '', ''] },
+      { name: '', enabled: true, battleCode: 'NK3-b', deckCodes: ['NK2-b', 'NK2-c', ''] },
+      { name: 'モダニア', enabled: false, battleCode: 'NK3-c', deckCodes: ['NK2-d', '', ''] },
+    ])).toBe('レイタンス / ボス 2 · デッキ 3');
   });
 });

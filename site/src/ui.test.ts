@@ -1056,6 +1056,37 @@ describe('calculator UI', () => {
     expect(root.querySelector('[data-board-status]')!.textContent).toContain('空になったので');
   });
 
+  it('全員が被り、相手の枠のほうが弱ければ「譲る」— 相手の枠がボスごと空に戻る', async () => {
+    // ボスのコードで点数が変わる計算機: 灼熱ボス (トゥームストーン) 向けの 2凸目のほうが強い
+    class ByBossClient extends FakeClient {
+      override async simulate(request: SimulationRequest): Promise<SimulationResult> {
+        await super.simulate(request);
+        return { ...calculated, squadTotal: request.enemyCode === '작열' ? 200_000 : 100_000 };
+      }
+    }
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new ByBossClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('수냉', ['리타', '크라운']);
+    pickBoss(0, 'レイタンス');        // 100,000
+    await settle();
+    pickBoss(1, 'トゥームストーン');   // 200,000
+    await settle();
+    const clash = root.querySelector<HTMLElement>('[data-board-clash="1:0"]')!;
+    expect(clash.textContent).toContain('合計は「1凸目から譲る」が上です');
+
+    clash.querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    expect(storedBoard().slots[0]).toEqual({ boss: null, squad: ['', '', '', '', ''] });
+    expect(storedBoard().slots[1]!.boss).toBe('トゥームストーン');
+    expect(storedBoard().slots[1]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('1凸目から譲りました');
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('1凸目は空になったので');
+    expect(root.querySelector('[data-board-search-open="0"]')).not.toBeNull();
+  });
+
   it('被りなしで最大の3凸を探すと、同じニケを使わない組み合わせが枠に入る', async () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
