@@ -19,3 +19,4 @@ worker-share/.wrangler/
 # 규정만 있고 규칙이 없어 실제로는 추적 대상이었다(2026-08-24).
 profiles/
 scraper/.session_cookie
+.screenshots/
