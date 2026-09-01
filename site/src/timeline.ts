@@ -12,7 +12,7 @@ const LINE_COLORS = ['#6C42F0', '#D9770E', '#0E9F6E', '#2E8BFF', '#D93E7A'];
 const CANVAS = {
   ink: '#14161A',
   sub: '#6B7178',
-  faint: '#8A9097',
+  faint: '#6F747B',   /* 10px の軸ラベルに使うので、白地で読める濃さ */
   grid: 'rgba(20,22,26,0.10)',
   gridFaint: 'rgba(20,22,26,0.06)',
   fullBurst: 'rgba(245,158,11,0.14)',
@@ -489,7 +489,8 @@ class TimelineChart {
           const nameRoom = buffTextPlan(runW, stacked).nameRoom;
           let nameEnd = run.x0;
           if (nameRoom >= BUFF_MIN_W) {
-            ctx.fillStyle = hot ? CANVAS.ink : CANVAS.sub;
+            // 帯は系列色の淡い塗り。文字は濃い方に寄せないと 10px では読めない
+            ctx.fillStyle = CANVAS.ink;
             ctx.font = '600 10px system-ui, sans-serif';
             ctx.textAlign = 'left';
             const label = fitText(ctx, track.name, nameRoom);
@@ -595,7 +596,8 @@ class TimelineChart {
       } else {
         ctx.fillStyle = CANVAS.pinFace;
         ctx.fillRect(x - PIN_R, cy - PIN_R, PIN_R * 2, PIN_R * 2);
-        ctx.fillStyle = color;
+        // 白い顔の上に系列色の文字だと 3.2:1 ほどしか出ない。誰の印かは外周の色線で分かる
+        ctx.fillStyle = CANVAS.ink;
         ctx.font = '700 10px ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -614,7 +616,8 @@ class TimelineChart {
       if (pin.stage) {
         const bx = x + PIN_R * 0.72;
         const by = cy + PIN_R * 0.72;
-        ctx.fillStyle = color;
+        // 8px の数字なので、地は濃く固定して白抜きにする (系列色の地だと 3.2:1 ほど)
+        ctx.fillStyle = CANVAS.ink;
         ctx.beginPath();
         ctx.arc(bx, by, 6, 0, Math.PI * 2);
         ctx.fill();
@@ -675,7 +678,6 @@ class TimelineChart {
   /** 버프 막대 하나의 상세. 「무엇을·누가·누구에게·언제부터 언제까지·몇 겹」을 적는다. */
   private showBuffTip(track: BuffTrack, span: BuffSpan,
     clientX: number, clientY: number): void {
-    const color = this.series.colors[track.caster] ?? CANVAS.faint;
     const seconds = (value: number) => `${value.toFixed(1)}秒`;
     const [from, to, stack] = span;
     // 대상이 발동마다 갈리는 버프가 있다 — 이 구간을 실제로 받은 사람만 보인다.
@@ -705,7 +707,7 @@ class TimelineChart {
       ? `<div class="tl-tip-faces"><span class="tl-name">対象</span><span>${faces}</span></div>`
       : '';
     this.tooltip.innerHTML =
-      `<div class="tl-tip-time" style="color:${color}">${track.name}</div>${rows.join('')}${targets}`;
+      `<div class="tl-tip-time">${track.name}</div>${rows.join('')}${targets}`;
     const host = this.canvas.parentElement!.getBoundingClientRect();
     let px = clientX - host.left + 14;
     if (px + 220 > host.width) px = clientX - host.left - 234;
