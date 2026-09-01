@@ -530,10 +530,56 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           </div>
           <div class="board-sync-actions">
             <button type="button" class="roster-import" data-board-sync-again hidden>今の育成を取り込む</button>
-            <button type="button" class="roster-import" data-board-sync-import title="計算機タブの取込 (Blablalink / Letsdoro CSV) へ移動します">取り込み方を見る</button>
+            <button type="button" class="roster-import" data-board-sync-import hidden>取り込み直す</button>
             <button type="button" class="roster-import" data-board-goto="roster">育成状況を見る</button>
           </div>
         </div>
+
+        <!-- 取り込む前はここだけを見せる。«読み込み → 3凸» の順に進む画面にするため、
+             盤面 (data-board-main) は取り込むか «取り込まずに試す» を押すまで出さない。 -->
+        <section class="board-start" data-board-start hidden aria-labelledby="board-start-heading">
+          <p class="board-start-step">STEP 1</p>
+          <h2 id="board-start-heading">まず自分の育成を取り込む</h2>
+          <p class="board-start-lede">取り込むと<b>あなたの育成での3凸の見込み</b>が出ます。取り込まなくても試せますが、その場合は<b>既定の育成 (最大)</b> の数字になります。</p>
+          ${blablaProxy ? `
+          <ol class="board-start-steps">
+            <li>
+              <span class="board-start-no" aria-hidden="true">1</span>
+              <div class="board-start-body">
+                <b>Blablalink で自分のページを開く</b>
+                <p>開いたときに<b>アドレスバーに出るアドレス</b>が、あなたのプロフィールです。Blablalink 側で<b>プロフィールとニケ一覧を公開</b>にしていないと照会できません。</p>
+                <a class="roster-import" href="https://www.blablalink.com/user" target="_blank" rel="noreferrer noopener">blablalink.com/user を開く</a>
+              </div>
+            </li>
+            <li>
+              <span class="board-start-no" aria-hidden="true">2</span>
+              <div class="board-start-body">
+                <b>そのアドレスを貼って取り込む</b>
+                <p>限界突破・コア強化・スキル・オーバーロード・装備に加えて、CSV には無い<b>キューブとコレクション</b>まで入ります。</p>
+                <button type="button" class="roster-import board-start-go" data-board-blabla>アドレスを貼って取り込む</button>
+              </div>
+            </li>
+          </ol>` : `
+          <ol class="board-start-steps">
+            <li>
+              <span class="board-start-no is-warn" aria-hidden="true">!</span>
+              <div class="board-start-body">
+                <b>Blablalink 連携はまだ使えません</b>
+                <p>照会を代行するサーバーの準備が終わっていないため、いまは使えません。当面は下の <b>Letsdoro CSV</b> から取り込んでください。</p>
+              </div>
+            </li>
+          </ol>`}
+          <div class="board-start-alt">
+            <label class="roster-import" title="Letsdoro のニケ情報 CSV を読み込みます">
+              <input id="board-csv" type="file" accept=".csv,text/csv" hidden />
+              <span>Letsdoro CSV を読み込む</span>
+            </label>
+            <button type="button" class="roster-info" data-board-doro aria-label="Letsdoro CSV の入手方法" title="Letsdoro で CSV を入手する方法">i</button>
+            <button type="button" class="board-start-skip" data-board-skip>取り込まずに試す</button>
+          </div>
+        </section>
+
+        <div class="board-main" data-board-main>
         <h2 id="board-heading" class="board-sec">3凸を組む · ${UNION_SEASON.label}</h2>
         <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>と、そのボスに有利なコードの編成 (属性別編成タブの案) が入ります。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠と被った人は赤く出て、外す・譲るどちらが得かを計算します。</p>
         <p class="board-status" data-board-status hidden></p>
@@ -548,6 +594,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <button type="button" data-board-goto="calc"><b>詳細計算</b><span>編成を手で組んで、戦闘条件・バースト順・タイムラインまで詰める (いまの計算機)</span></button>
           <button type="button" data-board-goto="roster"><b>マイロスター</b><span>取り込んだ育成状況。どこが伸びしろかを属性別・スキル別に見る</span></button>
           <button type="button" data-board-goto="union"><b>ユニオン運営</b><span>メンバー全員ぶんを一括で計算し、盤面をコードで配る (運営者向け)</span></button>
+        </div>
         </div>
       </section>
 
@@ -577,7 +624,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         </div>
         <p class="links-lede">取り込んだ<b>自分の育成状況</b>です。どこが伸びしろかを見るための一覧で、ここでは値を変えません (変更は計算機のカードから)。</p>
         <div class="roster-empty" data-myroster-empty hidden>
-          <p>まだ取り込んでいません。計算機の <b>Letsdoro CSV を読み込む</b> か <b>Blablalink 連携</b> から取り込むと、ここに育成状況が並びます。</p>
+          <p>まだ取り込んでいません。<b>3凸ボード</b>の STEP 1 から取り込むと、ここに育成状況が並びます。</p>
+          <p><button type="button" class="roster-import" data-myroster-goto-board>取り込みに進む</button></p>
         </div>
         <div class="roster-body" data-myroster-body hidden>
           <div class="roster-stats" data-myroster-stats></div>
@@ -1445,6 +1493,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // ── 업데이트 공지 ───────────────────────────────────────────────────────
   // 본 적 있는 공지 id를 적어 둔다. 새 공지가 올라오면 id가 달라져 다시 뜬다.
   const NOTICE_KEY = 'nikke-notice-seen';
+  // 3凸ボードの «取り込まずに試す» を覚える鍵。PAD と同一オリジンなので nikke- を必ず付ける
+  const BOARD_SKIP_KEY = 'nikke-board-skip-import-v1';
   const noticeModal = element<HTMLElement>(root, '[data-notice-modal]');
   const noticeBody = element<HTMLElement>(root, '[data-notice-body]');
   const noticeNew = element<HTMLElement>(root, '[data-notice-new]');
@@ -3832,7 +3882,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-reset-confirm]').addEventListener('click', () => {
     cache.clear();
     const store = resolveStorage();
-    for (const key of [STATE_KEY, ROSTER_KEY, CUSTOM_KEY, SYNC_META_KEY, ELEMENT_PLANS_KEY]) {
+    for (const key of [STATE_KEY, ROSTER_KEY, CUSTOM_KEY, SYNC_META_KEY, ELEMENT_PLANS_KEY, BOARD_SKIP_KEY]) {
       try {
         store?.removeItem(key);
       } catch {
@@ -3855,6 +3905,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   let renderPlans: () => void = () => undefined;
   let renderBoard: () => void = () => undefined;
   let renderBoardSync: () => void = () => undefined;
+  // 盤面の STEP 1 (取り込み) を開く。マイロスターの空状態からも呼ぶ。
+  let openBoardImport: () => void = () => undefined;
 
   const applyRosterToDecks = () => {
     for (const deck of decks) {
@@ -3920,8 +3972,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     else if (count > 0) rosterNote.textContent = `CSV ロスター ${count}名を適用中`;
     rosterNote.hidden = !message && count === 0;
   };
-  rosterInput.addEventListener('change', async () => {
-    const file = rosterInput.files?.[0];
+  // 取込の入口は2つある (計算機タブと3凸ボードの STEP 1)。処理は1つに保つ —
+  // 片方だけ直して挙動がずれるのを避けたい。
+  const importRosterCsv = async (input: HTMLInputElement) => {
+    const file = input.files?.[0];
     if (!file) return;
     try {
       const text = await file.text();
@@ -3950,9 +4004,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     } catch (error) {
       updateRosterNote(`CSV の読み込みに失敗: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      rosterInput.value = '';
+      input.value = '';
     }
-  });
+  };
+  rosterInput.addEventListener('change', () => { void importRosterCsv(rosterInput); });
 
   // 블라블라링크 연동. 프록시가 설정된 빌드에서만 마크업이 있으므로 없으면 통째로 건너뛴다.
   if (blablaProxy) {
@@ -5335,8 +5390,32 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const syncSub = element<HTMLElement>(root, '[data-board-sync-sub]');
     const syncDot = element<HTMLElement>(root, '[data-board-sync-dot]');
     const boardSyncAgain = element<HTMLButtonElement>(root, '[data-board-sync-again]');
+    const boardSync = element<HTMLElement>(root, '[data-board-sync]');
+    const boardStart = element<HTMLElement>(root, '[data-board-start]');
+    const boardMain = element<HTMLElement>(root, '[data-board-main]');
+    const boardReimport = element<HTMLButtonElement>(root, '[data-board-sync-import]');
+    // 「取り込まずに試す」を押したかどうか。押した人に毎回 STEP 1 を出すと邪魔なので覚える。
+    // 保存できない環境 (プライベートウィンドウ等) でも動くよう、失敗は握って既定 (出す) に倒す。
+    const readSkip = () => {
+      try { return resolveStorage()?.getItem(BOARD_SKIP_KEY) === '1'; } catch { return false; }
+    };
+    const writeSkip = (on: boolean) => {
+      try {
+        if (on) resolveStorage()?.setItem(BOARD_SKIP_KEY, '1');
+        else resolveStorage()?.removeItem(BOARD_SKIP_KEY);
+      } catch { /* 覚えられなくても導線は動く */ }
+    };
+    let skippedImport = readSkip();
+
     renderBoardSync = () => {
       const count = Object.keys(roster).length;
+      // 取り込む前は STEP 1 だけを見せ、盤面は出さない。«読み込み → 3凸» の順に進ませる。
+      const imported = Boolean(syncMeta) || count > 0;
+      boardStart.hidden = imported || skippedImport;
+      boardMain.hidden = !boardStart.hidden;
+      // STEP 1 が出ている間は帯を出さない — 同じことを二度言うと «次に何をするか» がぼやける
+      boardSync.hidden = !boardStart.hidden;
+      boardReimport.hidden = !imported;
       if (syncMeta) {
         syncDot.classList.add('is-on');
         syncMain.textContent = `${SOURCE_LABELS[syncMeta.source]} から取込済み · ${syncMeta.matched}名`;
@@ -5352,10 +5431,32 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       boardSyncAgain.textContent = syncInFlight ? '取り込み中…' : SYNC_AGAIN_LABEL;
     };
     boardSyncAgain.addEventListener('click', () => syncAgain.click());
-    element<HTMLButtonElement>(root, '[data-board-sync-import]').addEventListener('click', () => {
-      switchView('calc');
-      scrollTo(squadGrid);
+    // 取り込み済みでも入れ直せるように、STEP 1 を出し直すだけ (別タブへ飛ばさない)
+    openBoardImport = () => {
+      skippedImport = false;
+      writeSkip(false);
+      boardStart.hidden = false;
+      boardMain.hidden = true;
+      scrollTo(boardStart);
+    };
+    boardReimport.addEventListener('click', () => openBoardImport());
+    element<HTMLButtonElement>(root, '[data-board-skip]').addEventListener('click', () => {
+      skippedImport = true;
+      writeSkip(true);
+      renderBoardSync();
+      scrollTo(boardMain);
     });
+    const boardCsv = element<HTMLInputElement>(root, '#board-csv');
+    boardCsv.addEventListener('change', () => { void importRosterCsv(boardCsv); });
+    element<HTMLButtonElement>(root, '[data-board-doro]').addEventListener('click', () => {
+      element<HTMLElement>(root, '[data-doro-modal]').hidden = false;
+    });
+    if (blablaProxy) {
+      // 既存のモーダルをそのまま開く。取込の処理も注意書きも1箇所に保つ。
+      element<HTMLButtonElement>(root, '[data-board-blabla]').addEventListener('click', () => {
+        element<HTMLButtonElement>(root, '[data-blabla-open]').click();
+      });
+    }
     for (const go of root.querySelectorAll<HTMLButtonElement>('[data-board-goto]')) {
       go.addEventListener('click', () => switchView(go.dataset.boardGoto as ViewName));
     }
@@ -5366,6 +5467,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 取り込んだロスターを読むだけの画面。値は変えない — 変更は計算機のカード側に一本化する。
   {
     const emptyBox = element<HTMLElement>(root, '[data-myroster-empty]');
+    element<HTMLButtonElement>(root, '[data-myroster-goto-board]').addEventListener('click', () => {
+      switchView('board');
+      openBoardImport();
+    });
     const bodyBox = element<HTMLElement>(root, '[data-myroster-body]');
     const statsBox = element<HTMLElement>(root, '[data-myroster-stats]');
     const rowsBox = element<HTMLElement>(root, '[data-myroster-rows]');

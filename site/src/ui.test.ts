@@ -957,6 +957,110 @@ describe('calculator UI', () => {
   const boardCalls = (client: FakeClient, code = '전격') =>
     client.requests.filter((request) => request.enemyCode === code).length;
 
+  // ── 取り込みの導線 (STEP 1 → 3凸) ──
+  const boardStart = () => root.querySelector<HTMLElement>('[data-board-start]')!;
+  const boardMain = () => root.querySelector<HTMLElement>('[data-board-main]')!;
+  const CSV_HEADER = [
+    '이름', '돌파', '코강', '스킬1', '스킬2', '버스트스킬',
+    '우코(%)', '공증(%)', '방어(%)', '장탄(%)', '크확(%)', '크댐(%)', '차속(%)', '차댐(%)', '명중(%)',
+    '머리_레벨', '몸통_레벨', '장갑_레벨', '다리_레벨',
+  ].join(',');
+  const CSV_ROW = ['리타', '3', '4', '10', '10', '10',
+    '50', '30', '0', '0', '0', '0', '0', '0', '0', '5', '5', '5', '5'].join(',');
+  const dropCsv = (selector: string) => {
+    const input = root.querySelector<HTMLInputElement>(selector)!;
+    Object.defineProperty(input, 'files', {
+      value: [new File([`${CSV_HEADER}\n${CSV_ROW}`], 'roster.csv', { type: 'text/csv' })],
+      configurable: true,
+    });
+    input.dispatchEvent(new Event('change'));
+  };
+
+  it('取り込む前は STEP 1 だけを見せ、盤面は出さない', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    expect(boardStart().hidden).toBe(false);
+    expect(boardMain().hidden).toBe(true);
+  });
+
+  it('「取り込まずに試す」で盤面が出て、次に開いたときも出たまま', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+
+    expect(boardStart().hidden).toBe(true);
+    expect(boardMain().hidden).toBe(false);
+
+    // 覚えているので、開き直しても STEP 1 は出てこない
+    root.innerHTML = '';
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    expect(boardStart().hidden).toBe(true);
+  });
+
+  it('STEP 1 の CSV から取り込むと盤面に進み、取り込み直せる', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    dropCsv('#board-csv');
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-board-sync-main]')!.textContent).toContain('取込済み');
+    });
+    expect(boardStart().hidden).toBe(true);
+    expect(boardMain().hidden).toBe(false);
+
+    // 入れ直したくなったら STEP 1 に戻れる (別タブへ飛ばさない)
+    const reimport = root.querySelector<HTMLButtonElement>('[data-board-sync-import]')!;
+    expect(reimport.hidden).toBe(false);
+    reimport.click();
+    expect(boardStart().hidden).toBe(false);
+  });
+
+  it('プロキシが無いビルドでは、存在しないボタンを案内しない', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+      blablaProxy: '',
+    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+    expect(boardStart().textContent).toContain('まだ使えません');
+    expect(root.querySelector('[data-board-blabla]')).toBeNull();
+    // マイロスターの空状態も «Blablalink 連携» を名指ししない
+    expect(root.querySelector('[data-myroster-empty]')!.textContent).not.toContain('Blablalink 連携');
+  });
+
+  it('プロキシがあるビルドでは、リンク → 貼り付けの順で案内する', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+      blablaProxy: 'https://proxy.example',
+    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+    const link = boardStart().querySelector<HTMLAnchorElement>('a[href*="blablalink.com/user"]')!;
+    expect(link).not.toBeNull();
+    expect(link.target).toBe('_blank');
+
+    // 「アドレスを貼って取り込む」で既存のモーダルが開く (処理を二重に持たない)
+    root.querySelector<HTMLButtonElement>('[data-board-blabla]')!.click();
+    expect(root.querySelector<HTMLElement>('[data-blabla-modal]')!.hidden).toBe(false);
+  });
+
+  it('マイロスターの空状態から取り込みに進める', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-view-tab="roster"]')!.click();
+
+    root.querySelector<HTMLButtonElement>('[data-myroster-goto-board]')!.click();
+
+    expect(root.querySelector<HTMLElement>('[data-view="board"]')!.hidden).toBe(false);
+    expect(boardStart().hidden).toBe(false);
+  });
+
   it('3凸ボードが入口で、3枠・合計・属性別の手持ちが出る', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

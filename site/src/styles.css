@@ -1488,6 +1488,33 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .board-sync-main { font-size: 13px; font-weight: 800; }
 .board-sync-sub { font-size: 11.5px; color: var(--ink-2); }
 .board-sync-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* STEP 1 — 取り込みの導線。取り込む前はここだけを見せる */
+.board-start { border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px 18px;
+  background: var(--surface); box-shadow: 0 1px 2px rgb(var(--line-rgb) / .04); }
+.board-start-step { margin: 0 0 2px; font-size: 11px; font-weight: 900; letter-spacing: .1em; color: var(--accent-deep); }
+.board-start h2 { margin: 0 0 6px; font-size: 19px; font-weight: 900; }
+.board-start-lede { margin: 0 0 16px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
+.board-start-steps { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.board-start-steps li { display: flex; gap: 12px; align-items: flex-start; }
+.board-start-no { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent-deep); color: #fff; font: 900 12px/1 ui-monospace, monospace; }
+.board-start-no.is-warn { background: var(--danger); }
+.board-start-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.board-start-body b { font-size: 13.5px; font-weight: 800; }
+.board-start-body p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--ink-2); }
+.board-start-body code { padding: 1px 5px; border-radius: 4px; background: rgb(var(--line-rgb) / .10); font-size: 11px; }
+.board-start-go { background: var(--ink); border-color: var(--ink); color: #fff; }
+.board-start-go:hover { background: #000; border-color: #000; }
+.board-start-alt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  border-top: 1px solid rgb(var(--line-rgb) / .12); padding-top: 14px; }
+.board-start-skip { margin-left: auto; padding: 6px 10px; border: 0; background: none;
+  color: var(--ink-2); font-size: 12px; text-decoration: underline; cursor: pointer; }
+.board-start-skip:hover { color: var(--ink); }
+@media (max-width: 600px) {
+  .board-start { padding: 16px 14px 14px; }
+  .board-start-skip { margin-left: 0; }
+}
 .board-status { margin: 0 0 10px; font-size: 12px; color: var(--ink-2); }
 .board-status.is-ok { color: var(--ink); }
 
