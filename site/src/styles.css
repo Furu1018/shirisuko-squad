@@ -21,10 +21,10 @@
   --ink: #14161a;
   --ink-2: #6b7178;
   --ink-3: #8a9097;
-  --line: rgb(var(--line-rgb) / 0.10);
+  --line: rgb(var(--line-rgb) / 0.14);
 
   /* ── 既存の宣言が参照している名前。値だけライトに向け替える ── */
-  --muted: var(--ink-3);
+  --muted: var(--ink-2);   /* 9〜12px の補助文字に使うので、薄すぎる #8a9097 は避ける */
   --panel: var(--surface);
   --panel-strong: var(--surface-2);
   --amber: #f59e0b;
@@ -32,6 +32,14 @@
   --amber-soft: #7a4a00;   /* 淡い面の上に置く濃い琥珀の文字 */
   --amber-ink: #2a1a00;    /* 琥珀の面の上に置く文字 */
   --cyan: #6c42f0;         /* 旧アクセント (シアン) の行き先 */
+  /* --accent は上流から未定義のまま使われていた (.field-note.warning)。
+     ライト化で参照箇所が増えたので、ここで正式に定める */
+  --accent: #6c42f0;
+  --accent-deep: #4e2bc4;
+  /* 覆い。面の色を流用すると背面が暗くならず、モーダルが浮いて見えない */
+  --scrim: rgb(20 22 26 / .45);
+  /* 琥珀は白地だと 2.15:1 しかない。**文字に使うときは**濃い側を使う */
+  --amber-text: #b45309;
   --danger: #d92c33;
   --danger-soft: #8a1b20;
   --success: #128a4d;
@@ -69,9 +77,9 @@ a:focus-visible {
 .hero { display: flex; justify-content: space-between; align-items: center; min-height: 260px; padding: 24px 16px 46px; }
 .hero-copy { max-width: 850px; }
 .eyebrow, .step { margin: 0 0 12px; color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: .2em; }
-.eyebrow span { color: var(--amber); }
+.eyebrow span { color: var(--amber-text); }
 .hero h1 { margin: 0; font-size: clamp(42px, 6vw, 92px); line-height: .96; letter-spacing: -.065em; font-weight: 900; }
-.hero h1 span { color: var(--amber);  }
+.hero h1 span { color: var(--amber-text); }
 .hero-lede { max-width: 650px; margin: 24px 0 20px; color: var(--ink-2); font-size: clamp(15px, 1.4vw, 19px); line-height: 1.7; }
 .trust-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .trust-row span, .trust-row .roster-open { border: 1px solid var(--line); padding: 7px 11px; color: var(--ink-2); background: rgb(var(--surface-rgb) / .55); font-size: 12px; }
@@ -84,7 +92,7 @@ a:focus-visible {
 .hero-orbit { width: 150px; aspect-ratio: 1; border: 1px solid rgb(var(--accent-rgb) / .35); border-radius: 50%; display: grid; place-items: center; position: relative; color: var(--cyan); }
 .hero-orbit::before, .hero-orbit::after { content: ""; position: absolute; inset: 13px; border: 1px dashed rgb(var(--amber-rgb) / .3); border-radius: 50%; transform: rotate(25deg); }
 .hero-orbit::after { inset: -8px 66px; border-radius: 0; border-width: 0 1px; }
-.hero-orbit span { position: absolute; top: -9px; right: 15px; color: var(--amber); font: 700 10px ui-monospace, monospace; }
+.hero-orbit span { position: absolute; top: -9px; right: 15px; color: var(--amber-text); font: 700 10px ui-monospace, monospace; }
 .hero-orbit strong { text-align: center; font: 800 18px/1.15 ui-monospace, monospace; letter-spacing: .12em; }
 
 /* 편성 → 조건 → 결과가 위에서 아래로 한 줄로 선다. 결과를 옆에 세우면 5덱을
@@ -197,7 +205,7 @@ h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
 
 /* 공유 모달은 목록 한 줄에 이름·설명·엄지·적용이 함께 서야 해서 더 넓다. */
 .custom-card.share-card { width: min(780px, 100%); }
-.custom-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgb(var(--surface-rgb) / .7); }
+.custom-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--scrim); }
 .custom-card { width: min(560px, 100%); max-height: 88vh; overflow-y: auto; padding: 22px 24px; background: var(--panel-strong); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 30px 80px rgb(var(--line-rgb) / .10); }
 .custom-head { display: flex; align-items: center; justify-content: space-between; }
 .custom-head h2 { margin: 0; font-size: 18px; }
@@ -207,7 +215,7 @@ h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
 .custom-steps { margin: 12px 0; padding-left: 18px; color: var(--ink-2); font-size: 12px; line-height: 1.7; }
 .custom-steps b { color: var(--cyan); }
 .custom-caution { margin: 0 0 12px; padding: 10px 12px; background: rgb(var(--amber-rgb) / .08); border: 1px solid rgb(var(--amber-rgb) / .22); border-radius: 8px; }
-.custom-caution > b { color: var(--amber); font-size: 12px; }
+.custom-caution > b { color: var(--amber-text); font-size: 12px; }
 .custom-caution ul { margin: 6px 0 0; padding-left: 16px; color: var(--ink-2); font-size: 11px; line-height: 1.65; }
 .custom-caution b { color: var(--amber-soft); }
 .custom-help { margin: 0 0 12px; border: 1px solid var(--line); border-radius: 8px; background: rgb(var(--surface-rgb) / .4); }
@@ -249,7 +257,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .deck-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin: -4px 0 10px; }
 .deck-tabs button { min-height: 40px; border: 1px solid var(--line); background: rgb(var(--surface-rgb) / .72); color: var(--muted); font-size: 12px; font-weight: 800; cursor: pointer; }
 .deck-tabs button:hover { border-color: rgb(var(--accent-rgb) / .45); color: var(--ink); }
-.deck-tabs button.is-active { border-color: var(--amber); background: rgb(var(--amber-rgb) / .1); color: var(--amber); }
+.deck-tabs button.is-active { border-color: var(--amber); background: rgb(var(--amber-rgb) / .1); color: var(--amber-text); }
 .deck-note { margin: 0 0 16px; color: var(--muted); font-size: 11px; }
 
 /* 덱 복사 */
@@ -261,7 +269,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .deck-copy-targets { display: flex; flex-wrap: wrap; gap: 10px; }
 .deck-copy-target { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 10px; cursor: pointer; white-space: nowrap; }
 .deck-copy-target input { flex: 0 0 auto; width: 13px; height: 13px; margin: 0; accent-color: var(--cyan); }
-.deck-copy-target .deck-copy-warn { color: var(--amber); }
+.deck-copy-target .deck-copy-warn { color: var(--amber-text); }
 .deck-copy-actions { display: flex; gap: 8px; margin-top: 12px; }
 .deck-copy-actions button { padding: 6px 12px; font-size: 10px; cursor: pointer; border: 1px solid rgb(var(--accent-rgb) / .22); background: rgb(var(--accent-rgb) / .07); color: var(--ink-2); }
 .deck-copy-actions .deck-copy-apply { background: rgb(var(--accent-rgb) / .18); color: var(--ink); }
@@ -367,7 +375,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
   background: rgb(var(--amber-rgb) / .09); color: var(--amber-soft); font: 700 10px/1.4 ui-monospace, monospace;
   word-break: keep-all; }
 .buff-target > span { grid-column: 1 / -1; }
-.buff-target b { min-width: 0; color: var(--amber); font-weight: 900; overflow-wrap: anywhere; }
+.buff-target b { min-width: 0; color: var(--amber-text); font-weight: 900; overflow-wrap: anywhere; }
 
 /* 정렬·필터 판 — 칩을 늘 깔아 두면 목록이 화면 밖으로 밀린다. 눌러서 펼친다. */
 .picker-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 8px; }
@@ -529,7 +537,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .tap-rate-hint { flex-basis: 100%; margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .tap-rate-hint.is-warning { color: var(--amber); }
 .control-toggle { flex-wrap: wrap; }
-.field-note.warning { color: var(--accent); }
+.field-note.warning { color: var(--amber-text); }
 .cube-summary { margin: 8px 0 0; color: var(--ink-3); font-size: 9px; line-height: 1.55; }
 .cube-unsupported-note { margin: 6px 0 0; color: var(--amber-soft); font-size: 9px; line-height: 1.55; }
 .advanced-toggle { padding-top: 2px; }

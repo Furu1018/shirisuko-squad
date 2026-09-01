@@ -4,7 +4,24 @@ import { statText } from './stat-names';
 import { spanTargets } from './types';
 import type { BattleTimeline, BuffSpan, BuffTrack, DeckResultEntry } from './types';
 
-const LINE_COLORS = ['#45d6d0', '#ffbf3c', '#9b8cff', '#5fd08a', '#ff7db0'];
+// 白地に描くので、線も文字も濃い側で揃える (元は暗い背景に乗せる淡い色だった)。
+// 5人ぶんが隣り合っても見分けられるよう、色相を離してある。
+const LINE_COLORS = ['#6C42F0', '#D9770E', '#0E9F6E', '#2E8BFF', '#D93E7A'];
+
+/** 白地の canvas で使う色。CSS のトークンと役割を合わせてある。 */
+const CANVAS = {
+  ink: '#14161A',
+  sub: '#6B7178',
+  faint: '#8A9097',
+  grid: 'rgba(20,22,26,0.10)',
+  gridFaint: 'rgba(20,22,26,0.06)',
+  fullBurst: 'rgba(245,158,11,0.14)',
+  bandLabel: 'rgba(20,22,26,0.62)',
+  immune: 'rgba(255,61,68,0.14)',
+  element: 'rgba(46,139,255,0.14)',
+  pinFace: '#FFFFFF',
+  crosshair: 'rgba(20,22,26,0.28)',
+};
 const MIN_SPAN = 4; // 최대 확대: 화면에 4초까지
 
 // 버스트 표기 — 시각에 **얼굴을 꽂는다**. 색을 범례와 대조할 필요가 없어 누가 썼는지
@@ -361,7 +378,7 @@ class TimelineChart {
       if (e < this.view0 || s > this.view1) continue;
       const x0 = Math.max(left, this.xFor(s));
       const x1 = Math.min(left + width, this.xFor(e));
-      ctx.fillStyle = 'rgba(255,191,60,0.09)';
+      ctx.fillStyle = CANVAS.fullBurst;
       ctx.fillRect(x0, top, Math.max(0, x1 - x0), height);
     }
 
@@ -377,7 +394,7 @@ class TimelineChart {
       ctx.fillRect(x0, top, w, height);
       // 좁은 구간에 글씨를 욱여넣으면 오히려 안 읽힌다.
       if (w >= 26) {
-        ctx.fillStyle = 'rgba(234,242,248,0.72)';
+        ctx.fillStyle = CANVAS.bandLabel;
         ctx.font = '700 9px ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
@@ -385,10 +402,10 @@ class TimelineChart {
       }
     };
     for (const w of this.series.immuneWindows) {
-      band(w.from, w.to, 'rgba(255,119,135,0.16)', '回避区間');
+      band(w.from, w.to, CANVAS.immune, '回避区間');
     }
     for (const w of this.series.elementWindows) {
-      band(w.from, w.to, 'rgba(96,165,250,0.16)', `属性制限 ${elementLabel(w.code)}`);
+      band(w.from, w.to, CANVAS.element, `属性制限 ${elementLabel(w.code)}`);
     }
     ctx.textAlign = 'left';
 
@@ -398,13 +415,13 @@ class TimelineChart {
     for (let i = 0; i <= 4; i += 1) {
       const value = (yMax / 4) * i;
       const y = yFor(value);
-      ctx.strokeStyle = 'rgba(146,176,201,0.12)';
+      ctx.strokeStyle = CANVAS.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(left, y);
       ctx.lineTo(left + width, y);
       ctx.stroke();
-      ctx.fillStyle = '#8394a6';
+      ctx.fillStyle = CANVAS.sub;
       ctx.textAlign = 'right';
       ctx.fillText(formatDamage(value), left - 6, y);
     }
@@ -417,12 +434,12 @@ class TimelineChart {
     const first = Math.ceil(this.view0 / step) * step;
     for (let t = first; t <= this.view1 + 1e-6; t += step) {
       const x = this.xFor(t);
-      ctx.strokeStyle = 'rgba(146,176,201,0.08)';
+      ctx.strokeStyle = CANVAS.gridFaint;
       ctx.beginPath();
       ctx.moveTo(x, top);
       ctx.lineTo(x, top + height);
       ctx.stroke();
-      ctx.fillStyle = '#8394a6';
+      ctx.fillStyle = CANVAS.faint;
       ctx.fillText(`${Math.round(t)}s`, x, top + height + 8);
     }
 
@@ -436,7 +453,7 @@ class TimelineChart {
       ctx.textBaseline = 'middle';
       this.buffRows.forEach((track, rowIndex) => {
         const y = 12 + rowIndex * (BUFF_H + BUFF_GAP);
-        const color = this.series.colors[track.caster] ?? '#8394a6';
+        const color = this.series.colors[track.caster] ?? CANVAS.faint;
         const parts: BuffPart[] = [];
         for (const span of track.spans) {
           const [from, to, stack] = span;
@@ -472,7 +489,7 @@ class TimelineChart {
           const nameRoom = buffTextPlan(runW, stacked).nameRoom;
           let nameEnd = run.x0;
           if (nameRoom >= BUFF_MIN_W) {
-            ctx.fillStyle = hot ? '#eaf6ff' : '#cfe3f2';
+            ctx.fillStyle = hot ? CANVAS.ink : CANVAS.sub;
             ctx.font = '600 10px system-ui, sans-serif';
             ctx.textAlign = 'left';
             const label = fitText(ctx, track.name, nameRoom);
@@ -486,7 +503,7 @@ class TimelineChart {
             for (const part of run.parts) {
               if (!buffTextPlan(part.x1 - part.x0, true).stack) continue;
               if (part.x1 - 4 < nameEnd) continue;
-              ctx.fillStyle = this.hoverSpan === part.span ? '#eaf6ff' : color;
+              ctx.fillStyle = this.hoverSpan === part.span ? CANVAS.ink : color;
               ctx.fillText(String(part.stack), part.x1 - 4, y + BUFF_H / 2);
             }
           }
@@ -496,7 +513,7 @@ class TimelineChart {
       this.buffMoreHit = null;
       if (this.buffHidden > 0 || this.buffExpanded) {
         const label = this.buffExpanded ? '折りたたむ' : `+${this.buffHidden}行を表示`;
-        ctx.fillStyle = '#cfe3f2';
+        ctx.fillStyle = CANVAS.sub;
         ctx.font = '700 10px system-ui, sans-serif';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
@@ -576,7 +593,7 @@ class TimelineChart {
         const side = PIN_R * 2;
         ctx.drawImage(img, x - PIN_R, cy - PIN_R - PIN_R * 0.25, side, side * 1.25);
       } else {
-        ctx.fillStyle = 'rgba(6,14,23,.95)';
+        ctx.fillStyle = CANVAS.pinFace;
         ctx.fillRect(x - PIN_R, cy - PIN_R, PIN_R * 2, PIN_R * 2);
         ctx.fillStyle = color;
         ctx.font = '700 10px ui-monospace, monospace';
@@ -601,7 +618,7 @@ class TimelineChart {
         ctx.beginPath();
         ctx.arc(bx, by, 6, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#04101a';
+        ctx.fillStyle = CANVAS.pinFace;
         ctx.font = '900 8px ui-monospace, monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -614,7 +631,7 @@ class TimelineChart {
       const t = (this.hoverIndex + 0.5) * this.series.bucket;
       if (t >= this.view0 && t <= this.view1) {
         const x = this.xFor(t);
-        ctx.strokeStyle = 'rgba(234,242,248,0.35)';
+        ctx.strokeStyle = CANVAS.crosshair;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(x, top);
@@ -658,13 +675,13 @@ class TimelineChart {
   /** 버프 막대 하나의 상세. 「무엇을·누가·누구에게·언제부터 언제까지·몇 겹」을 적는다. */
   private showBuffTip(track: BuffTrack, span: BuffSpan,
     clientX: number, clientY: number): void {
-    const color = this.series.colors[track.caster] ?? '#8394a6';
+    const color = this.series.colors[track.caster] ?? CANVAS.faint;
     const seconds = (value: number) => `${value.toFixed(1)}秒`;
     const [from, to, stack] = span;
     // 대상이 발동마다 갈리는 버프가 있다 — 이 구간을 실제로 받은 사람만 보인다.
     const faces = spanTargets(track, span).map((name) => {
       const url = this.portraits.get(name)?.src;
-      const dot = `<span class="tl-dot" style="background:${this.series.colors[name] ?? '#8394a6'}"></span>`;
+      const dot = `<span class="tl-dot" style="background:${this.series.colors[name] ?? CANVAS.faint}"></span>`;
       return url
         ? `<img class="tl-face" src="${url}" alt="${labelFor(name)}" title="${labelFor(name)}" />`
         : `<span class="tl-face tl-face-none" title="${labelFor(name)}">${dot}</span>`;
