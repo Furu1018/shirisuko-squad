@@ -739,6 +739,44 @@ describe('calculator UI', () => {
     }
   });
 
+  it('連携の窓から同期している最中は、画面の取り込み直しも受け付けない', async () => {
+    // 入口が2つあるので、片方だけを止めても両方が同時に走る経路が残る。
+    localStorage.setItem('nikke-sync-v1', JSON.stringify({
+      schemaVersion: 1, source: 'blablalink', at: new Date().toISOString(),
+      matched: 187, profileUrl: 'https://www.blablalink.com/user?openid=abc',
+    }));
+    let release: (() => void) | null = null;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    const fetchMock = vi.fn(async () => {
+      await blocked;
+      return new Response(JSON.stringify({ error: '終わり' }), { status: 500 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      mountCalculator(root, {
+        catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+        blablaProxy: 'https://proxy.example',
+      } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+      // 窓の側から同期を始める
+      root.querySelector<HTMLInputElement>('[data-blabla-url]')!.value = 'https://www.blablalink.com/user?openid=abc';
+      root.querySelector<HTMLButtonElement>('[data-blabla-sync]')!.click();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      // 走っている間は画面の取り込み直しも止まっている
+      const again = root.querySelector<HTMLButtonElement>('[data-sync-again]')!;
+      expect(again.disabled).toBe(true);
+      again.click();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      release!();
+      await vi.waitFor(() => { expect(again.disabled).toBe(false); });
+      expect(again.textContent).toBe('今の育成を取り込む');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

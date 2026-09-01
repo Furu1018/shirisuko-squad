@@ -3776,22 +3776,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     renderSyncBox();
   };
 
-  // 再取込中は押せなくする。連打すると取得が並行して走り、遅く返ってきた方が
-  // ロスターと記録を上書きしてしまう。
-  let reSyncing = false;
+  // 取得は一度にひとつ。モーダルの「同期」と画面の「今の育成を取り込む」は別の入口だが、
+  // 並行して走らせるとロスターと記録を遅い方が上書きしてしまうので、フラグを共有する。
+  const SYNC_AGAIN_LABEL = '今の育成を取り込む';
+  let syncInFlight = false;
+  const setSyncBusy = (busy: boolean) => {
+    syncInFlight = busy;
+    syncAgain.disabled = busy;
+    syncAgain.textContent = busy ? '取り込み中…' : SYNC_AGAIN_LABEL;
+  };
+
   syncAgain.addEventListener('click', () => {
-    if (reSyncing || !canReSync(syncMeta) || !reSync) return;
-    reSyncing = true;
-    syncAgain.disabled = true;
-    const before = syncAgain.textContent;
-    syncAgain.textContent = '取り込み中…';
+    if (syncInFlight || !canReSync(syncMeta) || !reSync) return;
     updateRosterNote('Blablalink から取り込み中…');
-    void reSync({ url: syncMeta.profileUrl, ...(syncMeta.area === undefined ? {} : { area: syncMeta.area }) })
-      .finally(() => {
-        reSyncing = false;
-        syncAgain.disabled = false;
-        if (before) syncAgain.textContent = before;
-      });
+    void reSync({ url: syncMeta.profileUrl, ...(syncMeta.area === undefined ? {} : { area: syncMeta.area }) });
   });
 
   const updateRosterNote = (message?: string) => {
@@ -3843,6 +3841,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     };
 
     const runSync = async (preset?: { url: string; area?: number }) => {
+      if (syncInFlight) return;   // 別の入口で取得中 — 二重に走らせない
       const url = preset ? preset.url : blablaUrl.value.trim();
       if (!looksLikeProfileUrl(url)) {
         const message = preset
@@ -3855,6 +3854,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const selectedArea = preset
         ? preset.area
         : (blablaServer.value === '' ? undefined : Number(blablaServer.value));
+      setSyncBusy(true);
       blablaSync.disabled = true;
       blablaServer.disabled = true;
       setStatus('Blablalink から取得中… ニケが多いと数秒かかります。');
@@ -3910,6 +3910,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         // モーダルを開かずに再取込したときは、その窓が隠れたままなので画面側にも出す
         if (preset) updateRosterNote(`取り込みに失敗しました — ${message}`);
       } finally {
+        setSyncBusy(false);
         blablaSync.disabled = false;
         blablaServer.disabled = false;
       }
