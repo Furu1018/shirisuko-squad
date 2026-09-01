@@ -46,7 +46,10 @@ export function loadSyncMeta(storage: StorageLike | null | undefined): SyncMeta 
       at: data.at,
       matched: typeof data.matched === 'number' && data.matched >= 0 ? data.matched : 0,
       ...(typeof data.profileUrl === 'string' && data.profileUrl ? { profileUrl: data.profileUrl } : {}),
-      ...(typeof data.area === 'number' ? { area: data.area } : {}),
+      // サーバー番号は整数のときだけ引き継ぐ。小数や NaN をそのまま再取得に渡すと
+      // どのサーバーにも一致せず「ニケ一覧が空です」で失敗する — 落とせば自動選択に戻る
+      ...(typeof data.area === 'number' && Number.isInteger(data.area) && data.area > 0
+        ? { area: data.area } : {}),
     };
   } catch {
     return null;   // 壊れていても起動は止めない — 「まだ取り込んでいない」として扱う

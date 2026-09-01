@@ -86,9 +86,10 @@ export function parseRosterCsv(text: string, settings: SettingsCatalog): RosterI
   if (lines.length < 2) return { overrides, matched, unmatched };
 
   const header = parseCsvLine(lines[0]!);
-  const col = (name: string): number => header.indexOf(name);
+  // 列が無いとき・行が見出しより短いときは undefined。
+  // 呼ぶ側はこれを「この CSV はその情報を運んでいない」として扱う (空欄 '' とは区別する)。
   const at = (row: string[], name: string): string | undefined => {
-    const index = col(name);
+    const index = header.indexOf(name);
     return index >= 0 ? row[index] : undefined;
   };
 
@@ -101,21 +102,26 @@ export function parseRosterCsv(text: string, settings: SettingsCatalog): RosterI
 
     const override: CharacterOverrides = {};
 
-    // 列そのものが無いときは**その項目を作らない**。空欄 (列はあるが値が無い) とは意味が違う —
-    // 空欄は「持っていない」だが、列が無いのは「この CSV はその情報を運んでいない」。
-    // 取り込み直しでは育成項目を上書きするので、ここで作ってしまうと
-    // 別経路 (Blablalink) で入れた実際の値を「0」や「未装着」で潰す。
-    if (Object.keys(OVERLOAD_BY_HEADER).some((headerName) => col(headerName) >= 0)) {
-      const overload: Record<string, number> = {};
-      for (const [headerName, key] of Object.entries(OVERLOAD_BY_HEADER)) {
-        overload[key] = toNum(at(row, headerName));
-      }
-      override.overload = overload;
-    }
+    // **値が来た項目だけ**を作る。空欄 (列はあるが中身が無い) は「持っていない = 0 / 未装着」だが、
+    // 列そのものが無い・行が見出しより短いのは「この CSV はその情報を運んでいない」で意味が違う。
+    // 取り込み直しでは育成項目を上書きするので、後者で値を作ると
+    // 別経路 (Blablalink) で入れた実際の値を 0 や未装着で潰してしまう。
+    // スキルレベル・装備レベルが元からこの方針なので、他の項目もそれに揃える。
 
-    if (col('돌파') >= 0 || col('코강') >= 0) {
-      const breakthrough = toInt(at(row, '돌파')) ?? 0;
-      const core = toInt(at(row, '코강')) ?? 0;
+    // オーバーロードは**列ごと**に見る。9列のうち1列しか無い CSV で残り8つを 0 にすると、
+    // マージがオーバーロード一式を潰す。
+    const overload: Record<string, number> = {};
+    for (const [headerName, key] of Object.entries(OVERLOAD_BY_HEADER)) {
+      const raw = at(row, headerName);
+      if (raw !== undefined) overload[key] = toNum(raw);
+    }
+    if (Object.keys(overload).length > 0) override.overload = overload;
+
+    const breakthroughRaw = at(row, '돌파');
+    const coreRaw = at(row, '코강');
+    if (breakthroughRaw !== undefined || coreRaw !== undefined) {
+      const breakthrough = toInt(breakthroughRaw) ?? 0;
+      const core = toInt(coreRaw) ?? 0;
       override.growthStage = clamp(breakthrough + core, 0, defaults.maxGrowthStage);
     }
 
@@ -130,8 +136,9 @@ export function parseRosterCsv(text: string, settings: SettingsCatalog): RosterI
       }
     }
 
-    if (col('소장품') >= 0) {
-      const collection = parseCollection(at(row, '소장품'));
+    const collectionRaw = at(row, '소장품');
+    if (collectionRaw !== undefined) {
+      const collection = parseCollection(collectionRaw);
       if (collection.stage !== '') override.collection = collection;
     }
 

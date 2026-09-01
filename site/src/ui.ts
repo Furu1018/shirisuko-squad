@@ -3776,9 +3776,22 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     renderSyncBox();
   };
 
+  // 再取込中は押せなくする。連打すると取得が並行して走り、遅く返ってきた方が
+  // ロスターと記録を上書きしてしまう。
+  let reSyncing = false;
   syncAgain.addEventListener('click', () => {
-    if (!canReSync(syncMeta) || !reSync) return;
-    void reSync({ url: syncMeta.profileUrl, ...(syncMeta.area === undefined ? {} : { area: syncMeta.area }) });
+    if (reSyncing || !canReSync(syncMeta) || !reSync) return;
+    reSyncing = true;
+    syncAgain.disabled = true;
+    const before = syncAgain.textContent;
+    syncAgain.textContent = '取り込み中…';
+    updateRosterNote('Blablalink から取り込み中…');
+    void reSync({ url: syncMeta.profileUrl, ...(syncMeta.area === undefined ? {} : { area: syncMeta.area }) })
+      .finally(() => {
+        reSyncing = false;
+        syncAgain.disabled = false;
+        if (before) syncAgain.textContent = before;
+      });
   });
 
   const updateRosterNote = (message?: string) => {
@@ -3832,7 +3845,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const runSync = async (preset?: { url: string; area?: number }) => {
       const url = preset ? preset.url : blablaUrl.value.trim();
       if (!looksLikeProfileUrl(url)) {
-        setStatus('Blablalink のプロフィールのアドレスを貼り付けてください。');
+        const message = preset
+          ? '覚えているアドレスが読めませんでした。Blablalink 連携から入れ直してください。'
+          : 'Blablalink のプロフィールのアドレスを貼り付けてください。';
+        setStatus(message);
+        if (preset) updateRosterNote(message);
         return;
       }
       const selectedArea = preset
@@ -3888,7 +3905,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         updateRosterNote(parts.join(' · '));
         setStatus([`${serverLabel}サーバーから ${matched.length}名を読み込みました。`, ...notes].join(' '));
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : String(error));
+        const message = error instanceof Error ? error.message : String(error);
+        setStatus(message);
+        // モーダルを開かずに再取込したときは、その窓が隠れたままなので画面側にも出す
+        if (preset) updateRosterNote(`取り込みに失敗しました — ${message}`);
       } finally {
         blablaSync.disabled = false;
         blablaServer.disabled = false;

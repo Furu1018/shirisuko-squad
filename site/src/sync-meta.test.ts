@@ -52,6 +52,15 @@ describe('取込の記録', () => {
     expect(loadSyncMeta(storage)!.matched).toBe(0);
   });
 
+  it('壊れたサーバー番号は捨てて自動選択に戻す (どのサーバーにも一致せず失敗するのを防ぐ)', () => {
+    for (const area of [83.5, -1, 0, Number.NaN]) {
+      const storage = memoryStorage({ [SYNC_META_KEY]: JSON.stringify({ ...meta(), area }) });
+      expect(loadSyncMeta(storage)!.area).toBeUndefined();
+    }
+    const ok = memoryStorage({ [SYNC_META_KEY]: JSON.stringify({ ...meta(), area: 83 }) });
+    expect(loadSyncMeta(ok)!.area).toBe(83);
+  });
+
   it('保存できない環境でも例外にしない', () => {
     const broken = { getItem: () => null, setItem: () => { throw new Error('quota'); }, removeItem: () => {} } as StorageLike;
     expect(() => saveSyncMeta(broken, meta())).not.toThrow();

@@ -84,6 +84,24 @@ describe('列そのものが無い CSV', () => {
     const csv = [['이름', '돌파'].join(','), '"앨리스","2"'].join('\n');
     expect(parseRosterCsv(csv, settings).overrides['앨리스']!.growthStage).toBe(2);
   });
+
+  it('オーバーロードは列が一部だけなら、その列だけを読む (残りを 0 で埋めない)', () => {
+    // 9列のうち1列しか無い CSV で残り8つを 0 にすると、取り込み直しで
+    // オーバーロード一式が潰れる。カードの個別設定は無い項目を既定値で補うので、
+    // 「読めた分だけ」を渡すのが正しい。
+    const csv = [['이름', '우코(%)'].join(','), '"앨리스","85.8"'].join('\n');
+    expect(parseRosterCsv(csv, settings).overrides['앨리스']!.overload).toEqual({ element_bonus: 85.8 });
+  });
+
+  it('行が見出しより短いときは、足りない列を「無かった」として扱う', () => {
+    // 末尾の列が欠けた行。0 や未装着で作ると実際の育成値を潰す。
+    const short = ['이름', '돌파', '코강', '소장품', '우코(%)'].join(',');
+    const csv = [short, '"앨리스","3"'].join('\n');
+    const alice = parseRosterCsv(csv, settings).overrides['앨리스']!;
+    expect(alice.growthStage).toBe(3);           // 돌파 は来ている (코강 は 0 扱い)
+    expect(alice.collection).toBeUndefined();    // 来ていない → 作らない
+    expect(alice.overload).toBeUndefined();      // 同上
+  });
 });
 
 describe('parseRosterCsv', () => {

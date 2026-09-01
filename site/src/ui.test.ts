@@ -680,6 +680,65 @@ describe('calculator UI', () => {
     expect(root.querySelector<HTMLElement>('[data-sync-again]')!.hidden).toBe(true);  // 取り直しはできない
   });
 
+  it('取り込み直しの失敗は画面に出る (連携の窓を開かずに押すので、窓の中だけでは見えない)', async () => {
+    localStorage.setItem('nikke-sync-v1', JSON.stringify({
+      schemaVersion: 1, source: 'blablalink', at: new Date().toISOString(),
+      matched: 187, profileUrl: 'https://www.blablalink.com/user?openid=abc',
+    }));
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ error: 'ログインの有効期限が切れています' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      mountCalculator(root, {
+        catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+        blablaProxy: 'https://proxy.example',
+      } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+      root.querySelector<HTMLButtonElement>('[data-sync-again]')!.click();
+      await vi.waitFor(() => {
+        expect(root.querySelector('[data-roster-note]')!.textContent).toContain('取り込みに失敗しました');
+      });
+      expect(root.querySelector('[data-roster-note]')!.textContent).toContain('有効期限');
+      // 失敗しても押せる状態に戻る
+      expect(root.querySelector<HTMLButtonElement>('[data-sync-again]')!.disabled).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('取り込み直しの連打で取得が二重に走らない', async () => {
+    localStorage.setItem('nikke-sync-v1', JSON.stringify({
+      schemaVersion: 1, source: 'blablalink', at: new Date().toISOString(),
+      matched: 187, profileUrl: 'https://www.blablalink.com/user?openid=abc',
+    }));
+    let release: (() => void) | null = null;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    const fetchMock = vi.fn(async () => {
+      await blocked;
+      return new Response(JSON.stringify({ error: 'もう終わり' }), { status: 500 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      mountCalculator(root, {
+        catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+        blablaProxy: 'https://proxy.example',
+      } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+      const again = root.querySelector<HTMLButtonElement>('[data-sync-again]')!;
+      again.click();
+      again.click();
+      again.click();
+      expect(again.disabled).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      release!();
+      await vi.waitFor(() => { expect(again.disabled).toBe(false); });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
