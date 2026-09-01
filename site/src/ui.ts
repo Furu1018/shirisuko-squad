@@ -4836,6 +4836,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
      * 古い条件の点数を新しい条件の数字として見せることがない (ボス+顔ぶれだけを鍵にすると起きる)。
      */
     const scores = new Map<string, number>();
+    const SCORE_MEMORY = 120;
 
     const say = (message: string, ok = false) => {
       statusBox.textContent = message;
@@ -4888,6 +4889,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         cache.set(key, result);
       }
       scores.set(key, result.squadTotal);
+      // 鍵はリクエスト全体の JSON なので、取込・条件変更を繰り返すと溜まる。古い順に落とす
+      // (Map は挿入順を保つ)。上限は「全ボス×全案 (15) + 被りの代案」を余裕で超える程度
+      while (scores.size > SCORE_MEMORY) scores.delete(scores.keys().next().value as string);
       return result.squadTotal;
     };
 
