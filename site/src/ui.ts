@@ -511,7 +511,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <div class="links-grid" data-links-grid></div>
       </section>
 
-      ${blablaProxy ? `
       <section class="panel union-panel" data-view="union" aria-labelledby="union-heading" hidden>
         <div class="section-heading">
           <div><p class="step">UNION</p><h2 id="union-heading">ユニオンレイド <b class="beta-tag">BETA</b></h2></div>
@@ -617,7 +616,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <div class="union-progress" data-union-run-progress hidden><i></i></div>
           <div class="union-report" data-union-report></div>
         </div>
-      </section>` : ''}
+      </section>
 
       <section class="panel enikk-panel" data-view="enikk" aria-labelledby="enikk-heading" hidden>
         <div class="section-heading">
@@ -4634,6 +4633,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     refreshShareFields();
     renderPresets();
     shareIn.value = linked;
+    switchView('calc');   // 共有リンクの結果は計算機タブにある — 既定ビュー (union) のままだと見えない
     shareModal.hidden = false;
   }
 

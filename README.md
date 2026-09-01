@@ -48,7 +48,7 @@ NIKKE の育成状態から**理論ダメージ**を出すスカッドシミュ�
   (`site/public/settings.json` を生成する `export-settings.py` 由来。表示対訳を順次追加する)
 - 自作ニケ用の LLM プロンプト (`custom-nikke.ts`) は韓国語のまま。出力 JSON の列挙値 (属性・クラス・企業・スキル種別) はエンジン契約で韓国語必須
 - Blablalink 連携 (`worker/`) は運営者のセッション Cookie を Cloudflare Worker のシークレット `BLABLA_COOKIE` に入れる方式で、
-  **Cookie が切れたら手動更新が必要** (`worker/README.md`)。未デプロイの間は `site/.env.production` の `VITE_BLABLA_PROXY` を空にしておくと連携 UI ごと隠れ、CSV / 手入力で使える
+  **Cookie が切れたら手動更新が必要** (`worker/README.md`)。未デプロイの間は `site/.env.production` の `VITE_BLABLA_PROXY` を空にしておく — ユニオンタブは表示されたまま、サーバースキャンと計算タブの Blablalink 連携ボタンだけが隠れ、直接取得 (コンソールスニペット) / CSV / 手入力で使える
 - ソースコード中のコメントは大部分が上流の韓国語のまま (表示に出ないため後回し)
 
 ## 権利表記・削除ポリシー

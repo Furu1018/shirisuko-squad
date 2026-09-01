@@ -543,6 +543,29 @@ describe('calculator UI', () => {
     expect(step.textContent).toContain('ユニオンメンバーの名簿は含まれません');
   });
 
+  it('Blablalink プロキシ無しでもユニオンタブが既定で開き、盤面とボスプリセットがある (β)', () => {
+    // Pages ビルドは VITE_BLABLA_PROXY 空。以前はタブもパネル本体もプロキシ条件で消えていて、
+    // 既定ビューを union にすると初期表示が空白になった — その回帰を塞ぐ。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+      blablaProxy: '',
+    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+    const tab = root.querySelector<HTMLButtonElement>('[data-view-tab="union"]')!;
+    expect(tab.classList.contains('is-on')).toBe(true);
+    const panel = root.querySelector<HTMLElement>('[data-view="union"]')!;
+    expect(panel.hidden).toBe(false);
+    expect(root.querySelector('[data-union-bosses]')).not.toBeNull();
+    expect(root.querySelector('[data-union-preset]')).not.toBeNull();
+    // サーバースキャンだけはプロキシが要る — 入口を隠して理由を書く
+    expect(root.querySelector<HTMLButtonElement>('[data-union-scan]')!.hidden).toBe(true);
+    expect(root.querySelector('[data-union-scan-status]')!.textContent).toContain('プロキシなし');
+    // enikk タブは出さない
+    expect(root.querySelector('[data-view-tab="enikk"]')).toBeNull();
+    // 計算タブの5ボスボタン
+    expect(root.querySelectorAll('[data-boss-preset]').length).toBe(5);
+  });
+
   it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
