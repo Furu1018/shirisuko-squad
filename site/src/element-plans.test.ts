@@ -1,0 +1,198 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import type { StorageLike } from './cache';
+import {
+  BEATS, ELEMENT_PLANS_KEY, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans,
+  isEmptySquad, loadPlans, plansOf, removePlan, sameSquad, savePlans, type ElementPlans,
+} from './element-plans';
+
+const memoryStorage = (seed: Record<string, string> = {}): StorageLike => {
+  const data = { ...seed };
+  return {
+    getItem: (key: string) => data[key] ?? null,
+    setItem: (key: string, value: string) => { data[key] = value; },
+    removeItem: (key: string) => { delete data[key]; },
+  } as StorageLike;
+};
+
+const squad = (...names: string[]) => {
+  const out = [...names];
+  while (out.length < 5) out.push('');
+  return out;
+};
+
+describe('属性別編成の保存', () => {
+  it('保存キーは nikke- 始まり (本家PADと同一オリジンで localStorage を共有するため)', () => {
+    expect(ELEMENT_PLANS_KEY.startsWith('nikke-')).toBe(true);
+  });
+
+  it('属性は5つ、内部キー (韓国語) のまま持つ', () => {
+    expect([...PLAN_ELEMENTS]).toEqual(['작열', '수냉', '풍압', '전격', '철갑']);
+  });
+
+  it('保存して読み直せる', () => {
+    const storage = memoryStorage();
+    const { plans } = addPlan(emptyPlans(), '작열', squad('라피', '크라운'));
+    savePlans(storage, plans);
+    const back = loadPlans(storage);
+    expect(plansOf(back, '작열')).toHaveLength(1);
+    expect(plansOf(back, '작열')[0]!.squad).toEqual(squad('라피', '크라운'));
+  });
+
+  it('記録が無ければ空', () => {
+    expect(loadPlans(memoryStorage())).toEqual(emptyPlans());
+    expect(loadPlans(null)).toEqual(emptyPlans());
+  });
+
+  it('壊れた記録・知らない版は捨てる (起動を止めない)', () => {
+    expect(loadPlans(memoryStorage({ [ELEMENT_PLANS_KEY]: '{{{' }))).toEqual(emptyPlans());
+    expect(loadPlans(memoryStorage({
+      [ELEMENT_PLANS_KEY]: JSON.stringify({ schemaVersion: 9, byElement: {} }),
+    }))).toEqual(emptyPlans());
+  });
+
+  it('知らない属性の記録は落とす', () => {
+    const stored = JSON.stringify({
+      schemaVersion: 1,
+      byElement: { 무속성: [{ id: 'a', squad: squad('라피'), savedAt: '2026-09-01T00:00:00.000Z' }] },
+    });
+    expect(countPlans(loadPlans(memoryStorage({ [ELEMENT_PLANS_KEY]: stored })))).toBe(0);
+  });
+
+  it('読むときに5枠へ揃え、空の案は捨てる', () => {
+    const stored = JSON.stringify({
+      schemaVersion: 1,
+      byElement: {
+        작열: [
+          { id: 'a', squad: ['라피'], savedAt: '2026-09-01T00:00:00.000Z' },        // 短い
+          { id: 'b', squad: ['', '', '', '', '', ''], savedAt: '2026-09-01T00:00:00.000Z' }, // 空
+        ],
+      },
+    });
+    const plans = plansOf(loadPlans(memoryStorage({ [ELEMENT_PLANS_KEY]: stored })), '작열');
+    expect(plans).toHaveLength(1);
+    expect(plans[0]!.squad).toHaveLength(5);
+  });
+
+  it('上限を超えて保存されていても読み込みで切る', () => {
+    const many = Array.from({ length: 5 }, (_, i) => ({
+      id: `p${i}`, squad: squad(`니케${i}`), savedAt: '2026-09-01T00:00:00.000Z',
+    }));
+    const stored = JSON.stringify({ schemaVersion: 1, byElement: { 작열: many } });
+    expect(plansOf(loadPlans(memoryStorage({ [ELEMENT_PLANS_KEY]: stored })), '작열'))
+      .toHaveLength(MAX_PLANS_PER_ELEMENT);
+  });
+
+  it('保存できない環境でも例外にしない', () => {
+    const broken = { getItem: () => null, setItem: () => { throw new Error('quota'); }, removeItem: () => {} } as StorageLike;
+    expect(() => savePlans(broken, emptyPlans())).not.toThrow();
+  });
+});
+
+describe('優越コードの対応', () => {
+  it('エンジン (calculator/damage.py の _CODE_ADVANTAGE) と同じ表になっている', () => {
+    // 画面の「電撃編成 → 水冷ボス向け」という案内は、エンジンが優越補正を掛ける条件と
+    // 一致していないと嘘になる。エンジンは無改変なので、こちらを合わせて固定する。
+    const engine = readFileSync(
+      join(import.meta.dirname, '..', '..', 'calculator', 'damage.py'), 'utf8',
+    );
+    const block = engine.match(/_CODE_ADVANTAGE:\s*dict\[str,\s*str\]\s*=\s*\{([\s\S]*?)\}/);
+    expect(block, '_CODE_ADVANTAGE がエンジンに見つからない').toBeTruthy();
+    const fromEngine: Record<string, string> = {};
+    for (const line of block![1]!.split('\n')) {
+      const pair = line.match(/"([^"]+)":\s*"([^"]+)"/);
+      if (pair) fromEngine[pair[1]!] = pair[2]!;
+    }
+    expect(fromEngine).toEqual(BEATS);
+  });
+
+  it('5属性が輪になっている (どのコードも1つだけ倒し、1つだけに倒される)', () => {
+    const beaten = PLAN_ELEMENTS.map((element) => BEATS[element]);
+    expect(new Set(beaten).size).toBe(5);
+    for (const element of PLAN_ELEMENTS) expect(BEATS[element]).not.toBe(element);
+  });
+});
+
+describe('案の追加', () => {
+  it('足せる', () => {
+    const { plans, added } = addPlan(emptyPlans(), '수냉', squad('앨리스'));
+    expect(added).toBe(true);
+    expect(plansOf(plans, '수냉')).toHaveLength(1);
+  });
+
+  it('空の編成は足さない', () => {
+    const result = addPlan(emptyPlans(), '수냉', squad());
+    expect(result.added).toBe(false);
+    expect(result.reason).toBe('empty');
+  });
+
+  it('顔ぶれが同じなら並び順が違っても足さない', () => {
+    const first = addPlan(emptyPlans(), '수냉', squad('앨리스', '라피')).plans;
+    const result = addPlan(first, '수냉', squad('라피', '앨리스'));
+    expect(result.added).toBe(false);
+    expect(result.reason).toBe('duplicate');
+  });
+
+  it('3案を超えて足さない', () => {
+    let plans: ElementPlans = emptyPlans();
+    for (const name of ['A', 'B', 'C']) plans = addPlan(plans, '전격', squad(name)).plans;
+    const result = addPlan(plans, '전격', squad('D'));
+    expect(result.added).toBe(false);
+    expect(result.reason).toBe('full');
+    expect(plansOf(result.plans, '전격')).toHaveLength(3);
+  });
+
+  it('属性ごとに独立して数える', () => {
+    let plans: ElementPlans = emptyPlans();
+    for (const name of ['A', 'B', 'C']) plans = addPlan(plans, '전격', squad(name)).plans;
+    expect(addPlan(plans, '철갑', squad('D')).added).toBe(true);
+  });
+
+  it('元のオブジェクトを書き換えない', () => {
+    const before = emptyPlans();
+    addPlan(before, '작열', squad('라피'));
+    expect(countPlans(before)).toBe(0);
+  });
+});
+
+describe('案の削除', () => {
+  it('消せる', () => {
+    const { plans } = addPlan(emptyPlans(), '작열', squad('라피'));
+    const id = plansOf(plans, '작열')[0]!.id;
+    expect(countPlans(removePlan(plans, '작열', id))).toBe(0);
+  });
+
+  it('無い id を渡しても壊れない', () => {
+    const { plans } = addPlan(emptyPlans(), '작열', squad('라피'));
+    expect(removePlan(plans, '작열', 'nope')).toBe(plans);
+  });
+
+  it('最後の1件を消したら属性ごと消える', () => {
+    const { plans } = addPlan(emptyPlans(), '작열', squad('라피'));
+    const id = plansOf(plans, '작열')[0]!.id;
+    expect(removePlan(plans, '작열', id).byElement.작열).toBeUndefined();
+  });
+});
+
+describe('補助', () => {
+  it('顔ぶれ比較は空き枠と順番を無視する', () => {
+    expect(sameSquad(squad('A', 'B'), squad('B', 'A'))).toBe(true);
+    expect(sameSquad(squad('A', 'B'), squad('A', 'C'))).toBe(false);
+  });
+
+  it('空の編成を見分ける', () => {
+    expect(isEmptySquad(squad())).toBe(true);
+    expect(isEmptySquad(squad('A'))).toBe(false);
+  });
+
+  it('同じミリ秒に足しても id が分かれる', () => {
+    let plans: ElementPlans = emptyPlans();
+    plans = addPlan(plans, '작열', squad('A')).plans;
+    plans = addPlan(plans, '작열', squad('B')).plans;
+    const [a, b] = plansOf(plans, '작열');
+    expect(a!.id).not.toBe(b!.id);
+  });
+});
