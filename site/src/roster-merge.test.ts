@@ -26,9 +26,35 @@ const manual = (over: Partial<CharacterOverrides> = {}): CharacterOverrides => (
 });
 
 describe('取込マージの規則', () => {
-  it('育成と操作の項目が重ならない (どちらにも属さない・両方に属する項目が無い)', () => {
+  it('育成と操作の項目が重ならない', () => {
     const overlap = GROWTH_FIELDS.filter((f) => (OPERATION_FIELDS as readonly string[]).includes(f));
     expect(overlap).toEqual([]);
+  });
+
+  it('CharacterOverrides の全項目がどちらかに分類されている (未分類は取込が更新しない項目に落ちる)', () => {
+    // 型でも Unclassified extends never で固定してあるが、実行時にも数えて二重に守る。
+    // 新しいフィールドを足したときに GROWTH_FIELDS / OPERATION_FIELDS への追加を忘れないため。
+    const sample: Required<CharacterOverrides> = {
+      growthStage: 0, skillLevels: { '1': 1, '2': 1, '3': 1 }, overload: {},
+      cube: { name: '없음', level: 0 }, collection: { stage: '없음', favorite: 0 }, equipLevels: {},
+      control: {}, manualStats: {}, burst: { mode: 'skip' }, weaponModeSwapAt: 0,
+    };
+    const classified = new Set<string>([...GROWTH_FIELDS, ...OPERATION_FIELDS]);
+    expect(Object.keys(sample).filter((key) => !classified.has(key))).toEqual([]);
+  });
+
+  it('入れ子まで複製する (デッキ間で内側のオブジェクトを共有しない)', () => {
+    const source = manual();
+    const merged = mergeImportedOverride(imported(), source);
+    merged.control!.tap_fire!.rate = 1.0;
+    expect(source.control!.tap_fire!.rate).toBe(4.4);
+  });
+
+  it('更新件数はキーの順序に左右されない (取込元でオーバーロードのキー順が違う)', () => {
+    const a: CharacterOverrides = { overload: { atk_pct: 20, element_bonus: 50 } };
+    const b: CharacterOverrides = { overload: { element_bonus: 50, atk_pct: 20 } };
+    const deck = { squad: ['라피'], characters: { 라피: b } };
+    expect(applyImportedRoster({ 라피: a }, [deck])).toEqual([]);
   });
 
   it('育成6項目は取込値で上書きし、操作4項目はそのまま残す', () => {

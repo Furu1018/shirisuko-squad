@@ -101,15 +101,23 @@ export function parseRosterCsv(text: string, settings: SettingsCatalog): RosterI
 
     const override: CharacterOverrides = {};
 
-    const overload: Record<string, number> = {};
-    for (const [headerName, key] of Object.entries(OVERLOAD_BY_HEADER)) {
-      overload[key] = toNum(at(row, headerName));
+    // 列そのものが無いときは**その項目を作らない**。空欄 (列はあるが値が無い) とは意味が違う —
+    // 空欄は「持っていない」だが、列が無いのは「この CSV はその情報を運んでいない」。
+    // 取り込み直しでは育成項目を上書きするので、ここで作ってしまうと
+    // 別経路 (Blablalink) で入れた実際の値を「0」や「未装着」で潰す。
+    if (Object.keys(OVERLOAD_BY_HEADER).some((headerName) => col(headerName) >= 0)) {
+      const overload: Record<string, number> = {};
+      for (const [headerName, key] of Object.entries(OVERLOAD_BY_HEADER)) {
+        overload[key] = toNum(at(row, headerName));
+      }
+      override.overload = overload;
     }
-    override.overload = overload;
 
-    const breakthrough = toInt(at(row, '돌파')) ?? 0;
-    const core = toInt(at(row, '코강')) ?? 0;
-    override.growthStage = clamp(breakthrough + core, 0, defaults.maxGrowthStage);
+    if (col('돌파') >= 0 || col('코강') >= 0) {
+      const breakthrough = toInt(at(row, '돌파')) ?? 0;
+      const core = toInt(at(row, '코강')) ?? 0;
+      override.growthStage = clamp(breakthrough + core, 0, defaults.maxGrowthStage);
+    }
 
     if (!defaults.skillLevelsLocked) {
       const s1 = toInt(at(row, '스킬1'));
@@ -122,8 +130,10 @@ export function parseRosterCsv(text: string, settings: SettingsCatalog): RosterI
       }
     }
 
-    const collection = parseCollection(at(row, '소장품'));
-    if (collection.stage !== '') override.collection = collection;
+    if (col('소장품') >= 0) {
+      const collection = parseCollection(at(row, '소장품'));
+      if (collection.stage !== '') override.collection = collection;
+    }
 
     const equipLevels: Partial<Record<EquipPart, number>> = {};
     for (const part of Object.keys(EQUIP_LEVEL_HEADER) as EquipPart[]) {

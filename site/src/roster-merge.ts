@@ -26,8 +26,20 @@ export const OPERATION_FIELDS = [
   'control', 'burst', 'manualStats', 'weaponModeSwapAt',
 ] as const satisfies readonly (keyof CharacterOverrides)[];
 
+// `CharacterOverrides` にフィールドを足したら、育成・操作のどちらかに必ず入れる。
+// 入れ忘れると「取込が更新しない項目」に静かに落ちるので、**ここで型エラーにして気づかせる**。
+// (`satisfies` は各要素がキーであることしか見ないので、網羅性は別に固定する)
+type Classified = (typeof GROWTH_FIELDS)[number] | (typeof OPERATION_FIELDS)[number];
+type Unclassified = Exclude<keyof CharacterOverrides, Classified>;
+// 未分類が残っていると `never` でなくなり、この行がコンパイルエラーになる
+const _allFieldsClassified: Unclassified extends never ? true : never = true;
+void _allFieldsClassified;
+
+// 深いコピー。`control.tap_fire` のように入れ子があるので、浅いコピーだと
+// 取込元やデッキ同士で内側のオブジェクトを共有してしまう
+// (片方のデッキで速射の数値を触るともう片方も動く)。
 const clone = <T>(value: T): T =>
-  (Array.isArray(value) ? [...value] : (value && typeof value === 'object' ? { ...value } : value)) as T;
+  (value && typeof value === 'object' ? structuredClone(value) : value);
 
 /**
  * 取込値と既存設定を項目単位で混ぜる。
@@ -88,7 +100,22 @@ export function applyImportedRoster(
   return [...touched];
 }
 
-/** 育成6項目が同じか (操作設定の違いは見ない)。更新件数を数えるために使う。 */
+/**
+ * 育成6項目が同じか (操作設定の違いは見ない)。更新件数を数えるために使う。
+ *
+ * キーの挿入順で差が出ないよう、比較の前に並べ替える — 取込元 (CSV / Blablalink) で
+ * オーバーロードのキー順が違うため、素の JSON 文字列比較だと中身が同じでも「更新」と数えてしまう。
+ */
 function sameGrowth(left: CharacterOverrides, right: CharacterOverrides): boolean {
-  return GROWTH_FIELDS.every((field) => JSON.stringify(left[field]) === JSON.stringify(right[field]));
+  return GROWTH_FIELDS.every((field) => stableJson(left[field]) === stableJson(right[field]));
+}
+
+/** キー順に依存しない JSON 文字列。値の比較にだけ使う。 */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, val) => {
+    if (!val || typeof val !== 'object' || Array.isArray(val)) return val;
+    return Object.fromEntries(Object.entries(val as Record<string, unknown>).sort(
+      ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
+    ));
+  });
 }

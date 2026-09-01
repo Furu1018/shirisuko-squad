@@ -610,6 +610,76 @@ describe('calculator UI', () => {
     expect(root.querySelector('.control-chip-text')!.textContent).toContain('バースト使わない');
   });
 
+  it('取込前は最終取込の表示を出さない', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    expect(root.querySelector<HTMLElement>('[data-sync-box]')!.hidden).toBe(true);
+  });
+
+  it('CSV 取込のあとは最終取込を出すが、取り込み直すボタンは出さない (ファイルを選び直す必要がある)', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const header = [
+      '이름', '돌파', '코강', '스킬1', '스킬2', '버스트스킬',
+      '우코(%)', '공증(%)', '방어(%)', '장탄(%)', '크확(%)', '크댐(%)', '차속(%)', '차댐(%)', '명중(%)',
+      '머리_레벨', '몸통_레벨', '장갑_레벨', '다리_레벨',
+    ].join(',');
+    const row = ['리타', '3', '4', '10', '10', '10',
+      '0', '0', '0', '0', '0', '0', '0', '0', '0', '5', '5', '5', '5'].join(',');
+    const input = root.querySelector<HTMLInputElement>('#roster-csv')!;
+    Object.defineProperty(input, 'files', {
+      value: [new File([`${header}\n${row}`], 'roster.csv', { type: 'text/csv' })],
+      configurable: true,
+    });
+    input.dispatchEvent(new Event('change'));
+
+    await vi.waitFor(() => {
+      expect(root.querySelector<HTMLElement>('[data-sync-box]')!.hidden).toBe(false);
+    });
+    expect(root.querySelector('[data-sync-when]')!.textContent).toContain('最終取込 CSV');
+    expect(root.querySelector('[data-sync-when]')!.textContent).toContain('1名');
+    // CSV はアドレスを持たないので取り直せない
+    expect(root.querySelector<HTMLElement>('[data-sync-again]')!.hidden).toBe(true);
+
+    // 記録はこのブラウザに残り、次回の起動でも読み出せる
+    const saved = JSON.parse(localStorage.getItem('nikke-sync-v1')!) as { source: string; matched: number };
+    expect(saved.source).toBe('csv');
+    expect(saved.matched).toBe(1);
+  });
+
+  it('保存された取込記録を起動時に読み、Blablalink なら取り込み直すボタンを出す', () => {
+    localStorage.setItem('nikke-sync-v1', JSON.stringify({
+      schemaVersion: 1, source: 'blablalink', at: new Date().toISOString(),
+      matched: 187, profileUrl: 'https://www.blablalink.com/user?openid=abc',
+    }));
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+      blablaProxy: 'https://proxy.example',
+    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+    expect(root.querySelector<HTMLElement>('[data-sync-box]')!.hidden).toBe(false);
+    expect(root.querySelector('[data-sync-when]')!.textContent).toContain('Blablalink');
+    expect(root.querySelector('[data-sync-when]')!.textContent).toContain('187名');
+    expect(root.querySelector<HTMLElement>('[data-sync-again]')!.hidden).toBe(false);
+  });
+
+  it('プロキシが無ければ記録があっても取り込み直すボタンは出さない', () => {
+    localStorage.setItem('nikke-sync-v1', JSON.stringify({
+      schemaVersion: 1, source: 'blablalink', at: new Date().toISOString(),
+      matched: 187, profileUrl: 'https://www.blablalink.com/user?openid=abc',
+    }));
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+      blablaProxy: '',
+    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
+
+    expect(root.querySelector<HTMLElement>('[data-sync-box]')!.hidden).toBe(false);   // 記録は出す
+    expect(root.querySelector<HTMLElement>('[data-sync-again]')!.hidden).toBe(true);  // 取り直しはできない
+  });
+
   it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

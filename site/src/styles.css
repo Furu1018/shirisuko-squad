@@ -1401,3 +1401,7 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 .calc-boss-presets-label { font-size: 12px; color: var(--muted, #8fa3b5); margin-right: 4px; }
 .union-preset-row { align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .union-preset-row .union-note { font-size: 12px; opacity: .8; }
+
+/* しりすこスクワッド: 取込の記録とワンボタン更新 */
+.roster-sync { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.roster-sync-when { font-size: 12px; color: #8fa3b5; white-space: nowrap; }

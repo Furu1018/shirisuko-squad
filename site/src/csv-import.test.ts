@@ -57,6 +57,35 @@ describe('parseCsvLine', () => {
   });
 });
 
+describe('列そのものが無い CSV', () => {
+  // 空欄 (列はあるが値が無い = 持っていない) と、列が無い (この CSV はその情報を運んでいない) は別。
+  // 取り込み直しでは育成項目を上書きするので、列が無いのに値を作ると
+  // Blablalink で入れた実際のコレクション・突破・オーバーロードを 0 や未装着で潰してしまう。
+  const nameOnly = ['이름', '스킬1', '스킬2', '버스트스킬'].join(',');
+
+  it('無い列の項目は作らない (既存の値を潰さない)', () => {
+    const csv = [nameOnly, '"앨리스","10","10","10"'].join('\n');
+    const alice = parseRosterCsv(csv, settings).overrides['앨리스']!;
+    expect(alice.collection).toBeUndefined();    // 소장품 列なし → 未装着にしない
+    expect(alice.growthStage).toBeUndefined();   // 돌파/코강 列なし → 명함(0) にしない
+    expect(alice.overload).toBeUndefined();      // OL 列なし → 全部 0 にしない
+    expect(alice.skillLevels).toEqual({ '1': 10, '2': 10, '3': 10 });   // ある列は読む
+  });
+
+  it('列があって空欄なら「持っていない」として読む', () => {
+    const withCollection = ['이름', '돌파', '코강', '소장품'].join(',');
+    const csv = [withCollection, '"앨리스","0","0",""'].join('\n');
+    const alice = parseRosterCsv(csv, settings).overrides['앨리스']!;
+    expect(alice.collection).toEqual({ stage: '없음', favorite: 0 });
+    expect(alice.growthStage).toBe(0);
+  });
+
+  it('돌파 だけでも列があれば突破を読む (코강 は 0 扱い)', () => {
+    const csv = [['이름', '돌파'].join(','), '"앨리스","2"'].join('\n');
+    expect(parseRosterCsv(csv, settings).overrides['앨리스']!.growthStage).toBe(2);
+  });
+});
+
 describe('parseRosterCsv', () => {
   it('maps aggregate overload, growth, skills, and equip levels for known names', () => {
     const csv = [

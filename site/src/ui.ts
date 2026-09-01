@@ -46,6 +46,9 @@ import { mountSharePanel, squadPreview, type SharePanel } from './share-panel';
 import { startPresence } from './presence';
 import { UNION_SEASON, bossBattle } from './union-bosses';
 import { applyImportedRoster } from './roster-merge';
+import {
+  canReSync, loadSyncMeta, saveSyncMeta, syncSummary, type SyncMeta,
+} from './sync-meta';
 import { mountUnionRaid } from './union-raid';
 import { EXTERNAL_LINKS, hostOf } from './external-links';
 import {
@@ -658,6 +661,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
                 <button type="button" class="roster-info" data-doro-open aria-label="Letsdoro CSV の入手方法" title="Letsdoro で CSV を入手する方法">i</button>
               </span>
               ${blablaProxy ? '<button type="button" class="roster-import" data-blabla-open title="Blablalink のプロフィール URL から所持ニケの育成状況を一括で読み込みます">Blablalink 連携</button>' : ''}
+              <span class="roster-sync" data-sync-box hidden><span class="roster-sync-when" data-sync-when></span><button type="button" class="roster-import" data-sync-again title="覚えているプロフィールから育成状況を取り込み直します">今の育成を取り込む</button></span>
               <button type="button" class="roster-import" data-add-nikke title="未実装・未登録のニケを自分で追加します">新しいニケを追加</button>
               <button type="button" class="roster-import" data-share-open title="編成に名前を付けてこのブラウザに保存したり、コードやリンクでやり取りします。個人スペックと戦闘条件は含まれません">プリセット / 編成共有</button>
               <button type="button" class="roster-import danger" data-reset-all title="編成・設定・CSV ロスター・追加したニケ・保存された結果をすべて消して初期状態に戻します">完全初期化</button>
@@ -3750,6 +3754,33 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 起動時の applyRosterToDecks と分けてあるのは、リロードのたびに手で直した値が
   // 巻き戻ると困るため — 上書きしてよいのは「取り込み直した」その瞬間だけ。
   const refreshDecksFromRoster = (): number => applyImportedRoster(roster, decks).length;
+  // 取込の記録 (いつ・どこから・何名)。ワンボタン更新はここに残したアドレスを使う。
+  const syncBox = element<HTMLElement>(root, '[data-sync-box]');
+  const syncWhen = element<HTMLElement>(root, '[data-sync-when]');
+  const syncAgain = element<HTMLButtonElement>(root, '[data-sync-again]');
+  let syncMeta: SyncMeta | null = loadSyncMeta(resolveStorage());
+  // 覚えているアドレスで取り込み直す関数。プロキシが無い版では差し込まれないので null のまま。
+  let reSync: ((preset: { url: string; area?: number }) => Promise<void>) | null = null;
+
+  const renderSyncBox = () => {
+    const summary = syncSummary(syncMeta);
+    syncBox.hidden = !summary;
+    syncWhen.textContent = summary ? `最終取込 ${summary}` : '';
+    // CSV はファイルを選び直す必要があるので、ボタンは出さない
+    syncAgain.hidden = !(canReSync(syncMeta) && reSync);
+  };
+
+  const rememberSync = (meta: SyncMeta) => {
+    syncMeta = meta;
+    saveSyncMeta(resolveStorage(), meta);
+    renderSyncBox();
+  };
+
+  syncAgain.addEventListener('click', () => {
+    if (!canReSync(syncMeta) || !reSync) return;
+    void reSync({ url: syncMeta.profileUrl, ...(syncMeta.area === undefined ? {} : { area: syncMeta.area }) });
+  });
+
   const updateRosterNote = (message?: string) => {
     const count = Object.keys(roster).length;
     if (message) rosterNote.textContent = message;
@@ -3774,6 +3805,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderDeckTabs();
       renderSquad();
       const skipped = unmatched.length > 0 ? ` · 未対応 ${unmatched.length}名を除外` : '';
+      rememberSync({ schemaVersion: 1, source: 'csv', at: new Date().toISOString(), matched: matched.length });
       const updated = refreshed > 0 ? ` · 編成中 ${refreshed}名の育成値を更新` : '';
       updateRosterNote(`CSV ロスター ${matched.length}名を適用${skipped}${updated}`
         + ' · キューブと好感度は CSV にないため既定値で計算します(カードの個別設定で修正可)');
@@ -3797,13 +3829,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       blablaStatus.hidden = message === '';
     };
 
-    const runSync = async () => {
-      const url = blablaUrl.value.trim();
+    const runSync = async (preset?: { url: string; area?: number }) => {
+      const url = preset ? preset.url : blablaUrl.value.trim();
       if (!looksLikeProfileUrl(url)) {
         setStatus('Blablalink のプロフィールのアドレスを貼り付けてください。');
         return;
       }
-      const selectedArea = blablaServer.value === '' ? undefined : Number(blablaServer.value);
+      const selectedArea = preset
+        ? preset.area
+        : (blablaServer.value === '' ? undefined : Number(blablaServer.value));
       blablaSync.disabled = true;
       blablaServer.disabled = true;
       setStatus('Blablalink から取得中… ニケが多いと数秒かかります。');
@@ -3842,6 +3876,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         renderDeckTabs();
         renderSquad();
 
+        rememberSync({
+          schemaVersion: 1, source: 'blablalink', at: new Date().toISOString(),
+          matched: matched.length, profileUrl: url,
+          ...(selectedArea === undefined ? {} : { area: selectedArea }),
+        });
         const parts = [`Blablalink ${serverLabel} ${matched.length}名を適用`];
         if (refreshed > 0) parts.push(`編成中 ${refreshed}名の育成値を更新`);
         if (unmatched.length > 0) parts.push(`未対応 ${unmatched.length}名を除外`);
@@ -3866,6 +3905,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     blablaModal.addEventListener('click', (event) => {
       if (event.target === blablaModal) blablaModal.hidden = true;
     });
+    reSync = (preset) => runSync(preset);
+    renderSyncBox();   // ボタンを出せるようになったので描き直す
     blablaSync.addEventListener('click', () => { void runSync(); });
     blablaUrl.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); void runSync(); }
@@ -4626,6 +4667,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   applySavedState();
   applyRosterToDecks();
   updateRosterNote();
+  renderSyncBox();
   renderDeckTabs();
   renderSquad();
   // 판은 창이 아니라 늘 펼쳐져 있으므로 처음부터 그려 둔다.
