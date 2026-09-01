@@ -46,6 +46,7 @@ import { mountSharePanel, squadPreview, type SharePanel } from './share-panel';
 import { startPresence } from './presence';
 import { UNION_SEASON, bossBattle } from './union-bosses';
 import { applyImportedRoster } from './roster-merge';
+import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
 import {
   canReSync, loadSyncMeta, saveSyncMeta, syncSummary, type SyncMeta,
 } from './sync-meta';
@@ -502,9 +503,44 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
       <nav class="view-tabs" aria-label="画面切り替え">
         <button type="button" class="view-tab is-on" data-view-tab="calc" aria-pressed="true">計算機</button>
+        <button type="button" class="view-tab" data-view-tab="roster" aria-pressed="false">マイロスター</button>
         <button type="button" class="view-tab" data-view-tab="union" aria-pressed="false">ユニオンレイド<b class="tab-beta">BETA</b></button>
         <button type="button" class="view-tab" data-view-tab="links" aria-pressed="false">外部リンク</button>
       </nav>
+
+      <section class="panel roster-panel" data-view="roster" aria-labelledby="roster-heading" hidden>
+        <div class="section-heading">
+          <div><p class="step">ROSTER</p><h2 id="roster-heading">マイロスター</h2></div>
+        </div>
+        <p class="links-lede">取り込んだ<b>自分の育成状況</b>です。どこが伸びしろかを見るための一覧で、ここでは値を変えません (変更は計算機のカードから)。</p>
+        <div class="roster-empty" data-myroster-empty hidden>
+          <p>まだ取り込んでいません。計算機の <b>Letsdoro CSV を読み込む</b> か <b>Blablalink 連携</b> から取り込むと、ここに育成状況が並びます。</p>
+        </div>
+        <div class="roster-body" data-myroster-body hidden>
+          <div class="roster-stats" data-myroster-stats></div>
+          <div class="roster-sort">
+            <span class="roster-sort-label">並べ替え</span>
+            <select data-myroster-sort aria-label="並べ替え">
+              <option value="power">戦闘力の高い順</option>
+              <option value="growth">突破の高い順</option>
+              <option value="skill">スキル合計の高い順</option>
+              <option value="element">コード順</option>
+              <option value="name">名前順</option>
+            </select>
+          </div>
+          <div class="roster-table-wrap">
+            <table class="roster-table">
+              <thead>
+                <tr>
+                  <th>ニケ</th><th>コード</th><th>バースト</th><th>突破</th><th>スキル</th>
+                  <th>優越</th><th>攻撃</th><th>装弾</th><th>キューブ</th><th>コレクション</th><th>戦闘力</th>
+                </tr>
+              </thead>
+              <tbody data-myroster-rows></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
       <section class="panel links-panel" data-view="links" aria-labelledby="links-heading" hidden>
         <div class="section-heading">
@@ -3739,6 +3775,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   });
   // 起動時: まだ設定を持たないキャラだけロスターの値で埋める。
   // 保存済みのデッキ設定は「その人がこの計算機で決めたこと」なので上書きしない。
+  // マイロスターの描き直し。取込のたびに呼ぶ (中身は下で差し込む)。
+  let renderMyRoster: () => void = () => undefined;
+
   const applyRosterToDecks = () => {
     for (const deck of decks) {
       for (const member of deck.squad) {
@@ -3774,6 +3813,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     syncMeta = meta;
     saveSyncMeta(resolveStorage(), meta);
     renderSyncBox();
+    renderMyRoster();
   };
 
   // 取得は一度にひとつ。モーダルの「同期」と画面の「今の育成を取り込む」は別の入口だが、
@@ -3950,7 +3990,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 300명을 한 줄로 늘어놓으면 스크롤이 끝없다 — 열 명씩 끊어 쪽으로 넘긴다.
   const ENIKK_PER_PAGE = 10;
   let enikkPage = 0;
-  let currentView: 'calc' | 'union' | 'enikk' | 'links' = 'calc';
+  let currentView: 'calc' | 'roster' | 'union' | 'enikk' | 'links' = 'calc';
 
   const readEnikkCache = (): EnikkImport | null => {
     try {
@@ -4401,6 +4441,67 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   });
   applyParallel(false);
 
+  // ── マイロスター (育成状況) ──
+  // 取り込んだロスターを読むだけの画面。値は変えない — 変更は計算機のカード側に一本化する。
+  {
+    const emptyBox = element<HTMLElement>(root, '[data-myroster-empty]');
+    const bodyBox = element<HTMLElement>(root, '[data-myroster-body]');
+    const statsBox = element<HTMLElement>(root, '[data-myroster-stats]');
+    const rowsBox = element<HTMLElement>(root, '[data-myroster-rows]');
+    const sortPick = element<HTMLSelectElement>(root, '[data-myroster-sort]');
+
+    const num = (value: number) => (Math.round(value * 100) / 100).toString();
+
+    renderMyRoster = () => {
+      const entries = readRoster(roster, [...catalogByName.values()], combatPower);
+      const has = entries.length > 0;
+      emptyBox.hidden = has;
+      bodyBox.hidden = !has;
+      if (!has) { rowsBox.replaceChildren(); statsBox.replaceChildren(); return; }
+
+      const summary = summarize(entries);
+      statsBox.replaceChildren();
+      const stat = (label: string, value: string) => {
+        const box = el('div', 'roster-stat');
+        box.append(createText('b', value), createText('span', label));
+        statsBox.append(box);
+      };
+      stat('所持', `${summary.owned}体`);
+      stat('スキル 10/10/10', `${summary.maxedSkills}体`);
+      stat('キューブ未装着', `${summary.noCube}体`);
+      for (const code of ['작열', '수냉', '풍압', '전격', '철갑']) {
+        stat(elementLabel(code), `${summary.byElement[code] ?? 0}体`);
+      }
+
+      rowsBox.replaceChildren();
+      for (const entry of sortEntries(entries, sortPick.value as RosterSortKey, labelFor)) {
+        const row = document.createElement('tr');
+        const cell = (text: string, className?: string) => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          if (className) td.className = className;
+          row.append(td);
+        };
+        cell(labelFor(entry.name), 'roster-name');
+        cell(entry.elementCode ? elementLabel(entry.elementCode) : '—');
+        cell(entry.burstStage ? `${entry.burstStage}バ` : '—');
+        cell(entry.growthStage === null ? '—' : String(entry.growthStage));
+        // 「合計 (最低)」— どれか1つだけ低いのが伸びしろとして見えるように
+        cell(entry.skillTotal === null ? '—' : `${entry.skillTotal} (最低 ${entry.skillMin})`);
+        cell(num(entry.overload.element));
+        cell(num(entry.overload.atk));
+        cell(num(entry.overload.ammo));
+        cell(!entry.cubeName || entry.cubeName === '없음' ? '—' : entry.cubeName);
+        cell(entry.favorite > 0
+          ? `お気に入り ${'★'.repeat(entry.favorite)}`
+          : (entry.collectionStage && entry.collectionStage !== '없음' ? entry.collectionStage : '—'));
+        cell(entry.power === null ? '—' : entry.power.toLocaleString('en-US'), 'roster-power');
+        rowsBox.append(row);
+      }
+    };
+    sortPick.addEventListener('change', () => { renderMyRoster(); });
+  }
+
   // ── 今シーズンのボスをワンタップで敵条件に (しりすこスクワッド) ──
   // 敵コード・敵防御力だけ差し替え、他の条件 (戦闘時間・コア・回避区間) は今の値を残す。
   // 値は writeBattle で入れ、通常の入力と同じ経路 (change) を流して要約・保存を追随させる。
@@ -4462,7 +4563,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   // ── 화면 전환 ───────────────────────────────────────────────────────────
   /** 위쪽 탭이 고를 수 있는 화면. 「외부고리」는 우리 것이 아닌 곳으로 나가는 판이다. */
-  type ViewName = 'calc' | 'union' | 'enikk' | 'links';
+  type ViewName = 'calc' | 'roster' | 'union' | 'enikk' | 'links';
 
   function switchView(view: ViewName) {
     currentView = view;
@@ -4689,6 +4790,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   applyRosterToDecks();
   updateRosterNote();
   renderSyncBox();
+  renderMyRoster();
   renderDeckTabs();
   renderSquad();
   // 판은 창이 아니라 늘 펼쳐져 있으므로 처음부터 그려 둔다.

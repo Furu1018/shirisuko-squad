@@ -777,6 +777,76 @@ describe('calculator UI', () => {
     }
   });
 
+  it('マイロスターは取込前は案内を出し、取り込むと一覧と内訳が出る', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // 取込前
+    expect(root.querySelector<HTMLElement>('[data-myroster-empty]')!.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>('[data-myroster-body]')!.hidden).toBe(true);
+
+    const header = [
+      '이름', '돌파', '코강', '스킬1', '스킬2', '버스트스킬',
+      '우코(%)', '공증(%)', '방어(%)', '장탄(%)', '크확(%)', '크댐(%)', '차속(%)', '차댐(%)', '명중(%)',
+      '머리_레벨', '몸통_레벨', '장갑_레벨', '다리_레벨',
+    ].join(',');
+    const rows = [
+      '"리타","3","4","10","10","10","85.8","43","0","109","0","0","0","0","0","5","5","5","5"',
+      '"앨리스","1","0","10","4","10","0","0","0","0","0","0","0","0","0","5","5","5","5"',
+    ];
+    const input = root.querySelector<HTMLInputElement>('#roster-csv')!;
+    Object.defineProperty(input, 'files', {
+      value: [new File([[header, ...rows].join('\n')], 'roster.csv', { type: 'text/csv' })],
+      configurable: true,
+    });
+    input.dispatchEvent(new Event('change'));
+
+    await vi.waitFor(() => {
+      expect(root.querySelector<HTMLElement>('[data-myroster-body]')!.hidden).toBe(false);
+    });
+    expect(root.querySelector<HTMLElement>('[data-myroster-empty]')!.hidden).toBe(true);
+
+    // 内訳: 所持2体・スキル満は 리타 だけ
+    const stats = root.querySelector('[data-myroster-stats]')!.textContent!;
+    expect(stats).toContain('2体');
+    expect(stats).toContain('所持');
+
+    // 一覧: 日本語表示名・コード・突破・スキル (合計と最低)
+    const cells = [...root.querySelectorAll('[data-myroster-rows] tr')]
+      .map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent));
+    expect(cells).toHaveLength(2);
+    const rita = cells.find((row) => row[0] === '리타')!;   // 表示名辞書が無い環境では内部キーのまま
+    expect(rita[3]).toBe('7');                              // 돌파3 + 코강4
+    expect(rita[4]).toBe('30 (最低 10)');
+    const alice = cells.find((row) => row[0] === '앨리스')!;
+    expect(alice[4]).toBe('24 (最低 4)');                   // 1つだけ低いのが見える
+  });
+
+  it('マイロスターの並べ替えを切り替えられる', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const header = ['이름', '돌파', '코강'].join(',');
+    const input = root.querySelector<HTMLInputElement>('#roster-csv')!;
+    Object.defineProperty(input, 'files', {
+      value: [new File([[header, '"리타","0","0"', '"앨리스","3","5"'].join('\n')], 'r.csv', { type: 'text/csv' })],
+      configurable: true,
+    });
+    input.dispatchEvent(new Event('change'));
+    await vi.waitFor(() => {
+      expect(root.querySelectorAll('[data-myroster-rows] tr')).toHaveLength(2);
+    });
+
+    const names = () => [...root.querySelectorAll('[data-myroster-rows] tr td:first-child')]
+      .map((td) => td.textContent);
+    const sort = root.querySelector<HTMLSelectElement>('[data-myroster-sort]')!;
+    sort.value = 'growth';
+    sort.dispatchEvent(new Event('change'));
+    expect(names()).toEqual(['앨리스', '리타']);   // 突破 8 → 0
+  });
+
   it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
@@ -1624,7 +1694,7 @@ describe('calculator UI', () => {
 
     searchRoster(root, '없는이름');
     expect(root.querySelectorAll('[data-roster-cell]')).toHaveLength(0);
-    expect(root.querySelector<HTMLElement>('[data-roster-empty]')!.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>('[data-myroster-empty]')!.hidden).toBe(false);
 
     searchRoster(root, '');
     expect(root.querySelectorAll('[data-roster-cell]')).toHaveLength(catalog.length);

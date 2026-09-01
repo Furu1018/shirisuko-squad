@@ -1405,3 +1405,19 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 /* しりすこスクワッド: 取込の記録とワンボタン更新 */
 .roster-sync { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .roster-sync-when { font-size: 12px; color: #8fa3b5; white-space: nowrap; }
+
+/* しりすこスクワッド: マイロスター (育成状況) */
+.roster-panel .roster-empty { padding: 18px; border: 1px dashed rgba(146,176,201,.35); border-radius: 10px; }
+.roster-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.roster-stat { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 9px;
+  background: rgba(146,176,201,.10); border: 1px solid rgba(146,176,201,.20); min-width: 84px; }
+.roster-stat b { font-size: 16px; font-weight: 800; }
+.roster-stat span { font-size: 11px; opacity: .75; }
+.roster-sort { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.roster-sort-label { font-size: 12px; opacity: .75; }
+.roster-table-wrap { overflow-x: auto; }
+.roster-table { border-collapse: collapse; width: 100%; font-size: 12.5px; white-space: nowrap; }
+.roster-table th, .roster-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid rgba(146,176,201,.18); }
+.roster-table th { font-size: 11px; opacity: .7; font-weight: 700; position: sticky; top: 0; background: inherit; }
+.roster-table .roster-name { font-weight: 700; }
+.roster-table .roster-power { text-align: right; font-variant-numeric: tabular-nums; }
