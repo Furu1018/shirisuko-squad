@@ -129,6 +129,9 @@ UI 全ファイル。**内部キー (韓国語のキャラ名・属性・保存�
   (本家PADで `fileURLToPath` に直した前例あり)
   **`ui.test.ts` は既定の 5 秒だと 4〜6 件がタイムアウトで落ちる** (jsdom の UI テストが 1 件 5 秒超)。
   `npm test -- --run --testTimeout=30000` で全部通る。コードの問題ではないので CI (Linux) では出ない
+  それでも上流由来の `runs non-empty decks sequentially…` は稀に落ちる — 計算機の**バフ対象の先読み**
+  (`prefetchBuffTargets`、700ms の setTimeout) がテストの途中で発火して `simulate` が 1 回増えるため。
+  盤面のテストはボスコード付きのリクエストだけを数えて (`boardCalls`) この影響を受けないようにしてある
 - **Codex 併用フラグは PC ごと**。このリポジトリでは明示レビュー方式
   (実装 → commit → codex:codex-rescue へ依頼 → 指摘対応 → push)。
   **監査を通さない push は禁止**

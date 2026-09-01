@@ -58,7 +58,7 @@ import {
 } from './sync-meta';
 import {
   BOARD_SLOTS, bestTriple, boardBattle, candidatesFor as boardCandidatesFor, clashOptionsFor, clashesOf, clearSlot,
-  emptyBoard, isEmptySquad, loadBoard, openSlotCandidates, saveBoard, scoreKey, totalOf, usageOf,
+  emptyBoard, isEmptySquad, loadBoard, openSlotCandidates, saveBoard, totalOf, usageOf,
   usedCount, withSlot, type Candidate, type ClashOption, type OpenCandidate, type RaidBoard,
 } from './raid-board';
 import type { UnionBoss } from './union-bosses';
@@ -4830,7 +4830,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     let busy = false;
     /** 「編成を変える」を開いている枠。 */
     let chooserOpen: number | null = null;
-    /** この画面で出した点数。保存された結果 (cache) は容量で押し出されるので、別に持つ。 */
+    /**
+     * この画面で出した点数。保存された結果 (cache) は容量で押し出されるので、別に持つ。
+     * 鍵は**リクエストの cacheKey そのもの** — ロスターの育成値・戦闘条件・シンクロが変われば鍵も変わるので、
+     * 古い条件の点数を新しい条件の数字として見せることがない (ボス+顔ぶれだけを鍵にすると起きる)。
+     */
     const scores = new Map<string, number>();
 
     const say = (message: string, ok = false) => {
@@ -4865,11 +4869,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     /** 分かっている点数。計算はしない — 保存された結果があればそれを読む。 */
     const knownScore = (boss: UnionBoss, squad: readonly string[]): number | null => {
       if (isEmptySquad(squad)) return null;
-      const known = scores.get(scoreKey(boss.name, squad));
-      if (known !== undefined) return known;
       try {
-        const hit = cache.get(requestFor(boss, squad).key);
-        return hit ? hit.squadTotal : null;
+        const { key } = requestFor(boss, squad);
+        return scores.get(key) ?? cache.get(key)?.squadTotal ?? null;
       } catch {
         return null;
       }
@@ -4885,14 +4887,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         result = await client.simulate(request);
         cache.set(key, result);
       }
-      scores.set(scoreKey(boss.name, squad), result.squadTotal);
+      scores.set(key, result.squadTotal);
       return result.squadTotal;
     };
 
     interface Job { key: string; run: () => Promise<void> }
     const jobFor = (boss: UnionBoss | undefined, squad: readonly string[]): Job | null => {
       if (!boss || isEmptySquad(squad)) return null;
-      const key = scoreKey(boss.name, squad);
+      let key: string;
+      try {
+        key = requestFor(boss, squad).key;
+      } catch {
+        // 組み立てられない編成は computeScore が同じ理由で失敗して伝える
+        key = `${boss.name}/${squad.join('/')}`;
+      }
       return { key, run: async () => { await computeScore(boss, squad); } };
     };
     /** 同じ候補を2度回さない。 */
@@ -5478,6 +5486,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       tab.classList.toggle('is-on', on);
       tab.setAttribute('aria-pressed', String(on));
     }
+    // 盤面の点数は戦闘条件・育成値に依るので、開くたびに今の条件で読み直す
+    // (条件を変えた直後に古い数字を見せない — 合わない結果は「未計算」に戻る)
+    if (view === 'board') renderBoard();
     if (view === 'enikk' && !enikkData) {
       const cached = readEnikkCache();
       if (cached) {

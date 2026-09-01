@@ -256,6 +256,7 @@ describe('calculator UI', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     root.remove();
   });
 
@@ -948,6 +949,13 @@ describe('calculator UI', () => {
   const storedBoard = () => JSON.parse(localStorage.getItem('nikke-raid-board-v1')!) as
     { slots: Array<{ boss: string | null; squad: string[] }> };
   const settle = async () => { await flush(); await flush(); await flush(); };
+  /**
+   * 盤面が出した計算の数。計算機には**バフ対象を先読みする背景計算** (setTimeout) があり、
+   * 遅い環境ではテストの途中で発火して `simulateCalls` を 1 つ増やす。盤面の計算は必ず
+   * ボスのコードを持つので、それで見分ける (先読みは条件パネルの敵コード = 空)。
+   */
+  const boardCalls = (client: FakeClient, code = '전격') =>
+    client.requests.filter((request) => request.enemyCode === code).length;
 
   it('3凸ボードが入口で、3枠・合計・属性別の手持ちが出る', () => {
     mountCalculator(root, {
@@ -979,7 +987,7 @@ describe('calculator UI', () => {
     expect(slot.classList.contains('is-iron')).toBe(true);
     expect([...slot.querySelectorAll('.board-team .board-who')].map((chip) => chip.textContent))
       .toEqual(['리타', '크라운']);
-    expect(client.simulateCalls).toBe(1);
+    expect(boardCalls(client)).toBe(1);
     expect(slot.querySelector('[data-board-score]')!.textContent).toContain('123,456');
     expect(root.querySelector('[data-board-status]')!.textContent).toContain('計算しました');
     expect(boardSummary()).toContain('使用 2名');
@@ -991,7 +999,8 @@ describe('calculator UI', () => {
     pickBoss(1, 'モダニア');
     await settle();
     expect(root.querySelector('[data-board-status]')!.textContent).toContain('案がまだありません');
-    expect(client.simulateCalls).toBe(1);
+    expect(boardCalls(client)).toBe(1);
+    expect(boardCalls(client, '풍압')).toBe(0);
   });
 
   it('同じニケを2枠で使うと被りとして出て、解くと損の少ない側から外れる', async () => {
@@ -1055,6 +1064,70 @@ describe('calculator UI', () => {
     expect(storedBoard().slots[2]!.squad.filter(Boolean)).toEqual(['프리바티']);
     expect(root.querySelector('[data-board-status]')!.textContent).toContain('나가 は外してあります');
     expect(root.querySelector('[data-board-clash]')).toBeNull();
+  });
+
+  it('「編成を変える」で同じコードの別の案に差し替えられ、「詳細計算へ」で計算機に載る', async () => {
+    const client = new FakeClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('철갑', ['앨리스', '나가']);
+    pickBoss(0, 'レイタンス');
+    await settle();
+    expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);   // 案1
+
+    root.querySelector<HTMLButtonElement>('[data-board-change="0"]')!.click();
+    const chooser = root.querySelector<HTMLElement>('[data-board-chooser="0"]')!;
+    const picks = [...chooser.querySelectorAll<HTMLButtonElement>('[data-board-pick]')];
+    expect(picks).toHaveLength(2);
+    expect(picks[0]!.classList.contains('is-on')).toBe(true);   // いま入っている案
+    picks[1]!.click();
+    await settle();
+    expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual(['앨리스', '나가']);
+    expect(boardCalls(client)).toBe(2);
+    expect(root.querySelector('[data-board-chooser="0"]')).toBeNull();   // 選んだら閉じる
+
+    // 詳細計算へ: 枠の編成が計算機のデッキに、ボスの条件が条件パネルに載る
+    root.querySelector<HTMLButtonElement>('[data-board-open-calc="0"]')!.click();
+    expect(root.querySelector<HTMLButtonElement>('[data-view-tab="calc"]')!.classList.contains('is-on')).toBe(true);
+    expect(savedSquad().filter(Boolean)).toEqual(['앨리스', '나가']);
+    expect(root.querySelector<HTMLSelectElement>('#enemy-code')!.value).toBe('전격');
+  });
+
+  it('戦闘条件を変えると古い点数は「未計算」に戻り、計算し直すと新しい条件の値になる', async () => {
+    // 条件によって値が変わる計算機 — 古い点数を使い回していれば見分けがつく
+    class DurationClient extends FakeClient {
+      override async simulate(request: SimulationRequest): Promise<SimulationResult> {
+        await super.simulate(request);
+        return { ...calculated, squadTotal: request.duration * 1000 };
+      }
+    }
+    const client = new DurationClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);
+    pickBoss(0, 'レイタンス');
+    await settle();
+    expect(boardSlot(0).querySelector('[data-board-score]')!.textContent).toContain('180,000');
+
+    const duration = root.querySelector<HTMLInputElement>('#duration')!;
+    duration.value = '90';
+    duration.dispatchEvent(new Event('input', { bubbles: true }));
+    duration.dispatchEvent(new Event('change', { bubbles: true }));
+    // 盤面を開き直すと、今の条件に合わない点数は出さない
+    root.querySelector<HTMLButtonElement>('[data-view-tab="calc"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-view-tab="board"]')!.click();
+    expect(boardSlot(0).querySelector('[data-board-score]')!.textContent).toContain('未計算');
+    expect(boardSummary()).toContain('未計算の枠があります');
+
+    root.querySelector<HTMLButtonElement>('[data-board-run]')!.click();
+    await settle();
+    expect(boardSlot(0).querySelector('[data-board-score]')!.textContent).toContain('90,000');
+    expect(boardCalls(client)).toBe(2);
   });
 
   it('「キューブを着けていない」は保存され、再読込しても既定キューブに戻らない', () => {
@@ -2363,6 +2436,11 @@ describe('calculator UI', () => {
   });
 
   it('runs non-empty decks sequentially and allows cross-deck duplicates', async () => {
+    // 計算機のバフ対象の先読み (700ms の setTimeout) がこのテストの途中で発火すると、
+    // 遅い環境では要求が 1 件増えて数が合わなくなる。先読みの時計だけ止め、
+    // 待ち合わせは setImmediate で行う (afterEach が実時計に戻す)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const tick = () => new Promise<void>((resolve) => { setImmediate(resolve); });
     const client = new FakeClient();
     mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
     root.querySelector<HTMLInputElement>('#duration')!.value = '10';
@@ -2391,8 +2469,8 @@ describe('calculator UI', () => {
     growth.dispatchEvent(new Event('change'));
 
     root.querySelector<HTMLFormElement>('form')!.requestSubmit();
-    await flush();
-    await flush();
+    await tick();
+    await tick();
 
     expect(client.requests).toHaveLength(2);
     expect(client.requests[0]?.squad).toContain('리타');

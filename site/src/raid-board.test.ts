@@ -4,7 +4,7 @@ import type { StorageLike } from './cache';
 import { addPlan, emptyPlans, type ElementPlans } from './element-plans';
 import {
   BOARD_SLOTS, RAID_BOARD_KEY, bestTriple, boardBattle, candidatesFor, clashOptionsFor, clashesOf,
-  clearSlot, emptyBoard, loadBoard, openSlotCandidates, saveBoard, scoreKey, totalOf, usageOf,
+  clearSlot, emptyBoard, loadBoard, openSlotCandidates, saveBoard, totalOf, usageOf,
   usedCount, withSlot, withoutNames, type Candidate, type RaidBoard,
 } from './raid-board';
 import { UNION_SEASON, type UnionBoss } from './union-bosses';
@@ -132,11 +132,6 @@ describe('候補', () => {
     expect(candidatesFor(bossOf('レイタンス'), plans()).plans).toHaveLength(2);
     expect(candidatesFor(bossOf('トゥームストーン'), plans()).element).toBe('수냉');
     expect(candidatesFor(bossOf('モダニア'), plans()).plans).toEqual([]);
-  });
-
-  it('点数の索引はボスと顔ぶれで引き、並び順は問わない', () => {
-    expect(scoreKey('レイタンス', squad('크라운', '리타'))).toBe(scoreKey('レイタンス', squad('리타', '크라운')));
-    expect(scoreKey('レイタンス', squad('리타'))).not.toBe(scoreKey('モダニア', squad('리타')));
   });
 
   it('空き枠の候補は、他の枠で使った人を外して作る (全員外れた案は出さない)', () => {
