@@ -1596,33 +1596,39 @@ describe('calculator UI', () => {
     expect(root.querySelector<HTMLInputElement>('#synchro-level')!.value).toBe('700');
   });
 
-  it('shows the update notice once, and not again after it is closed', () => {
-    // 처음 온 사람에게는 뜬다.
+  it('更新履歴は自動では開かず、未読なら NEW の印だけ付く。閉じると既読になる', () => {
+    // 入口は 3凸ボード — 初めて来た人にもお知らせを被せない
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     const modal = () => root.querySelector<HTMLElement>('[data-notice-modal]')!;
+    const badge = () => root.querySelector<HTMLElement>('[data-notice-new]')!;
+    expect(modal().hidden).toBe(true);
+    expect(badge().hidden).toBe(false);
+
+    root.querySelector<HTMLButtonElement>('[data-notice-open]')!.click();
     expect(modal().hidden).toBe(false);
     expect(root.querySelectorAll('[data-notice]').length).toBeGreaterThan(0);
-
     root.querySelector<HTMLButtonElement>('[data-notice-dismiss]')!.click();
     expect(modal().hidden).toBe(true);
+    expect(badge().hidden).toBe(true);
     expect(localStorage.getItem('nikke-notice-seen')).toBe(LATEST_NOTICE_ID);
 
-    // 다시 들어와도 뜨지 않는다.
+    // 次に来たときは印も付かない
     root.remove();
     root = document.createElement('main');
     document.body.append(root);
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     expect(root.querySelector<HTMLElement>('[data-notice-modal]')!.hidden).toBe(true);
-    // 그래도 언제든 다시 열어 볼 수 있다.
+    expect(root.querySelector<HTMLElement>('[data-notice-new]')!.hidden).toBe(true);
+    // それでもいつでも開ける
     root.querySelector<HTMLButtonElement>('[data-notice-open]')!.click();
     expect(root.querySelector<HTMLElement>('[data-notice-modal]')!.hidden).toBe(false);
   });
 
-  it('shows the notice again when a newer one is published', () => {
-    // 옛 공지까지만 본 사람에게는 새 공지가 다시 뜬다.
+  it('新しいお知らせが出たら NEW の印が戻る (自動では開かない)', () => {
     localStorage.setItem('nikke-notice-seen', '2000-01-01');
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-    expect(root.querySelector<HTMLElement>('[data-notice-modal]')!.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>('[data-notice-modal]')!.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>('[data-notice-new]')!.hidden).toBe(false);
   });
 
   it('자세히 보기를 켜면 대미지를 1의 자리까지 적는다', async () => {
@@ -1989,7 +1995,7 @@ describe('calculator UI', () => {
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     const credit = root.querySelector<HTMLAnchorElement>('.trust-row .credit-link')!;
 
-    expect(credit.textContent).toBe('元のアルゴリズム開発者に無限の感謝を');
+    expect(credit.textContent).toBe('原作 nikke-calc に感謝');
     expect(credit.href).toBe('https://github.com/Jgaram/nikke-calc');
     // 새 탭으로 열되 opener를 넘기지 않는다.
     expect(credit.target).toBe('_blank');

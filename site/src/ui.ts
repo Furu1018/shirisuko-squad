@@ -503,15 +503,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   root.innerHTML = `
     <div class="site-shell">
-      <p class="site-notice"><a href="https://gall.dcinside.com/mgallery/board/view/?id=gov&amp;no=6038781" target="_blank" rel="noreferrer">説明書の確認、お問い合わせ、フィードバック、あたたかい一言などはこちらへ →</a></p>
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">BROWSER SIM <span>·</span> 60 FPS TIMELINE</p>
-          <h1><span>NIKKE</span> スカッド計算機</h1>
-          <p class="hero-lede">キャラクターごとのオーバーロードとキューブ、戦闘条件を反映して、フレーム単位の予想ダメージを計算します。</p>
-          <div class="trust-row" aria-label="サービスの特徴"><span>${catalog.length}名対応</span><span class="online-now" data-online hidden title="直近1~2分の間にこの計算機を開いた人数です。タブを非表示にすると数えません"><b class="online-dot" aria-hidden="true"></b><span data-online-text></span></span><button type="button" class="notice-open" data-notice-open title="これまでに何が変わったかを見ます">更新履歴</button><a class="credit-link" href="https://github.com/Jgaram/nikke-calc" target="_blank" rel="noreferrer noopener" title="この計算機の元のリポジトリ">元のアルゴリズム開発者に無限の感謝を</a></div>
+      <header class="brand">
+        <div class="brand-title">
+          <h1>しりすこスクワッド</h1>
+          <span class="brand-beta">BETA</span>
+          <span class="brand-lede">NIKKE ユニオンレイドの3凸を、自分の育成で決める</span>
         </div>
-        <div class="hero-orbit" aria-hidden="true"><span>01</span><strong>LOCAL<br />SIM</strong></div>
+        <div class="trust-row brand-tools" aria-label="サービスの情報"><span>${catalog.length}名対応</span><span class="online-now" data-online hidden title="直近1~2分の間にこの計算機を開いた人数です。タブを非表示にすると数えません"><b class="online-dot" aria-hidden="true"></b><span data-online-text></span></span><button type="button" class="notice-open" data-notice-open title="これまでに何が変わったかを見ます">更新履歴<b class="notice-new" data-notice-new hidden>NEW</b></button><a class="credit-link" href="https://github.com/Jgaram/nikke-calc" target="_blank" rel="noreferrer noopener" title="この計算機の元のリポジトリ (エンジン・データは無改変)">原作 nikke-calc に感謝</a></div>
       </header>
 
       <nav class="view-tabs" aria-label="画面切り替え">
@@ -536,9 +534,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             <button type="button" class="roster-import" data-board-goto="roster">育成状況を見る</button>
           </div>
         </div>
-        <div class="section-heading compact">
-          <div><p class="step">UNION RAID</p><h2 id="board-heading">3凸を組む · ${UNION_SEASON.label}</h2></div>
-        </div>
+        <h2 id="board-heading" class="board-sec">3凸を組む · ${UNION_SEASON.label}</h2>
         <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>と、そのボスに有利なコードの編成 (属性別編成タブの案) が入ります。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠と被った人は赤く出て、外す・譲るどちらが得かを計算します。</p>
         <p class="board-status" data-board-status hidden></p>
         <div class="board-slots" data-board-slots></div>
@@ -1451,6 +1447,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const NOTICE_KEY = 'nikke-notice-seen';
   const noticeModal = element<HTMLElement>(root, '[data-notice-modal]');
   const noticeBody = element<HTMLElement>(root, '[data-notice-body]');
+  const noticeNew = element<HTMLElement>(root, '[data-notice-new]');
 
   const renderNotices = () => {
     noticeBody.replaceChildren();
@@ -1484,6 +1481,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   /** 닫으면 최신 공지를 본 것으로 적는다 — 새 공지가 나오기 전까지 다시 뜨지 않는다. */
   const closeNotice = () => {
     noticeModal.hidden = true;
+    noticeNew.hidden = true;
     try {
       resolveStorage()?.setItem(NOTICE_KEY, LATEST_NOTICE_ID);
     } catch {
@@ -1503,7 +1501,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     } catch {
       /* 못 읽으면 처음 온 것으로 본다 */
     }
-    if (noticeToShow(seen)) openNotice();
+    // 入口では自動で開かない — 最初に見せるのは 3凸ボードであって、お知らせではない
+    // (ユニオンレイド主役の方針・ROADMAP「🎯 方針」)。未読があれば「更新履歴」に NEW を付けるだけ
+    noticeNew.hidden = !noticeToShow(seen);
   }
 
   // ── 캐릭터 설정 창 ──────────────────────────────────────────────────────
@@ -5477,8 +5477,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   /** 위쪽 탭이 고를 수 있는 화면. 「외부고리」는 우리 것이 아닌 곳으로 나가는 판이다. */
   type ViewName = 'board' | 'calc' | 'roster' | 'plans' | 'union' | 'enikk' | 'links';
 
+  const shell = element<HTMLElement>(root, '.site-shell');
   function switchView(view: ViewName) {
     currentView = view;
+    // 盤面はモックどおり 1000px 中央寄せ。計算機など他の画面は横に広い方が読みやすいので上流の幅のまま
+    shell.classList.toggle('is-board', view === 'board');
     for (const section of root.querySelectorAll<HTMLElement>('[data-view]')) {
       const mine = section.dataset.view === view;
       // 타임라인은 계산 결과가 있을 때만 보이므로 여기서 켜지 않는다.

@@ -80,27 +80,16 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
-.site-shell { width: min(1440px, calc(100% - 40px)); margin: 0 auto; padding: 48px 0 28px; }
-.hero { display: flex; justify-content: space-between; align-items: center; min-height: 260px; padding: 24px 16px 46px; }
-.hero-copy { max-width: 850px; }
-.eyebrow, .step { margin: 0 0 12px; color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: .2em; }
-.eyebrow span { color: var(--amber-text); }
-.hero h1 { margin: 0; font-size: clamp(42px, 6vw, 92px); line-height: .96; letter-spacing: -.065em; font-weight: 900; }
-.hero h1 span { color: var(--amber-text); }
-.hero-lede { max-width: 650px; margin: 24px 0 20px; color: var(--ink-2); font-size: clamp(15px, 1.4vw, 19px); line-height: 1.7; }
+.site-shell { width: min(1440px, calc(100% - 40px)); margin: 0 auto; padding: 22px 0 28px; }
+/* 3凸ボードはモックどおり 1000px 中央寄せ (ui.ts の switchView が付ける) */
+.site-shell.is-board { width: min(1000px, calc(100% - 32px)); }
+.step { margin: 0 0 12px; color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: .2em; }
 .trust-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.trust-row span, .trust-row .roster-open { border: 1px solid var(--line); padding: 7px 11px; color: var(--ink-2); background: rgb(var(--surface-rgb) / .55); font-size: 12px; }
-.trust-row .roster-open { font-family: inherit; cursor: pointer; border-color: rgb(var(--accent-rgb) / .35); color: var(--ink); }
-.trust-row .roster-open:hover { background: rgb(var(--accent-rgb) / .14); border-color: var(--cyan); }
+.trust-row span { border: 1px solid var(--line); padding: 7px 11px; color: var(--ink-2); background: rgb(var(--surface-rgb) / .55); font-size: 12px; }
 /* 원본 저장소로 보내는 감사 문구. 지원 수와 같은 칩 모양으로 나란히 선다. */
 .trust-row .credit-link { border: 1px solid rgb(var(--accent-rgb) / .3); padding: 7px 11px; background: rgb(var(--accent-rgb) / .07); color: var(--ink); font-size: 12px; text-decoration: none; }
 .trust-row .credit-link:hover { background: rgb(var(--accent-rgb) / .16); border-color: var(--cyan); }
 .trust-row .credit-link:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-.hero-orbit { width: 150px; aspect-ratio: 1; border: 1px solid rgb(var(--accent-rgb) / .35); border-radius: 50%; display: grid; place-items: center; position: relative; color: var(--cyan); }
-.hero-orbit::before, .hero-orbit::after { content: ""; position: absolute; inset: 13px; border: 1px dashed rgb(var(--amber-rgb) / .3); border-radius: 50%; transform: rotate(25deg); }
-.hero-orbit::after { inset: -8px 66px; border-radius: 0; border-width: 0 1px; }
-.hero-orbit span { position: absolute; top: -9px; right: 15px; color: var(--amber-text); font: 700 10px ui-monospace, monospace; }
-.hero-orbit strong { text-align: center; font: 800 18px/1.15 ui-monospace, monospace; letter-spacing: .12em; }
 
 /* 편성 → 조건 → 결과가 위에서 아래로 한 줄로 선다. 결과를 옆에 세우면 5덱을
    가로로 늘어놓을 자리가 안 나온다. */
@@ -777,8 +766,6 @@ footer a { color: var(--accent); text-decoration: none; font-weight: 800; letter
 
 @media (max-width: 900px) {
   .site-shell { width: min(100% - 24px, 760px); padding-top: 24px; }
-  .hero { min-height: 210px; padding-inline: 4px; }
-  .hero-orbit { display: none; }
   .calculator-layout { grid-template-columns: 1fr; }
   /* 좁아지면 다섯 칸을 옆으로 밀지 않고 접는다. 미는 쪽은 지금 겨냥한 칸이
      화면 밖으로 나가기 쉬운데, 그 칸이 어디인지가 이 화면의 요점이다. */
@@ -791,9 +778,6 @@ footer a { color: var(--accent); text-decoration: none; font-weight: 800; letter
 
 @media (max-width: 600px) {
   .site-shell { width: min(100% - 16px, 520px); }
-  .hero { padding-top: 12px; padding-bottom: 30px; }
-  .hero h1 { font-size: 44px; }
-  .hero-lede { margin-top: 18px; }
   .panel { padding: 20px; }
   /* 縦並びにすると flex-basis が «高さ» に効いてしまい、見出しの下に 260px の空白ができる。
      縦のときは基準値を内容に戻す (白地にしたら空白がはっきり見えて気づいた) */
@@ -820,9 +804,6 @@ footer a { color: var(--accent); text-decoration: none; font-weight: 800; letter
 }
 
 /* 상단 안내 링크 */
-.site-notice { margin: 0 0 4px; padding: 10px 14px; background: rgb(var(--accent-rgb) / .08); border: 1px solid rgb(var(--accent-rgb) / .24); border-radius: 8px; text-align: center; font-size: 13px; font-weight: 700; }
-.site-notice a { color: var(--ink); text-decoration: none; }
-.site-notice a:hover { color: var(--cyan); text-decoration: underline; }
 
 /* 렛츠도로 CSV 안내 */
 .roster-import-group { display: inline-flex; align-items: center; gap: 6px; }
@@ -1031,8 +1012,9 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .history-actions { display: flex; gap: 8px; margin-top: 10px; }
 
 /* ── 화면 전환 탭 ─────────────────────────────────────────────────────── */
-.view-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
-.view-tab { flex: 1 1 auto; min-height: 42px; padding: 0 16px; border: 1px solid var(--line); border-radius: 10px;
+/* タブは移動手段であって主役ではない — 細い丸いチップに (入口の顔はブランド行と盤面) */
+.view-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
+.view-tab { flex: 0 1 auto; min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px;
   background: var(--surface); color: var(--ink-2); font: 800 12px/1 inherit; cursor: pointer; }
 .view-tab:hover { border-color: rgb(var(--line-rgb) / .2); background: var(--surface-2); color: var(--ink); }
 .view-tab.is-on { border-color: var(--ink); background: var(--ink); color: #fff; }
@@ -1599,3 +1581,19 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .board-more button:hover { border-color: rgb(var(--accent-rgb) / .45); background: rgb(var(--accent-rgb) / .06); }
 .board-more b { display: block; font-size: 13.5px; font-weight: 800; }
 .board-more span { font-size: 11.5px; color: var(--ink-2); line-height: 1.6; }
+
+/* ── 入口の顔: 上流のヒーロー (「NIKKE スカッド計算機」) の代わりの軽いブランド行。3凸ボードのモックと同じ ── */
+.brand { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px 24px; flex-wrap: wrap; padding: 4px 0 16px; }
+.brand-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.brand h1 { margin: 0; font-size: 21px; font-weight: 900; letter-spacing: -.01em; }
+.brand-beta { font-size: 10px; font-weight: 900; letter-spacing: .06em; padding: 2px 7px; border-radius: 999px; color: var(--amber-text); background: rgb(var(--amber-rgb) / .12); }
+.brand-lede { font-size: 12px; color: var(--ink-2); }
+.brand-tools { gap: 6px; }
+.brand-tools > span, .brand-tools .notice-open, .brand-tools .credit-link { padding: 5px 9px; font-size: 11px; border-radius: 999px; }
+.notice-new { margin-left: 5px; padding: 1px 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 9.5px; font-weight: 900; letter-spacing: .04em; }
+
+/* 盤面は白いページに直接置く (モック)。パネルの囲いは外す */
+.board-panel { border: 0; background: transparent; box-shadow: none; padding: 0; }
+.board-sec { margin: 22px 0 4px; font-size: 12px; font-weight: 900; letter-spacing: .07em; color: var(--ink-2); }
+.board-sync { background: var(--surface); border-color: var(--line); box-shadow: 0 1px 2px rgb(var(--line-rgb) / .04); }
+.board-slot, .board-total, .board-used, .board-el, .board-more button { border-color: var(--line); box-shadow: 0 1px 2px rgb(var(--line-rgb) / .04); }
