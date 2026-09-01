@@ -1,3 +1,4 @@
+import { elementLabel, labelFor } from './display-name';
 import type { BattleShare } from './share-code';
 
 // 설정 공유 서버(`worker-share/`)와 이야기하는 쪽. 서버가 아는 것은 공유 코드 문자열과
@@ -125,18 +126,21 @@ export class ShareServer {
   }
 }
 
-/** 목록에서 «어떤 상황에서 쟀나»가 한 줄로 읽히게. 설정에서만 만든다. */
+/**
+ * 목록에서 «어떤 상황에서 쟀나»가 한 줄로 읽히게. 설정에서만 만든다.
+ * (しりすこスクワッド: 表示用なので日本語。敵コードは内部キーのまま渡され、ここで elementLabel を通す)
+ */
 export function summarizeBattle(battle: BattleShare): string {
-  const parts = [`${battle.duration}초`];
-  parts.push(battle.enemyCode ? `적 ${battle.enemyCode}` : '무속성');
-  parts.push(battle.coreEnabled ? `코어 ${battle.corePx}px` : '코어 없음');
-  if (battle.hasParts) parts.push('파츠');
+  const parts = [`${battle.duration}秒`];
+  parts.push(battle.enemyCode ? `敵 ${elementLabel(battle.enemyCode)}` : '無属性');
+  parts.push(battle.coreEnabled ? `コア ${battle.corePx}px` : 'コアなし');
+  if (battle.hasParts) parts.push('パーツ');
   if (battle.optimalRangeWeapons.length > 0) {
-    parts.push(`적정 ${battle.optimalRangeWeapons.join('·')}`);
+    parts.push(`適正 ${battle.optimalRangeWeapons.join('·')}`);
   }
-  if (battle.immuneWindows.length > 0) parts.push(`족자 ${battle.immuneWindows.length}`);
-  if (battle.elementWindows.length > 0) parts.push(`속저 ${battle.elementWindows.length}`);
-  parts.push(battle.rngMode === 'expected' ? '기대값' : '난수');
+  if (battle.immuneWindows.length > 0) parts.push(`回避 ${battle.immuneWindows.length}`);
+  if (battle.elementWindows.length > 0) parts.push(`属性制限 ${battle.elementWindows.length}`);
+  parts.push(battle.rngMode === 'expected' ? '期待値' : '乱数');
   return parts.join(' · ');
 }
 
@@ -150,12 +154,12 @@ export function summarizeSquad(
   decks: Array<{ squad: string[] }>,
   fiveDeckMode: boolean,
 ): string {
-  const filled = decks.map((deck) => deck.squad.filter((name) => name.trim() !== ''));
+  const filled = decks.map((deck) => deck.squad.filter((name) => name.trim() !== '').map(labelFor));
   if (!fiveDeckMode) return filled[0]?.join('/') ?? '';
   const used = filled.filter((squad) => squad.length > 0);
   const total = used.reduce((sum, squad) => sum + squad.length, 0);
   if (used.length <= 1) return used[0]?.join('/') ?? '';
-  return `${used.length}덱 · ${total}명`;
+  return `${used.length}デッキ · ${total}名`;
 }
 
 /**
@@ -167,9 +171,9 @@ export function summarizeUnion(
 ): string {
   const live = bosses.filter((boss) => boss.enabled
     && (boss.name.trim() !== '' || boss.battleCode.trim() !== ''));
-  const names = live.map((boss, index) => boss.name.trim() || `보스 ${index + 1}`);
+  const names = live.map((boss, index) => boss.name.trim() || `ボス ${index + 1}`);
   const decks = live.reduce(
     (sum, boss) => sum + boss.deckCodes.filter((code) => code.trim() !== '').length, 0);
-  if (names.length === 0) return '빈 판';
-  return `${names.join(' / ')} · 덱 ${decks}개`;
+  if (names.length === 0) return '空の盤面';
+  return `${names.join(' / ')} · デッキ ${decks}`;
 }

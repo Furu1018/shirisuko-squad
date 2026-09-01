@@ -67,7 +67,7 @@ describe('share server client', () => {
 
 describe('auto summaries', () => {
   it('reads the battle back as one line', () => {
-    expect(summarizeBattle(battle)).toBe('180초 · 무속성 · 코어 없음 · 난수');
+    expect(summarizeBattle(battle)).toBe('180秒 · 無属性 · コアなし · 乱数');
     expect(summarizeBattle({
       ...battle,
       duration: 90,
@@ -79,7 +79,7 @@ describe('auto summaries', () => {
       immuneWindows: [{ from: 10, to: 20 }],
       elementWindows: [{ from: 30, to: 40, code: '작열' }],
       rngMode: 'expected',
-    })).toBe('90초 · 적 수냉 · 코어 60px · 파츠 · 적정 AR·SMG · 족자 1 · 속저 1 · 기대값');
+    })).toBe('90秒 · 敵 水冷 · コア 60px · パーツ · 適正 AR·SMG · 回避 1 · 属性制限 1 · 期待値');
   });
 
   it('names the squad, and counts decks in five-deck mode', () => {
@@ -89,7 +89,7 @@ describe('auto summaries', () => {
       { squad: ['', '', '', '', ''] },
     ];
     expect(summarizeSquad(decks, false)).toBe('리타/크라운');
-    expect(summarizeSquad(decks, true)).toBe('2덱 · 4명');
+    expect(summarizeSquad(decks, true)).toBe('2デッキ · 4名');
     // 5덱 모드라도 실제로 한 덱만 찼으면 이름이 더 쓸모 있다.
     expect(summarizeSquad([decks[0]!], true)).toBe('리타/크라운');
 

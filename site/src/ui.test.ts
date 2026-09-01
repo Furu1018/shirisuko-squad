@@ -447,8 +447,8 @@ describe('calculator UI', () => {
     def.value = '99999'; def.dispatchEvent(new Event('change', { bubbles: true }));
     code.value = '작열'; code.dispatchEvent(new Event('change', { bubbles: true }));
     parts.checked = true; parts.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(summary.textContent).toContain('작열');
-    expect(summary.textContent).toContain('파츠');
+    expect(summary.textContent).toContain('灼熱');
+    expect(summary.textContent).toContain('パーツ');
 
     root.querySelector<HTMLButtonElement>('[data-reset-enemy]')!.click();
 
@@ -457,9 +457,9 @@ describe('calculator UI', () => {
     expect(parts.checked).toBe(false);
     // 전투 조건이 창으로 들어간 뒤로 이 한 줄이 화면에 남는 유일한 표시다 —
     // 값만 되돌리고 줄을 그대로 두면 «초기화가 안 된다»로 보인다.
-    expect(summary.textContent).not.toContain('작열');
-    expect(summary.textContent).not.toContain('파츠');
-    expect(summary.textContent).toContain('무속성');
+    expect(summary.textContent).not.toContain('灼熱');
+    expect(summary.textContent).not.toContain('パーツ');
+    expect(summary.textContent).toContain('無属性');
   });
 
   it('받은 전투 조건 코드를 적용해도 조건 한 줄이 따라온다', () => {
@@ -468,7 +468,7 @@ describe('calculator UI', () => {
     });
 
     const summary = root.querySelector<HTMLElement>('[data-battle-summary]')!;
-    expect(summary.textContent).toContain('무속성');
+    expect(summary.textContent).toContain('無属性');
 
     root.querySelector<HTMLButtonElement>('[data-battle-share-open]')!.click();
     const input = root.querySelector<HTMLTextAreaElement>('[data-battle-share-in]')!;
@@ -479,8 +479,8 @@ describe('calculator UI', () => {
     root.querySelector<HTMLButtonElement>('[data-battle-share-apply]')!.click();
 
     expect(root.querySelector<HTMLInputElement>('#duration')!.value).toBe('90');
-    expect(summary.textContent).toContain('전격');
-    expect(summary.textContent).toContain('90초');
+    expect(summary.textContent).toContain('電撃');
+    expect(summary.textContent).toContain('90秒');
   });
 
   it('조합 공유는 「이 덱만」으로 열리고, 받은 덱 하나가 다른 덱을 지우지 않는다', () => {
@@ -1029,6 +1029,31 @@ describe('calculator UI', () => {
     // 点数が同じ (試験の計算機は常に同じ値) なので「こちら (2凸目) から外す」が選ばれる
     expect(storedBoard().slots[1]!.squad.filter(Boolean)).toEqual(['앨리스']);
     expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);
+  });
+
+  it('全員が被る枠を解くと、空になった枠はボスごと空に戻る', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // 同じ顔ぶれを鉄甲 (レイタンス向け) と水冷 (トゥームストーン向け) の両方に保存 → 2枠で全員被る
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('수냉', ['리타', '크라운']);
+    pickBoss(0, 'レイタンス');
+    await settle();
+    pickBoss(1, 'トゥームストーン');
+    await settle();
+    const clash = root.querySelector<HTMLElement>('[data-board-clash="1:0"]')!;
+    expect(clash.textContent).toContain('誰も残りません');
+    expect(clash.textContent).toContain('1凸目が空になります');
+
+    clash.querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    // 点数が同じなら「こちら (2凸目) から外す」→ 2凸目は空になり、ボスも外れる
+    expect(storedBoard().slots[1]).toEqual({ boss: null, squad: ['', '', '', '', ''] });
+    expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);
+    expect(root.querySelector('[data-board-search-open="1"]')).not.toBeNull();
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('空になったので');
   });
 
   it('被りなしで最大の3凸を探すと、同じニケを使わない組み合わせが枠に入る', async () => {

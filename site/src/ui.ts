@@ -5062,12 +5062,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const hereTotal = (knownScore(boss, option.here) ?? 0) + (knownScore(otherBoss, other.squad) ?? 0);
       const thereTotal = (knownScore(boss, slot.squad) ?? 0) + (knownScore(otherBoss, option.there) ?? 0);
       const names = option.names.map(labelFor).join('・');
+      // 外した結果だれも残らない枠は、ボスごと空に戻す — 「残りで一番出るボスを探す」が使える状態にする
       if (hereTotal >= thereTotal) {
-        commit(withSlot(board, index, { boss: slot.boss, squad: option.here }));
-        say(`${names} を ${index + 1}凸目から外しました (合計 ${formatDamage(hereTotal)} ≥ 譲る場合の ${formatDamage(thereTotal)})。`, true);
+        commit(isEmptySquad(option.here) ? clearSlot(board, index)
+          : withSlot(board, index, { boss: slot.boss, squad: option.here }));
+        say(`${names} を ${index + 1}凸目から外しました (合計 ${formatDamage(hereTotal)} ≥ 譲る場合の ${formatDamage(thereTotal)})。`
+          + (isEmptySquad(option.here) ? ` ${index + 1}凸目は空になったので、残りで探し直せます。` : ''), true);
       } else {
-        commit(withSlot(board, option.other, { boss: other.boss, squad: option.there }));
-        say(`${names} を ${option.other + 1}凸目から譲りました (合計 ${formatDamage(thereTotal)} > 外す場合の ${formatDamage(hereTotal)})。`, true);
+        commit(isEmptySquad(option.there) ? clearSlot(board, option.other)
+          : withSlot(board, option.other, { boss: other.boss, squad: option.there }));
+        say(`${names} を ${option.other + 1}凸目から譲りました (合計 ${formatDamage(thereTotal)} > 外す場合の ${formatDamage(hereTotal)})。`
+          + (isEmptySquad(option.there) ? ` ${option.other + 1}凸目は空になったので、残りで探し直せます。` : ''), true);
       }
     });
 
@@ -5110,9 +5115,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         if (mine !== null && hereScore !== null && theirs !== null && thereScore !== null) {
           const hereTotal = hereScore + theirs;
           const thereTotal = mine + thereScore;
-          text.append(document.createTextNode(
-            ` こちらから外すと ${formatDamage(hereScore)} (${delta(hereScore - mine)})、`
-            + `${option.other + 1}凸目から譲ると ${option.other + 1}凸目が ${formatDamage(thereScore)} (${delta(thereScore - theirs)})。`));
+          const hereText = isEmptySquad(option.here)
+            ? 'こちらから外すと誰も残りません'
+            : `こちらから外すと ${formatDamage(hereScore)} (${delta(hereScore - mine)})`;
+          const thereText = isEmptySquad(option.there)
+            ? `${option.other + 1}凸目から譲ると ${option.other + 1}凸目が空になります`
+            : `${option.other + 1}凸目から譲ると ${option.other + 1}凸目が ${formatDamage(thereScore)} (${delta(thereScore - theirs)})`;
+          text.append(document.createTextNode(` ${hereText}、${thereText}。`));
           text.append(createText('b', hereTotal >= thereTotal
             ? `合計は「${index + 1}凸目から外す」が上です。`
             : `合計は「${option.other + 1}凸目から譲る」が上です。`));
