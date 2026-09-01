@@ -736,7 +736,10 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .timeline-legend-row { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 10px; }
 .timeline-legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; background: rgb(var(--line-rgb) / .06); border: 1px solid var(--line); border-radius: 20px; color: var(--ink); font-size: 11px; cursor: pointer; }
 .timeline-legend-item:hover { border-color: rgb(var(--line-rgb) / .35); }
-.timeline-legend-item.is-off { opacity: .4; }
+/* 押せる要素なので opacity で薄めすぎない (文字が実効 2.4:1 まで落ちていた)。
+   «切ってある» ことは取り消し線と点の薄さで示す */
+.timeline-legend-item.is-off { opacity: .72; text-decoration: line-through; }
+/* contrast-ignore: 文字ではなく状態を示す色の点 (文字は取り消し線で示している) */
 .timeline-legend-item.is-off .tl-dot { opacity: .35; }
 .timeline-legend-item .tl-total { color: var(--muted); font-variant-numeric: tabular-nums; }
 .tl-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
@@ -950,7 +953,8 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 .share-auto { margin: 4px 0 0; color: var(--ink-2); font: 11px/1.5 ui-monospace, monospace;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .share-by { margin: 5px 0 0; color: var(--muted); font-size: 10.5px; }
-.share-by .anon { opacity: .75; font-style: italic; }
+/* 薄めると 3.3:1 まで落ちる。斜体だけで «匿名» は伝わる */
+.share-by .anon { font-style: italic; }
 .share-uses { color: var(--ink-3); }
 .share-empty { margin: 14px 0 0; color: var(--muted); font-size: 12px; }
 
@@ -1155,7 +1159,8 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
 /* 보스 다섯 칸. 넓으면 둘씩 서고, 좁으면 한 줄로 접힌다. */
 .union-bosses { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin-top: 12px; }
 .union-boss { padding: 12px; border: 1px solid var(--line); background: rgb(var(--surface-rgb) / .55); }
-.union-boss.is-off { opacity: .45; }
+/* 中の入力やボタンは押せるままなので、薄くしすぎると文字が基準を割る */
+.union-boss.is-off { opacity: .72; }
 .union-boss-head { display: flex; align-items: center; gap: 8px; }
 .union-boss-name { flex: 1 1 auto; min-width: 0; padding: 6px 8px; border: 1px solid var(--line);
   background: rgb(var(--surface-rgb) / .6); color: var(--ink); font: 700 12px inherit; }

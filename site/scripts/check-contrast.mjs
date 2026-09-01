@@ -16,9 +16,16 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const CSS = readFileSync(resolve(HERE, '../src/styles.css'), 'utf8');
 const SHOW_ALL = process.argv.includes('--all');
 
-/** 文字が乗りうる下地。明るい面ほど暗い文字との比が下がるので、**一番暗い面**を最悪値として使う。 */
+/**
+ * 文字が乗りうる下地。背景の指定が無い規則はこの3面すべてで試し、
+ * 1つでも基準を割れば失敗にする (濃い文字にとっては一番暗い #f1f2f4 が最も不利)。
+ * 通った件数は面ごとに数えず、規則ごとに1件として数える。
+ */
 const SURFACES = ['#ffffff', '#f7f8f9', '#f1f2f4'];
 const WORST_SURFACE = '#f1f2f4';
+
+/** 無効化された操作部品の擬似クラス。WCAG は押せない部品に基準を求めない。 */
+const DISABLED = ':disabled';
 
 // ── 色の計算 ───────────────────────────────────────────────────────────────
 const hex3 = (h) => {
@@ -78,6 +85,16 @@ function resolve色(value, bg, depth = 0) {
   return null;   // グラデーション・color-mix・transparent などは対象外
 }
 
+/**
+ * その規則の opacity。要素ごと薄めると文字も薄まるので、下地に対して合成して効かせる。
+ * (押せる要素を opacity で薄めて基準を割っていたのを見落とした)
+ */
+function opacityOf(body) {
+  const m = body.match(/(?:^|;)\s*opacity:\s*([0-9.]+)/);
+  const v = m ? Number(m[1]) : 1;
+  return Number.isFinite(v) && v > 0 && v <= 1 ? v : 1;
+}
+
 /** その規則の文字の大きさ。小さいものだけ 4.5:1 を求める。 */
 function fontPx(body) {
   const size = body.match(/font-size:\s*([0-9.]+)px/);
@@ -87,32 +104,76 @@ function fontPx(body) {
   return null;   // 不明なら小さい側として扱う
 }
 
+// ── 規則を集める ─────────────────────────────────────────────────────────
+const RULES = [];
+{
+  const RULE = /([^{}]+)\{([^{}]*)\}/g;
+  let r;
+  while ((r = RULE.exec(CSS)) !== null) {
+    const raw = r[1];
+    // 除外の印はコメントに書くので、コメントを落とす前に見る
+    if (raw.includes('contrast-ignore')) continue;
+    // 直前のコメントがセレクタに混ざると、土台の規則と前方一致しなくなる
+    // (これで状態クラスの色の受け継ぎが効かず、薄めた文字を取りこぼしていた)
+    const selector = raw.replace(/\/\*[\s\S]*?\*\//g, '').trim().replace(/\s+/g, ' ');
+    if (!selector || selector.startsWith('@') || selector.includes(':root')) continue;
+    // 無効化された操作部品は WCAG の対象外 (押せないものは基準を求めない)
+    if (selector.includes(DISABLED)) continue;
+    RULES.push({ selector, body: r[2] });
+  }
+}
+
+const colorOf = (body) => body.match(/(?:^|;|\{)\s*color:\s*([^;]+)/)?.[1];
+const bgOf = (body) => body.match(/(?:^|;)\s*background(?:-color)?:\s*([^;]+)/)?.[1];
+
+/**
+ * 状態クラス (`.is-off` など) だけを足した規則は、色を土台の規則から受け継ぐ。
+ * `opacity` と `color` が別の規則に分かれていると、規則を1つずつ見るだけでは
+ * 「薄めた押せる要素の文字」を取りこぼす (実際に取りこぼした)。
+ */
+function inherited(selector, pick) {
+  let found;
+  for (const rule of RULES) {
+    if (rule.selector === selector || rule.selector.includes(',')) continue;
+    if (!selector.startsWith(rule.selector)) continue;
+    // 文字列の前方一致だけだと `.timeline-legend` が `.timeline-legend-item` に当たってしまう。
+    // 続きが状態の付け足し (`.` `:` `[`) のときだけ「同じ要素の別の状態」とみなす。
+    const rest = selector.slice(rule.selector.length);
+    if (rest && !/^[.:[]/.test(rest)) continue;
+    const value = pick(rule.body);
+    if (value) found = value;   // 後に書かれた方が勝つ
+  }
+  return found;
+}
+
 // ── 規則を1つずつ見る ─────────────────────────────────────────────────────
 const failures = [];
 const passes = [];
-const RULE = /([^{}]+)\{([^{}]*)\}/g;
-let m;
-while ((m = RULE.exec(CSS)) !== null) {
-  const selector = m[1].trim().replace(/\s+/g, ' ');
-  const body = m[2];
-  if (selector.startsWith('@') || selector.includes(':root')) continue;
-  // 下地が親から来る等、CSS だけでは判定できない規則は直前のコメントで外せる
-  if (selector.includes('contrast-ignore')) continue;
-  const colorDecl = body.match(/(?:^|;|\{)\s*color:\s*([^;]+)/);
-  if (!colorDecl) continue;
-  const bgDecl = body.match(/(?:^|;)\s*background(?:-color)?:\s*([^;]+)/);
+for (const { selector, body } of RULES) {
+  const ownColor = colorOf(body);
+  const alphaHere = opacityOf(body);
+  // 色を持たない規則でも、薄めているなら土台の色に効いてしまう
+  const colorValue = ownColor ?? (alphaHere < 1 ? inherited(selector, colorOf) : undefined);
+  if (!colorValue) continue;
+  const colorDecl = [null, colorValue];
+  const bgValue = bgOf(body) ?? (ownColor ? undefined : inherited(selector, bgOf));
+  const bgDecl = bgValue ? [null, bgValue] : null;
 
-  const px = fontPx(body);
+  // 大きさも土台から受け継ぐ (状態クラスの規則は font-size を持たないことが多い)
+  const px = fontPx(body) ?? (ownColor ? null : (inherited(selector, (b) => String(fontPx(b) ?? '')) || null));
   const weight = Number((body.match(/font-weight:\s*(\d+)/) ?? body.match(/font:\s*(\d{3})/) ?? [])[1] ?? 400);
   // 大きい文字 (18.66px 以上の太字 / 24px 以上) は 3:1 でよい
-  const large = px !== null && (px >= 24 || (px >= 18.66 && weight >= 700));
+  const large = px !== null && Number(px) > 0 && (Number(px) >= 24 || (Number(px) >= 18.66 && weight >= 700));
   const need = large ? 3 : 4.5;
 
   for (const parent of bgDecl ? ['#ffffff'] : SURFACES) {
     const bg = bgDecl ? resolve色(bgDecl[1], parent) : parent;
     if (!bg) continue;
-    const fg = resolve色(colorDecl[1], bg);
-    if (!fg) continue;
+    const solid = resolve色(colorDecl[1], bg);
+    if (!solid) continue;
+    // 要素ごと薄めているなら、文字も下地に溶ける
+    const alpha = opacityOf(body);
+    const fg = alpha >= 1 ? solid : over(solid, alpha, bg);
     const r = ratio(fg, bg);
     const row = { selector, fg, bg, r, need, px };
     if (r < need) { failures.push(row); break; }
@@ -135,4 +196,4 @@ if (failures.length > 0) {
   console.log(`\n${failures.length}件が基準を下回っています。`);
   process.exit(1);
 }
-console.log(`検算した組み合わせ ${passes.length}件 — 基準割れなし。`);
+console.log(`検算した規則 ${passes.length}件 — 基準割れなし。`);
