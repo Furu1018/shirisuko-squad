@@ -1,40 +1,80 @@
-# NIKKE 스쿼드 계산기
+# しりすこスクワッド (β)
 
-기존 Python 시뮬레이션 엔진을 웹 브라우저 안에서 실행하는 정적 스쿼드 대미지 계산기입니다.
+NIKKE の育成状態から**理論ダメージ**を出すスカッドシミュレーターの日本語版です。
+韓国製の計算機 [moris-kr/nikke-calc](https://github.com/moris-kr/nikke-calc) (原作エンジン: [Jgaram/nikke-calc](https://github.com/Jgaram/nikke-calc)、MIT) を
+**エンジン・データ無改変**で日本語化し、しりすこ圏のユニオンレイド向けに仕立て直したものです。
 
-서비스: <https://moris-kr.github.io/nikke-calc/>
+公開先: <https://furu1018.github.io/shirisuko-squad/>
 
-원본 계산 엔진: <https://github.com/Jgaram/nikke-calc>
+> **β 版です。** 今週末 (2026-09-04〜) の第44回ユニオンレイドに間に合わせるために最小構成で公開しています。
+> 下の「暫定事項」を読んでから使ってください。
 
-## 구조
+## できること
 
-- `calculator/`, `context/`, `data/`: 계산 엔진과 원본 데이터
-- `site/`: Vite와 TypeScript로 만든 정적 웹 애플리케이션
-- `site/public/calculator.worker.js`: 계산을 UI와 분리해 순차 실행하는 Web Worker
-- `site/pybridge/bridge.py`: 웹 요청을 기존 Python 엔진 호출로 변환하는 브리지
-- `site/scripts/sync-runtime.mjs`: 엔진, 데이터, 캐릭터 목록과 이미지를 웹 런타임으로 동기화
-- `worker/`: 블라블라링크 조회 프록시 (Cloudflare Workers). 사이트와 따로 배포합니다
-- `.github/workflows/pages.yml`: 테스트, 빌드, GitHub Pages 배포 자동화
+- 限界突破・スキルレベル・オーバーロード・ハーモニーキューブ・コレクション・コントロールを個別設定し、
+  1/60 秒刻みの戦闘シミュレーションで 5 人スカッドの総ダメージ・秒間ダメージ・タイムラインを出す
+- **第44回ユニオンレイドのボス 5 体をプリセット**で呼び出す (ユニオンタブのボス枠 / 計算タブの戦闘条件)
+- **ユニオンタブ** (既定ビュー): ボス 5 枠 × デッキ 3 枠。「自分の 3 凸をどの属性に振るか」を比較する
+- Blablalink の「マイニケ」公開プロフィール、または Letsdoro 形式 CSV から実際の育成状態を取り込む
+- 編成 / 戦闘条件 / ユニオン盤面を共有コード (`NK2-` / `NK3-` / `NK4-`) でやり取りする — **原作サイトと互換**
+- 結果を PNG レポート・CSV に書き出す
 
-## 주요 기능
+計算はすべてブラウザ内 (Pyodide 上の Python エンジン + Web Worker) で完結し、サーバーにデータを送りません。
 
-- 캐릭터별 오버로드·하모니 큐브(17종)·소장품/애장품·스킬 레벨·한계돌파·컨트롤 개별 설정
-- 계정 콘솔 설정 — 공통, 클래스 3종, 기업 5종을 소속별로 받아 스쿼드 전원에게 적용
-- 5덱 모드와 **덱 복사** — 한 덱의 편성과 설정을 다른 덱에 그대로 깔고 딜러만 바꿔 비교
-- 캐릭터별 **평타/스킬 딜 분해** — 기여도와 함께 일반 공격 대미지와 스킬 대미지 비율, 스킬별 딜·히트 수
-- 프레임 단위 전투 타임라인 그래프
-- **보고서 이미지** — 결과를 한 장짜리 PNG로 만들어 복사하거나 저장 (1덱은 세로 카드, 5덱은 합계와 25명 개별딜을 한 장에)
-- **버스트 게이지 충전 시간** 조절 — 게이지 누적 대신 쓰는 고정 시간을 직접 넣어 사이클을 조정
-- 렛츠도로 CSV 불러오기와 블라블라링크 프로필 연동으로 실제 육성 상태 반영
-- 스쿼드를 링크·코드로 공유, 편성 프리셋 저장, 덱끼리 순위 비교
+## 原作との関係 / 上流との差分
 
-웹에서는 고정 버전 Pyodide로 Python 엔진을 Web Worker 안에서 실행합니다. 계산 요청과 결과는 사용자의 브라우저를 벗어나지 않으며 AI API, 별도 서버, 데이터베이스, 로그인, 분석 도구를 사용하지 않습니다. 결과 캐시는 해당 브라우저의 `localStorage`에 최대 30개까지 저장됩니다.
+| 項目 | 方針 |
+|---|---|
+| 計算エンジン (`calculator/*.py`)・データ (`data/parsed_*.json` 等) | **無改変**。精度・挙動は原作と同一。CI の `context.snapshot` (ゴールデン 29 件) で担保 |
+| キャラ名・属性・クラス・企業などの内部キー | 上流と同じ**韓国語のまま**。共有コード・ロスター照合・保存値の互換を保つため |
+| 表示 | `site/src/display-name.ts` の `labelFor()` / `elementLabel()` / `growthLabel()` などで**表示時だけ日本語化** |
+| キャラ名の対訳 | `data/name-map-ja.json` (韓国語キー → 日本語) が正本。`site/scripts/sync-runtime.mjs` が catalog に `displayName` を焼き込み、欠落・余剰・重複・空白差はビルドで落ちる |
+| UI 文言 | 直接日本語に置換 (i18n 基盤は作らない) |
+| ソロレイド向け機能 (enikk ランキング取込・韓国コミュニティリンク・韓国語お知らせ) | 非表示 / 日本向けに差し替え |
+| 共有サーバー (`worker-share/`) | 未導入 (`VITE_SHARE_API` 空で機能ごと非表示) |
 
-현재 선택 목록은 `data/parsed_nikke.json`과 `data/parsed_skills.json` 양쪽에 존재하는 실제 캐릭터만 포함합니다. `test_` 데이터는 제외하며, 미리보기 캐릭터는 검증되지 않은 데이터라는 경고를 표시합니다. 현재 동기화 기준 지원 캐릭터는 199명입니다.
+### 上流を取り込む手順
 
-## 로컬 실행
+1. `moris-kr/nikke-calc` の差分を確認し、`calculator/` `data/` `context/` `scraper/nikke_scraped.json` `image/` をそのまま上書き
+2. `site/src/` は表示文字列を日本語化しているので、機械的に上書きせず差分を手で当てる
+   (内部キー・共有コード・ロスター照合に触れていないか、上流の変更点を確認する)
+3. 新キャラが増えたら `data/name-map-ja.json` に日本語名を追加 — 無いと `npm run build` が失敗する (仕様)
+4. `cd site && npm test -- --run && npm run build`
 
-Node.js 22 이상과 Python 3가 필요합니다.
+## 暫定事項 (β)
+
+- **敵防御力は暫定値** (上流既定 31,784)。実測後に `site/src/union-bosses.ts` を更新する。属性・編成の比較 (相対値) には影響しない
+- 一部の**データ由来ラベルは韓国語のまま**: ハーモニーキューブ名 (`재장` など)、上級モードの数値名、バフ名、Blablalink 未対応の注記など
+  (`site/public/settings.json` を生成する `export-settings.py` 由来。表示対訳を順次追加する)
+- 自作ニケ用の LLM プロンプト (`custom-nikke.ts`) は韓国語のまま。出力 JSON の列挙値 (属性・クラス・企業・スキル種別) はエンジン契約で韓国語必須
+- Blablalink 連携 (`worker/`) は運営者のセッション Cookie を Cloudflare Worker のシークレット `BLABLA_COOKIE` に入れる方式で、
+  **Cookie が切れたら手動更新が必要** (`worker/README.md`)。未デプロイの間は `site/.env.production` の `VITE_BLABLA_PROXY` を空にしておくと連携 UI ごと隠れ、CSV / 手入力で使える
+- ソースコード中のコメントは大部分が上流の韓国語のまま (表示に出ないため後回し)
+
+## 権利表記・削除ポリシー
+
+- コード: MIT (原作 Jgaram / moris-kr の著作権表示を `LICENSE` に維持)
+- 『勝利の女神：NIKKE』のキャラクター名・画像・ゲームデータの権利は SHIFT UP / Level Infinite に帰属します。
+  本サイトは非公式のファンメイドツールで、収益化していません
+- キャラクター画像 (`image/`) は上流由来のゲームアセットです。**権利者から削除要請があった場合は速やかに削除します**
+  (しりすこPAD / GB と同じ方針)。連絡は GitHub Issues へ
+
+## 構成
+
+- `calculator/`, `context/`, `data/`: 計算エンジンと元データ (上流のまま)
+- `data/name-map-ja.json`: キャラ名の日本語対訳 (このリポジトリ固有)
+- `site/`: Vite + TypeScript の静的 Web アプリ
+  - `src/display-name.ts`: 表示名・属性・クラス・企業・突破ラベルの対訳 (内部キーは翻訳しない)
+  - `src/union-bosses.ts`: 今シーズンのボスプリセット (NK3 条件コードに変換)
+  - `public/calculator.worker.js`: 計算を UI と分離する Web Worker (Pyodide)
+  - `pybridge/bridge.py`: Web リクエストを Python エンジン呼び出しに変換するブリッジ
+  - `scripts/sync-runtime.mjs`: エンジン・データ・catalog・画像を Web ランタイムに同期 (+ 対訳検証)
+- `worker/`: Blablalink 取得プロキシ (Cloudflare Workers、サイトとは別デプロイ)
+- `.github/workflows/pages.yml`: テスト・ビルド・GitHub Pages デプロイ (`main` push)
+
+## ローカル実行
+
+Node.js 22 以上と Python 3 が必要です。
 
 ```bash
 cd site
@@ -42,66 +82,27 @@ npm install
 npm run dev
 ```
 
-Vite가 표시한 로컬 주소의 `/nikke-calc/` 경로로 접속하면 됩니다. 첫 계산 때 Pyodide를 내려받으므로 인터넷 연결이 필요하고 이후 브라우저 캐시를 활용합니다.
+Vite が表示したローカルアドレスの `/shirisuko-squad/` に接続します。初回計算時に Pyodide をダウンロードするためインターネット接続が必要です。
 
-## 검증
-
-웹 애플리케이션의 빠른 검증:
+## 検証
 
 ```bash
 cd site
 npm test -- --run
 python3 scripts/test-bridge.py
-npm run check-pages
 npm run build
 ```
 
-기존 계산 엔진을 포함한 전체 검증:
+エンジンを含む全体検証 (CI と同じ):
 
 ```bash
+python3 -m unittest discover -s calculator -p 'test_*.py' -v
 python3 calculator/damage.py
 python3 -m context.doclint
 python3 -m context.snapshot
 ```
 
-## 데이터 갱신
+## 今後 (レイド後)
 
-엔진이나 데이터, 캐릭터 이미지가 변경되면 생성물을 직접 수정하지 말고 다음 명령으로 다시 동기화합니다.
-
-```bash
-cd site
-npm run sync-runtime
-npm run check-runtime
-```
-
-`npm run dev`와 `npm run build`도 실행 전에 자동으로 런타임을 동기화합니다.
-
-## 배포
-
-`master` 브랜치에 푸시하면 GitHub Actions가 의존성을 잠금 파일대로 설치하고 테스트와 프로덕션 빌드를 통과한 `site/dist`만 GitHub Pages에 배포합니다. Vite의 배포 기본 경로는 `/nikke-calc/`입니다.
-
-### 블라블라링크 연동 (선택)
-
-프로필 URL로 육성 데이터를 받아 오는 기능은 프록시가 있어야 동작합니다 — 블라블라링크 API는
-CORS를 열어 두지 않고 조회에 로그인 세션을 요구하므로, 정적 사이트가 직접 부를 수 없습니다.
-배포 절차는 [worker/README.md](worker/README.md)에 있고, 배포한 주소를
-[site/.env.production](site/.env.production)의 `VITE_BLABLA_PROXY`에 적으면 사이트에
-**블라블라링크 연동** 버튼이 생깁니다. 값을 비우면 그 버튼을 아예 그리지 않고 렛츠도로
-CSV만 남습니다.
-
-## 라이선스
-
-계산 엔진의 원본은 <https://github.com/Jgaram/nikke-calc>이며 MIT 라이선스로 공개돼 있습니다.
-이 저장소는 그 포크이므로 같은 MIT 라이선스를 따르고, 원 저작권 고지를 [LICENSE](LICENSE)에 그대로 싣습니다.
-
-    Copyright (c) 2026 Jgaram
-    MIT License
-
-## 고지
-
-이 저장소와 서비스는 비공식 팬 도구이며 SHIFT UP 또는 Level Infinite와 제휴하거나 이들의 승인을 받은 서비스가 아닙니다.
-『승리의 여신: NIKKE』의 게임 데이터·캐릭터·이미지 및 관련 저작물에 대한 권리는 SHIFT UP CORP. 및 Level Infinite에 있습니다.
-위 라이선스는 계산기 코드에만 적용되며 게임 저작물에는 적용되지 않습니다.
-공개 운영 전에는 사용 중인 자산과 데이터의 배포 권한을 별도로 확인하세요.
-
-계산 결과는 참고용입니다 — 버그나 아직 확인되지 않은 게임 메커니즘이 남아 있을 수 있습니다.
+- しりすこPAD との連携: 理論値をメンバーの模擬・実測に並記し、達成率と育成アドバイスに使う (別リポジトリの作業)
+- データ由来ラベルの日本語化、敵防御力の実測反映、上流の継続取り込み

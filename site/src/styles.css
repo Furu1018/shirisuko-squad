@@ -841,9 +841,9 @@ button.roster-cell.is-taken { opacity: .35; cursor: not-allowed; }
   color: #c6d3de; font-size: 12.5px; line-height: 1.65; }
 .notice-tag { align-self: start; padding: 2px 0; border-radius: 5px; text-align: center;
   font: 800 9.5px ui-monospace, monospace; font-style: normal; }
-.notice-tag[data-notice-tag="새 기능"] { background: rgba(255,191,60,.16); color: var(--amber); }
-.notice-tag[data-notice-tag="개선"] { background: rgba(69,214,208,.14); color: var(--cyan); }
-.notice-tag[data-notice-tag="고침"] { background: rgba(146,176,201,.16); color: #cfdbe6; }
+.notice-tag[data-notice-tag="新機能"] { background: rgba(255,191,60,.16); color: var(--amber); }
+.notice-tag[data-notice-tag="改善"] { background: rgba(69,214,208,.14); color: var(--cyan); }
+.notice-tag[data-notice-tag="修正"] { background: rgba(146,176,201,.16); color: #cfdbe6; }
 
 /* 캐릭터 설정 — 카드에서 창으로 여는 뭉치 */
 .char-panel-open { display: flex; align-items: center; justify-content: space-between; gap: 6px;

@@ -141,8 +141,11 @@ const nameMapJa = JSON.parse(readFileSync(join(repoRoot, 'data', 'name-map-ja.js
   if (strayJa.length) throw new Error(`name-map-ja.json に未知のキーがあります (改名/削除?): ${strayJa.join(', ')}`);
   const seenJa = new Map();
   for (const [kr, ja] of Object.entries(nameMapJa)) {
-    if (seenJa.has(ja)) throw new Error(`name-map-ja.json の日本語名が重複しています: 「${ja}」 ← ${seenJa.get(ja)} と ${kr}`);
-    seenJa.set(ja, kr);
+    // 前後空白・NFKC 正規化差 (全角英数など) は同名扱い — 見た目が同じ別キャラを仕組みで弾く
+    if (typeof ja !== 'string' || ja.trim() !== ja || ja.trim() === '') throw new Error(`name-map-ja.json の日本語名が空か前後に空白があります: ${kr}`);
+    const key = ja.normalize('NFKC');
+    if (seenJa.has(key)) throw new Error(`name-map-ja.json の日本語名が重複しています: 「${ja}」 ← ${seenJa.get(key)} と ${kr}`);
+    seenJa.set(key, kr);
   }
 }
 

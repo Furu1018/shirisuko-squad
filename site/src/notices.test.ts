@@ -24,7 +24,7 @@ describe('업데이트 공지', () => {
     for (const notice of NOTICES) {
       expect(notice.items.length).toBeGreaterThan(0);
       for (const item of notice.items) {
-        expect(['새 기능', '개선', '고침']).toContain(item.tag);
+        expect(['新機能', '改善', '修正']).toContain(item.tag);
         expect(item.text.length).toBeGreaterThan(10);
       }
     }
