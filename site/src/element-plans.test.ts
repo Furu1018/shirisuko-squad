@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { StorageLike } from './cache';
 import {
-  BEATS, ELEMENT_PLANS_KEY, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans,
+  BEATS, ELEMENT_PLANS_KEY, baselineBattle, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans,
   isEmptySquad, loadPlans, plansOf, removePlan, sameSquad, savePlans, type ElementPlans,
 } from './element-plans';
 
@@ -113,6 +113,43 @@ describe('優越コードの対応', () => {
     const beaten = PLAN_ELEMENTS.map((element) => BEATS[element]);
     expect(new Set(beaten).size).toBe(5);
     for (const element of PLAN_ELEMENTS) expect(BEATS[element]).not.toBe(element);
+  });
+});
+
+describe('基準戦闘', () => {
+  const base = {
+    duration: 180, enemyDef: 31_784, enemyCode: '', coreEnabled: true, corePx: 60,
+    hasParts: true, seed: 42, immuneWindows: [{ from: 10, to: 20 }], elementWindows: [{ from: 5, to: 9 }],
+    synchroLevel: 400,
+  };
+
+  it('その編成が想定するボスのコードを敵に設定する', () => {
+    // 電撃編成は水冷ボス向け — 敵を水冷にしないと優越コードの補正が乗らず、比較にならない
+    expect(baselineBattle(base, '전격').enemyCode).toBe('수냉');
+    expect(baselineBattle(base, '작열').enemyCode).toBe('풍압');
+  });
+
+  it('ボス固有の条件を外す (コア・パーツ・区間)', () => {
+    const battle = baselineBattle(base, '전격');
+    expect(battle.coreEnabled).toBe(false);
+    expect(battle.hasParts).toBe(false);
+    expect(battle.immuneWindows).toEqual([]);
+    expect(battle.elementWindows).toEqual([]);
+  });
+
+  it('それ以外は今の設定のまま (自分の環境での相対比較として読めるように)', () => {
+    const battle = baselineBattle(base, '전격');
+    expect(battle.duration).toBe(180);
+    expect(battle.enemyDef).toBe(31_784);
+    expect(battle.synchroLevel).toBe(400);
+    expect(battle.seed).toBe(42);
+    expect(battle.corePx).toBe(60);   // コアを切っているので値は効かないが、勝手に変えない
+  });
+
+  it('元のオブジェクトを書き換えない', () => {
+    baselineBattle(base, '전격');
+    expect(base.coreEnabled).toBe(true);
+    expect(base.immuneWindows).toHaveLength(1);
   });
 });
 
