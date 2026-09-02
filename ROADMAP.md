@@ -241,7 +241,9 @@ UI 全ファイル。**内部キー (韓国語のキャラ名・属性・保存�
   2026-09-02 に実害が出た: sync-runtime が実体化待ちでハング → build (rolldown) がクラッシュ →
   `rm -rf` も ENOTEMPTY。対処 = 競合コピーごと生成物ディレクトリを消して作り直す
   (`rm -rf site/public/runtime "site/public/characters "*` → `npm run sync-runtime`)。
-  根本対応はリポジトリを iCloud 外 (例: `~/dev/`) に置くこと — ユーザーに提案済み・未決
+  根本対応として **2026-09-02 にリポジトリを `~/dev/しりすこスクワッド` へ移動済み** (iCloud 非同期)。
+  `~/Desktop/しりすこスクワッド` は本体へのシンボリックリンクなので、Finder や既存の手順はそのまま使える。
+  ※ 本家しりすこPAD (`~/Desktop/しりすこPAD`) は Desktop のままで同じ危険を持つ — あちらの会話で判断する
 - **自宅PC (Mac)**: フォルダ名に日本語が入る場合、テストのパス解決に注意
   (本家PADで `fileURLToPath` に直した前例あり)
   jsdom の UI テストは負荷時に 5 秒を超える。**`vite.config.ts` に `testTimeout: 30_000` を置いた**ので
