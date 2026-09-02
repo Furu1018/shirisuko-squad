@@ -565,12 +565,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した案があればそこから入れることもできます。</p>
         <p class="board-status" data-board-status hidden></p>
         <div class="board-elements" data-board-elements>
-          <b class="board-elements-label">属性で組む</b>
+          <b class="board-elements-label">属性を決めて最適化</b>
           <select data-board-element="0" aria-label="1凸目の属性"></select>
           <select data-board-element="1" aria-label="2凸目の属性"></select>
           <select data-board-element="2" aria-label="3凸目の属性"></select>
-          <button type="button" class="board-btn lead" data-board-elements-run title="選んだ属性の候補 (各属性 最大3案) から、同じニケを2度使わない組み合わせで理論値の合計が最大のものを3枠に入れます。同じ属性を2回以上選んでも構いません">被りなしで理論値最大</button>
-          <span class="board-elements-note">同じ属性を2回選べます (例: 水冷・水冷・灼熱)</span>
+          <button type="button" class="board-btn lead" data-board-elements-run>この3属性で最適化</button>
+          <p class="board-run-note">探すのは<b>選んだ属性の保存候補だけ</b> (各属性 最大3件)。
+            同じニケを2度使わない組み合わせのうち、理論値の合計が最大のものを選びます。
+            <b>3枠すべてを入れ替えます</b> — 同じ属性を2回選べます (例: 水冷・水冷・灼熱)。</p>
         </div>
         <div class="board-slots" data-board-slots></div>
         <div class="board-total" data-board-total></div>
@@ -4304,13 +4306,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (clashes.length > 0) notes.push('被りがあるとこの合計は出せません');
       for (const note of notes) used.append(el('br'), document.createTextNode(note));
       const actions = el('div', 'board-total-actions');
-      const search = button('被りなしで最大の3凸を探す', 'board-btn lead', () => { void searchBest(); });
+      const search = button('全ボスから自動で探す', 'board-btn lead', () => { void searchBest(); });
       search.dataset.boardSearchBest = '';
-      search.title = '全ボス × 全案を計算し、同じニケを2度使わない組み合わせで合計が最大のものを入れます';
+      search.title = '全ボス × 保存候補すべてを計算します';
       const run = button('この3凸で計算する', 'board-btn main', () => { void computeSlots([0, 1, 2]); });
       run.dataset.boardRun = '';
       actions.append(search, run);
       totalBox.append(left, used, actions);
+      // 探索範囲と «何が入れ替わるか» は title ではなく画面に出す。
+      // 押す前に分からないと、組んだ盤面が消えて驚くことになる。
+      totalBox.append(createText('p',
+        '「全ボスから自動で探す」= 全5ボス × 保存候補すべてを計算し、'
+        + '同じニケを2度使わない組み合わせで合計が最大のものを選びます。3枠すべてを入れ替えます。',
+        'board-run-note'));
     };
 
     const renderUsed = (usage: Map<string, number[]>) => {
