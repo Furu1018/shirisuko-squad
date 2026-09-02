@@ -1036,6 +1036,44 @@ describe('calculator UI', () => {
     expect(root.querySelector<HTMLButtonElement>('[data-board-pick="크라운"]')!.disabled).toBe(false);
   });
 
+  it('ボスに有利なコードのニケが先に並ぶ', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    // レイタンス = 電撃 → 有利なのは 철갑 (鉄甲)
+    pickBoss(0, 'レイタンス');
+    root.querySelector<HTMLButtonElement>('[data-board-pick-open="0"]')!.click();
+
+    const names = [...root.querySelectorAll<HTMLElement>('[data-board-pick]')]
+      .map((cell) => cell.dataset.boardPick!);
+    const ironAt = names.findIndex((n) => n === '리타' || n === '크라운');   // 철갑
+    const otherAt = names.findIndex((n) => n === '앨리스');                   // 수냉
+    expect(ironAt).toBeGreaterThanOrEqual(0);
+    expect(ironAt).toBeLessThan(otherAt);
+    // 有利なものには印が付く
+    expect(root.querySelector('[data-board-pick="리타"]')!.classList.contains('is-counter')).toBe(true);
+    expect(root.querySelector('[data-board-pick="앨리스"]')!.classList.contains('is-counter')).toBe(false);
+  });
+
+  it('バーストが欠けていると、選んでいる最中に分かる', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    pickBoss(0, 'レイタンス');
+    root.querySelector<HTMLButtonElement>('[data-board-pick-open="0"]')!.click();
+
+    root.querySelector<HTMLButtonElement>('[data-board-pick="리타"]')!.click();   // B1
+    const note = () => root.querySelector('[data-board-picker-burst="0"]')!.textContent ?? '';
+    expect(note()).toContain('B1 1');
+    expect(note()).toContain('B2・B3 がいません');
+
+    root.querySelector<HTMLButtonElement>('[data-board-pick="크라운"]')!.click();  // B2
+    root.querySelector<HTMLButtonElement>('[data-board-pick="앨리스"]')!.click();  // B3
+    expect(note()).not.toContain('がいません');
+  });
+
   it('入れたニケは枠から外せる', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

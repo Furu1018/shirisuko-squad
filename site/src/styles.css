@@ -1104,13 +1104,28 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .board-picker-chip.is-empty { color: var(--ink-2); border-style: dashed; cursor: default; }
 .board-picker-search { width: 100%; padding: 7px 9px; margin-bottom: 8px; border: 1px solid var(--line);
   border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; }
-.board-picker-grid { display: flex; flex-wrap: wrap; gap: 5px; max-height: 220px; overflow-y: auto; }
-.board-picker-cell { padding: 5px 9px; border: 1px solid rgb(var(--line-rgb) / .2); border-radius: 7px;
-  background: var(--surface); color: var(--ink); font-size: 11.5px; cursor: pointer; }
+/* 文字だけの一覧は見つけにくい (GB が «文字タイル化で視認性が下がった» と記録している)。
+   200名ぶん画像があるので、計算機のニケ一覧と同じタイルで出す。 */
+.board-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px;
+  max-height: 300px; overflow-y: auto; }
+.board-picker-cell { display: flex; flex-direction: column; gap: 3px; padding: 5px;
+  border: 1px solid rgb(var(--line-rgb) / .2); border-radius: 9px;
+  background: var(--surface); color: var(--ink); font-size: 11px; cursor: pointer; text-align: center; }
 .board-picker-cell:hover:not(:disabled) { border-color: rgb(var(--accent-rgb) / .5); }
 .board-picker-cell.is-on { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+/* このボスに有利なコード。上に並ぶうえ、色でも分かるようにする */
+.board-picker-cell.is-counter { border-color: rgb(var(--success-rgb) / .55); }
 /* 他の凸で使っている人。押せないので WCAG の対象外だが、読めなくはしない */
 .board-picker-cell.is-taken:disabled { color: var(--ink-2); border-style: dashed; cursor: not-allowed; }
+.board-pick-face { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden;
+  background: rgb(var(--line-rgb) / .08); }
+.board-pick-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.board-pick-burst { position: absolute; top: 2px; left: 2px; padding: 0 4px; border-radius: 4px;
+  background: rgb(var(--surface-rgb) / .88); color: var(--ink); font-size: 9px; font-weight: 800; }
+.board-pick-code { position: absolute; top: 2px; right: 2px; width: 13px; height: 13px; }
+.board-pick-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+.board-picker-burst { margin: 0 0 6px; font-size: 11.5px; color: var(--ink-2); }
+.board-picker-burst .is-warn { color: var(--danger); font-weight: 700; }
 .board-picker-none { margin: 4px 2px; font-size: 12px; color: var(--ink-2); }
 
 /* STEP 1 — 取り込みの導線。取り込む前はここだけを見せる */

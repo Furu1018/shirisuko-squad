@@ -3878,6 +3878,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const used = usageOf(board);
       const pickable = pickableNikke();
 
+      // バーストは1→2→3で繋ぐので、どれかが欠けていると回らない。
+      // 5人そろってから «なぜ低いのか» を探すより、選んでいる最中に見える方がよい。
+      const stages = slot.squad.filter(Boolean)
+        .map((name) => catalogByName.get(name)?.burstStage ?? '');
+      const need = ['1', '2', '3'].filter((stage) => !stages.includes(stage));
+      const burstNote = el('p', 'board-picker-burst');
+      burstNote.dataset.boardPickerBurst = String(index);
+      burstNote.append(createText('span', `B1 ${stages.filter((s) => s === '1').length}`
+        + ` · B2 ${stages.filter((s) => s === '2').length}`
+        + ` · B3 ${stages.filter((s) => s === '3').length}`));
+      if (need.length > 0 && stages.length > 0) {
+        burstNote.append(createText('b', ` — B${need.join('・B')} がいません`, 'is-warn'));
+      }
+
       const line = el('div', 'board-picker-line');
       for (let at = 0; at < 5; at += 1) {
         const name = slot.squad[at] ?? '';
@@ -3894,7 +3908,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           line.append(createText('span', '空き', 'board-picker-chip is-empty'));
         }
       }
-      box.append(line);
+      box.append(burstNote, line);
 
       const search = document.createElement('input');
       search.type = 'search';
@@ -3904,15 +3918,31 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       search.dataset.boardPickerSearch = String(index);
       box.append(search);
 
+      // このボスに有利なコード。ここのニケを上に出す (何を選べばよいかの最短経路)。
+      const wanted = slot.boss ? counterOf(bossOf(index)?.elementCode ?? '') : null;
+
+      /**
+       * 並び順: **有利コード → 自分の戦闘力の高い順 → 名前**。
+       *
+       * 文字だけの一覧は見つけにくい (GB が «文字タイル化で視認性が下がった» と
+       * 記録している)。こちらは画像を200名ぶん持っているのでタイルで出し、
+       * 並びは «このボスに効いて、自分が育てている» 順にする。
+       */
+      const counterRank = (char: CharacterMeta) => (wanted && char.elementCode === wanted ? 0 : 1);
+      const powerOf = (char: CharacterMeta) => combatPower[char.name] ?? 0;
+      const ordered = [...pickable].sort((a, b) => counterRank(a) - counterRank(b)
+        || powerOf(b) - powerOf(a)
+        || labelFor(a.name).localeCompare(labelFor(b.name), 'ja'));
+
       const grid = el('div', 'board-picker-grid');
       const draw = () => {
         grid.replaceChildren();
         const full = slot.squad.filter(Boolean).length >= 5;
-        const hits = filterByQuery(pickable, pickerQuery, buildIndex);
+        const hits = filterByQuery(ordered, pickerQuery, buildIndex);
         for (const char of hits.slice(0, 60)) {
           const here = slot.squad.includes(char.name);
           const elsewhere = (used.get(char.name) ?? []).some((at) => at !== index);
-          const cell = button(labelFor(char.name), 'board-picker-cell', () => {
+          const cell = button('', 'board-picker-cell', () => {
             const next = [...slot.squad];
             if (here) next[next.indexOf(char.name)] = '';
             else {
@@ -3922,6 +3952,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             }
             commit(withSlot(board, index, { boss: slot.boss, squad: next }));
           });
+          // 見た目は計算機のニケ一覧と同じ (画像 + バースト帯 + 属性アイコン)
+          const portrait = el('div', 'board-pick-face');
+          if (char.image) {
+            const img = document.createElement('img');
+            img.src = `${import.meta.env.BASE_URL}${char.image}`;
+            img.alt = '';
+            img.loading = 'lazy';
+            portrait.append(img);
+          }
+          portrait.append(createText('span', `B${char.burstStage}`, 'board-pick-burst'));
+          const icon = createElementIcon(char.elementCode, 'board-pick-code');
+          if (icon) portrait.append(icon);
+          cell.append(portrait, createText('span', labelFor(char.name), 'board-pick-name'));
+          if (wanted && char.elementCode === wanted) cell.classList.add('is-counter');
           cell.dataset.boardPick = char.name;
           if (here) cell.classList.add('is-on');
           if (elsewhere) {
@@ -4053,7 +4097,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         else {
           dmg.append(createText('b', '—', 'is-blank'));
           dmg.append(createText('span',
-            !boss ? 'ボスを選ぶと候補が入ります' : isEmptySquad(slot.squad) ? '案がありません' : '未計算',
+            !boss ? 'ボスを選ぶと候補が入ります' : isEmptySquad(slot.squad) ? 'ニケを選ぶと計算できます' : '未計算',
             'board-dmg-note'));
         }
         card.append(dmg);
