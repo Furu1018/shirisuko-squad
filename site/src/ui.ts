@@ -563,7 +563,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <div class="board-main" data-board-main>
         <h2 id="board-heading" class="board-sec">3凸を組む · ${UNION_SEASON.label}</h2>
         <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した案があればそこから入れることもできます。</p>
-        <p class="board-status" data-board-status hidden></p>
+        <p class="board-status" data-board-status role="status" aria-live="polite" hidden></p>
         <div class="board-elements" data-board-elements>
           <b class="board-elements-label">属性を決めて最適化</b>
           <select data-board-element="0" aria-label="1凸目の属性"></select>
@@ -3693,6 +3693,46 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       statusBox.textContent = message;
       statusBox.hidden = !message;
       statusBox.classList.toggle('is-ok', ok);
+      // 押したボタンにも同じ進捗を出す。上部の1行だけだと、押した場所から目を離すことになる
+      // (計算は1件7秒台。3件なら20秒以上、押しっぱなしで待つことになる)。
+      if (runningMark) {
+        const step = /(\d+)\/(\d+)/.exec(message);
+        runningText = step ? `計算中 ${step[1]}/${step[2]}` : '計算中…';
+        paintProgress();
+      }
+    };
+
+    /**
+     * いま進捗を出しているボタンの目印と、その進捗。
+     *
+     * **要素そのものを覚えてはいけない** — 計算中は `withBusy` が `renderBoard()` を呼ぶので
+     * ボタンは作り直され、覚えていた要素は画面から外れる (最初そう書いて進捗が出なかった)。
+     * 目印 (data 属性) で覚え、描き直すたびに文言を貼り直す。
+     */
+    let runningMark: string | null = null;
+    let runningText = '';
+
+    /** 描き直した直後に、走っているボタンへ進捗を貼り直す。 */
+    const paintProgress = () => {
+      if (!runningMark) return;
+      const target = root.querySelector<HTMLButtonElement>(`[${runningMark}]`);
+      if (!target) return;
+      target.textContent = runningText;
+      target.disabled = true;
+    };
+
+    /** 押している間だけ、そのボタンに進捗を出す。 */
+    const withProgress = async (mark: string, work: () => Promise<void>) => {
+      runningMark = mark;
+      runningText = '計算中…';
+      paintProgress();
+      try {
+        await work();
+      } finally {
+        runningMark = null;
+        runningText = '';
+        renderBoard();   // 文言を元に戻す
+      }
     };
 
     const commit = (next: RaidBoard) => {
@@ -4001,7 +4041,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         }
       }
       box.append(createText('span', '⚠', 'board-clash-mark'), text);
-      box.append(button('被りを解いて組み直す', 'board-btn lead', () => { void resolveClash(index, option); }));
+      const fix = button('被りを解いて組み直す', 'board-btn lead', () => {
+        void withProgress(`data-board-clash-fix="${index}"`, () => resolveClash(index, option));
+      });
+      fix.setAttribute('data-board-clash-fix', String(index));
+      box.append(fix);
       return box;
     };
 
@@ -4306,10 +4350,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (clashes.length > 0) notes.push('被りがあるとこの合計は出せません');
       for (const note of notes) used.append(el('br'), document.createTextNode(note));
       const actions = el('div', 'board-total-actions');
-      const search = button('全ボスから自動で探す', 'board-btn lead', () => { void searchBest(); });
+      const search = button('全ボスから自動で探す', 'board-btn lead', () => {
+        void withProgress('data-board-search-best', searchBest);
+      });
       search.dataset.boardSearchBest = '';
       search.title = '全ボス × 保存候補すべてを計算します';
-      const run = button('この3凸で計算する', 'board-btn main', () => { void computeSlots([0, 1, 2]); });
+      const run = button('この3凸で計算する', 'board-btn main', () => {
+        void withProgress('data-board-run', () => computeSlots([0, 1, 2]));
+      });
       run.dataset.boardRun = '';
       actions.append(search, run);
       totalBox.append(left, used, actions);
@@ -4451,7 +4499,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
         const foot = el('div', 'board-slot-foot');
         if (!boss) {
-          const find = button('残りで一番出るボスを探す', 'board-btn lead', () => { void searchOpen(index); });
+          const find = button('残りで一番出るボスを探す', 'board-btn lead', () => {
+            void withProgress(`data-board-search-open="${index}"`, () => searchOpen(index));
+          });
           find.dataset.boardSearchOpen = String(index);
           foot.append(find);
         } else {
@@ -4485,6 +4535,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderTotal(slotScores);
       renderUsed(usage);
       renderStock();
+      paintProgress();   // 描き直しで消えた進捗を貼り直す
     };
 
     // ── 属性で組む (同じ属性を2回以上でもよい — 同じボスに複数回凸できる) ──
@@ -4553,7 +4604,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         : `${holes.join('・')}凸目には被りなしで入れられる候補がありませんでした (合計 ${formatDamage(total)})。候補を増やすか、枠で直接組んでください。`, holes.length === 0);
     });
     const elementsRun = element<HTMLButtonElement>(root, '[data-board-elements-run]');
-    elementsRun.addEventListener('click', () => { void runElements(); });
+    elementsRun.addEventListener('click', () => { void withProgress('data-board-elements-run', runElements); });
 
     // ── 取込の帯 (最上部・常設)。計算機タブの取込を、入口からも押せるようにする ──
     const syncMain = element<HTMLElement>(root, '[data-board-sync-main]');
