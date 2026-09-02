@@ -954,10 +954,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     deck.squad = Array.from({ length: 5 }, (_, i) => squad[i] ?? '');
     for (const name of deck.squad) {
       if (!name) continue;
-      if (snapshot?.[name]) deck.characters[name] = cloneOverride(snapshot[name]!);
-      else if (!deck.characters[name] && roster[name]) {
-        deck.characters[name] = cloneOverride(roster[name]!);
-      }
+      // 盤面の計算 (charactersWith) と同じ優先順位で**作り直す** — スナップショット ?? ロスター ?? なし。
+      // デッキに残っていた古い手直しを引き継ぐと、盤面の数字と詳細計算の数字がずれる
+      const base = snapshot?.[name] ?? roster[name];
+      if (base) deck.characters[name] = cloneOverride(base);
+      else delete deck.characters[name];
     }
     saveState();
     renderDeckTabs();
@@ -3536,11 +3537,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           cell.textContent = `${formatDamage(total)} (${share}%${persisted ? ' · 登録しました' : ''})`;
           cell.classList.toggle('is-best', total === best);
         }
-        if (!persisted) {
+        renderBoard();   // 盤面の在庫表示にも登録値が効く
+        // 保存に失敗したなら成功と言わない — 「登録しました」と出た直後に再読込で消えるのが一番まずい
+        if (persisted) {
+          say(code, `${elementLabel(BEATS[code])}ボス相当 · 戦闘 ${battle.duration}秒 · コアとパーツ無しで比較し、結果を登録しました。`, true);
+        } else {
           say(code, 'この画面では比べられますが、登録をブラウザに保存できませんでした (次に開くと消えます)。');
         }
-        renderBoard();   // 盤面の在庫表示にも登録値が効く
-        say(code, `${elementLabel(BEATS[code])}ボス相当 · 戦闘 ${battle.duration}秒 · コアとパーツ無しで比較しました。`, true);
       } catch (error) {
         say(code, `計算に失敗しました — ${error instanceof Error ? error.message : String(error)}`);
       } finally {
@@ -4201,7 +4204,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         for (const plan of saved) {
           const live = knownScore(boss, plan.squad, plan.characters);
           const value = live ?? plan.registered?.damage ?? null;
-          if (value !== null && (best === null || value > best)) {
+          if (value === null) continue;
+          // 同点なら live (今の条件の値) が勝つ — 印の付いた登録値を出すのは live が無いときだけ
+          const wins = best === null || value > best
+            || (value === best && bestIsRegistered && live !== null);
+          if (wins) {
             best = value;
             bestIsRegistered = live === null;
             registeredDuration = live === null ? plan.registered?.duration ?? null : null;

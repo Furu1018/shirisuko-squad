@@ -1376,6 +1376,40 @@ describe('calculator UI', () => {
     expect(deckState.decks[0]!.characters['리타']!.cube!.name).toBe('재장');
   });
 
+  it('「計算機に入れる」はスナップショット外のメンバーの古い手直しを引き継がない', async () => {
+    // 案: 리타 (キューブのスナップショットあり) + 크라운 (スナップショットなし)
+    localStorage.setItem('nikke-plans-v1', JSON.stringify({
+      schemaVersion: 1,
+      byElement: {
+        철갑: [{
+          id: 'p1', squad: ['리타', '크라운', '', '', ''], savedAt: '2026-09-02T00:00:00.000Z',
+          characters: { 리타: { cube: { name: '재장', level: 15 } } },
+        }],
+      },
+    }));
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // デッキ側で 크라운 に手直し (スキル1 = 4) を付けておく
+    const card = root.querySelectorAll<HTMLElement>('[data-slot-card]')[1]!;
+    expect(card.textContent).toContain('크라운');
+    const toggle = card.querySelector<HTMLInputElement>('[data-custom-toggle]')!;
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change'));
+    const skillOne = card.querySelector<HTMLSelectElement>('[data-skill-level="1"]')!;
+    skillOne.value = '4';
+    skillOne.dispatchEvent(new Event('change'));
+
+    root.querySelector<HTMLButtonElement>('[data-plans-apply="p1"]')!.click();
+    const state = JSON.parse(localStorage.getItem('nikke-state-v1')!) as {
+      decks: Array<{ characters: Record<string, { cube?: { name: string }; skillLevels?: Record<string, number> }> }>;
+    };
+    // 리타 はスナップショットのキューブ、크라운 は古い手直しが残らない (ロスターも無いので個別設定なし)
+    expect(state.decks[0]!.characters['리타']!.cube!.name).toBe('재장');
+    expect(state.decks[0]!.characters['크라운']).toBeUndefined();
+  });
+
   it('属性を3つ選ぶ (同属性2回可) と、被りなしで理論値合計が最大の3凸が入る', async () => {
     const client = new FakeClient();
     mountCalculator(root, {
@@ -2647,6 +2681,10 @@ describe('calculator UI', () => {
   });
 
   it('blocks released skill levels outside the integer 1-to-10 range', async () => {
+    // バフ対象の先読み (700ms の setTimeout) が遅い環境ではテスト中に発火して
+    // simulateCalls を汚す。先読みの時計だけ止め、待ち合わせは setImmediate で行う (afterEach が実時計に戻す)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const tick = () => new Promise<void>((resolve) => { setImmediate(resolve); });
     const client = new FakeClient();
     mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
     const toggle = root.querySelector<HTMLInputElement>('[data-slot-card="0"] [data-custom-toggle]')!;
@@ -2657,7 +2695,7 @@ describe('calculator UI', () => {
     skillOne.dispatchEvent(new Event('change'));
 
     root.querySelector<HTMLFormElement>('form')!.requestSubmit();
-    await flush();
+    await tick();
 
     expect(root.querySelector('[data-errors]')?.textContent)
       .toContain('デッキ 1 · 리타: スキルレベルは 1~10 の整数である必要があります。');
