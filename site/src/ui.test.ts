@@ -1143,6 +1143,47 @@ describe('calculator UI', () => {
     expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);
   });
 
+  it('候補の比較中に戦闘条件を変えても、登録は最初の条件で一貫する', async () => {
+    // 止めたいときだけ計算を止められる計算機 — 「比較の計算中にユーザーが条件パネルを触る」状況を作る
+    class GatedClient extends FakeClient {
+      hold = false;
+      pending: Array<() => void> = [];
+      release() { for (const resolve of this.pending.splice(0)) resolve(); }
+      override async simulate(request: SimulationRequest): Promise<SimulationResult> {
+        if (this.hold) await new Promise<void>((resolve) => { this.pending.push(resolve); });
+        return super.simulate(request);
+      }
+    }
+    const client = new GatedClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('철갑', ['앨리스', '나가']);
+    pickBoss(0, 'レイタンス');   // ここは普通に計算させる (busy を解いて盤面を操作可能に)
+    await settle();
+    client.hold = true;          // ここから先の計算を止める
+    root.querySelector<HTMLButtonElement>('[data-board-change="0"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-board-compare-run="0"]')!.click();
+    await flush();
+    // 計算中に戦闘時間を 180 → 90 に変える
+    const duration = root.querySelector<HTMLInputElement>('#duration')!;
+    duration.value = '90';
+    duration.dispatchEvent(new Event('input', { bubbles: true }));
+    client.release();
+    await settle();
+
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('結果を登録しました');
+    const stored = (JSON.parse(localStorage.getItem('nikke-plans-v1')!) as {
+      byElement: Record<string, Array<{ registered?: { damage: number; duration: number } }>>;
+    }).byElement['철갑']!;
+    // 両候補とも登録され、登録の条件は**開始時の 180秒** (途中の変更が混ざらない)
+    expect(stored.every((plan) => plan.registered?.damage === 123_456)).toBe(true);
+    expect(stored.map((plan) => plan.registered!.duration)).toEqual([180, 180]);
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('戦闘 180秒');
+  });
+
   it('入れたニケは枠から外せる', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

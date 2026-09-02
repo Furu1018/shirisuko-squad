@@ -3612,29 +3612,34 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
      * 1枠ぶんのリクエスト。案のスナップショット (キューブ等) が最優先、
      * 無いニケはロスターが正本 — 取り込み直せば盤面も新しい値で計算される。
      */
-    const requestFor = (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot) => {
+    /**
+     * base = 戦闘条件。**1回の計算のまとまり (比較・探索) では最初に読んだ条件を貫く** —
+     * 計算中に計算機タブで条件を変えられると、途中から別条件の鍵になり、
+     * 「計算したのに知らない値」や別条件の混ざった登録が生まれる。
+     */
+    const requestFor = (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot, base?: BattleSettings) => {
       const deck: DeckState = {
         id: 1,
         squad: [...squad],
         characters: charactersWith(squad, snapshot),
       };
-      const request = requestForDeck(deck, boardBattle(readBattle(), boss));
+      const request = requestForDeck(deck, boardBattle(base ?? readBattle(), boss));
       return { deck, request, key: cacheKey(request, version) };
     };
 
     /** 分かっている点数。計算はしない — 保存された結果があればそれを読む。 */
-    const knownScore = (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot): number | null => {
+    const knownScore = (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot, base?: BattleSettings): number | null => {
       if (isEmptySquad(squad)) return null;
       try {
-        const { key } = requestFor(boss, squad, snapshot);
+        const { key } = requestFor(boss, squad, snapshot, base);
         return scores.get(key) ?? cache.get(key)?.squadTotal ?? null;
       } catch {
         return null;
       }
     };
 
-    const computeScore = async (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot): Promise<number> => {
-      const { deck, request, key } = requestFor(boss, squad, snapshot);
+    const computeScore = async (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot, base?: BattleSettings): Promise<number> => {
+      const { deck, request, key } = requestFor(boss, squad, snapshot, base);
       // 「計算」と同じ検証を通す (属性別編成と同じ理由)
       const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
       if (problems.length > 0) throw new Error(problems[0]!);
@@ -3651,16 +3656,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     };
 
     interface Job { key: string; run: () => Promise<void> }
-    const jobFor = (boss: UnionBoss | undefined, squad: readonly string[], snapshot?: Snapshot): Job | null => {
+    const jobFor = (boss: UnionBoss | undefined, squad: readonly string[], snapshot?: Snapshot, base?: BattleSettings): Job | null => {
       if (!boss || isEmptySquad(squad)) return null;
       let key: string;
       try {
-        key = requestFor(boss, squad, snapshot).key;
+        key = requestFor(boss, squad, snapshot, base).key;
       } catch {
         // 組み立てられない編成は computeScore が同じ理由で失敗して伝える
         key = `${boss.name}/${squad.join('/')}`;
       }
-      return { key, run: async () => { await computeScore(boss, squad, snapshot); } };
+      return { key, run: async () => { await computeScore(boss, squad, snapshot, base); } };
     };
     /** 同じ候補を2度回さない。 */
     const dedupe = (jobs: Array<Job | null>): Job[] => {
@@ -3935,24 +3940,29 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (options.length > 1) {
         const runAll = button('候補をぜんぶ計算して比べる', 'board-btn lead', () => {
           void withBusy(async () => {
-            await runJobs(dedupe(options.map((plan) => jobFor(boss, plan.squad, plan.characters))), '候補を計算中');
+            // 条件は**最初に1回だけ読む** — 計算中に条件パネルを変えられても、
+            // この比較のまとまりは同じ条件で計算・照会・登録される
+            const base = readBattle();
+            await runJobs(dedupe(options.map((plan) => jobFor(boss, plan.squad, plan.characters, base))), '候補を計算中');
             // 出た値は案に**登録**する — 入れ替えながら比べるのは盤面が主戦場なので、
             // ここで比べた結果も (属性別編成タブと同じく) 再読込後に残す
             const registeredAt = new Date().toISOString();
-            let touched = false;
+            let registered = 0;
             for (const plan of options) {
-              const score = knownScore(boss, plan.squad, plan.characters);
+              const score = knownScore(boss, plan.squad, plan.characters, base);
               if (score === null || !code) continue;
               plans = registerScore(plans, code, plan.id, {
-                damage: score, duration: readBattle().duration, at: registeredAt,
+                damage: score, duration: base.duration, at: registeredAt,
               });
-              touched = true;
+              registered += 1;
             }
-            const persisted = !touched || savePlans(resolveStorage(), plans);
-            say(persisted
-              ? `${options.length}件の候補を ${battleNote()} で比べ、結果を登録しました。`
-              : `${options.length}件の候補を比べましたが、登録をブラウザに保存できませんでした (次に開くと消えます)。`,
-              persisted);
+            const persisted = registered === 0 || savePlans(resolveStorage(), plans);
+            say(!persisted
+              ? `${options.length}件の候補を比べましたが、登録をブラウザに保存できませんでした (次に開くと消えます)。`
+              : registered === options.length
+                ? `${options.length}件の候補を 戦闘 ${base.duration}秒 · コアとパーツ無し で比べ、結果を登録しました。`
+                : `${registered}/${options.length}件だけ登録できました。計算できなかった候補は編成を確かめてください。`,
+              persisted && registered === options.length);
             renderPlans();
           });
         });
@@ -3998,7 +4008,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const dropCandidate = button('✕', 'board-btn board-chooser-drop', () => {
           if (!code) return;
           plans = removePlan(plans, code, plan.id);
-          savePlans(resolveStorage(), plans);
+          if (!savePlans(resolveStorage(), plans)) {
+            say('この画面では消えましたが、ブラウザに保存できませんでした (次に開くと戻ります)。');
+          }
           renderPlans();
           renderBoard();
         });

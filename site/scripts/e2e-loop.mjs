@@ -64,23 +64,32 @@ try {
   await page.locator('[data-board-compare-add="0"]').click();
   await page.locator('[data-board-compare-run="0"]').click();
   await waitIdle('候補をぜんぶ計算して比べる');
+  // 見て流すだけでは「未計算のまま緑」になりうる — 期待をここで**検証**する
+  const assert = (cond, what) => { if (!cond) throw new Error(`ASSERT: ${what}`); };
+  assert(/結果を登録しました/.test(await status()), '比較の後に「結果を登録しました」と言う');
+  const readScores = async (rows) => {
+    const out = [];
+    for (let i = 0; i < await rows.count(); i += 1) {
+      out.push(((await rows.nth(i).locator('.board-chooser-score').textContent()) ?? '').trim());
+    }
+    return out;
+  };
   const rows = page.locator('.board-chooser-row');
-  const n = await rows.count();
-  for (let i = 0; i < n; i += 1) {
-    const label = await rows.nth(i).locator('.board-btn').first().textContent();
-    const score = await rows.nth(i).locator('.board-chooser-score').textContent();
-    const top = await rows.nth(i).locator('.board-chooser-score.is-top').count();
-    console.log(`  候補${i + 1}: ${label} | ${score}${top ? ' ★一番' : ''}`);
-  }
-  // 5. 再読込して候補と点数がどう見えるか (登録の永続性の確認)
+  const before = await readScores(rows);
+  console.log('  候補:', before.join(' / '));
+  assert(before.length === 2, `候補が2件 (実際 ${before.length})`);
+  assert(before.every((t) => /億/.test(t) && !/未計算/.test(t)), '両候補に数値が出ている');
+  assert(await page.locator('.board-chooser-score.is-top').count() === 1, '一番の候補に印が付く');
+  // 5. 再読込 — 登録値が両方残り、数値が一致すること
   await page.reload({ waitUntil: 'networkidle' });
   await page.locator('[data-board-change="0"]').click();
-  const rows2 = page.locator('.board-chooser-row');
-  const n2 = await rows2.count();
-  console.log(`[${lap()}] after reload: candidates=${n2}`);
-  for (let i = 0; i < n2; i += 1) {
-    console.log(`  候補${i + 1}: ${await rows2.nth(i).locator('.board-chooser-score').textContent()}`);
-  }
+  const after = await readScores(page.locator('.board-chooser-row'));
+  console.log(`[${lap()}] after reload:`, after.join(' / '));
+  assert(after.length === 2, `再読込後も候補が2件 (実際 ${after.length})`);
+  const num = (t) => (t.match(/[\d.,]+億/) ?? [''])[0];
+  assert(before.map(num).join() === after.map(num).join(),
+    `再読込後の数値が一致する (${before.map(num).join()} vs ${after.map(num).join()})`);
+  assert(after.every((t) => !/未計算/.test(t)), '再読込後に「未計算」に戻らない');
   await page.screenshot({ path: `${process.env.OUT ?? '.'}/loop.png`, fullPage: true });
 } catch (e) {
   failed = true;
