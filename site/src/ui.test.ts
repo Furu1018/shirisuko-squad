@@ -1116,6 +1116,33 @@ describe('calculator UI', () => {
     expect(root.querySelector('[data-board-compare-run="0"]')).toBeNull();
   });
 
+  it('盤面で候補を比べると結果が登録され、弱い候補はその場で消せる', async () => {
+    const client = new FakeClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('철갑', ['앨리스', '나가']);
+    pickBoss(0, 'レイタンス');
+    await settle();
+    root.querySelector<HTMLButtonElement>('[data-board-change="0"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-board-compare-run="0"]')!.click();
+    await settle();
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('結果を登録しました');
+    const stored = () => (JSON.parse(localStorage.getItem('nikke-plans-v1')!) as {
+      byElement: Record<string, Array<{ id: string; registered?: { damage: number } }>>;
+    }).byElement['철갑']!;
+    expect(stored().every((plan) => plan.registered?.damage === 123_456)).toBe(true);
+
+    // 候補をその場で消せる (枠の編成はそのまま)
+    const drop = root.querySelectorAll<HTMLButtonElement>('[data-board-candidate-drop]');
+    expect(drop).toHaveLength(2);
+    drop[1]!.click();
+    expect(stored()).toHaveLength(1);
+    expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);
+  });
+
   it('入れたニケは枠から外せる', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

@@ -1309,3 +1309,4 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .board-elements-note { font-size: 11px; color: var(--ink-3); }
 .plans-chip.is-snapshot { background: rgb(var(--accent-rgb) / .10); color: var(--cyan); font-weight: 800; }
 .board-el-reg { font-size: 10px; font-weight: 900; color: var(--cyan); margin-left: 4px; }
+.board-chooser-drop { padding: 6px 8px; color: var(--danger-soft); }

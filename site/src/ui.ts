@@ -3936,7 +3936,24 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const runAll = button('候補をぜんぶ計算して比べる', 'board-btn lead', () => {
           void withBusy(async () => {
             await runJobs(dedupe(options.map((plan) => jobFor(boss, plan.squad, plan.characters))), '候補を計算中');
-            say(`${options.length}件の候補を ${battleNote()} で比べました。`, true);
+            // 出た値は案に**登録**する — 入れ替えながら比べるのは盤面が主戦場なので、
+            // ここで比べた結果も (属性別編成タブと同じく) 再読込後に残す
+            const registeredAt = new Date().toISOString();
+            let touched = false;
+            for (const plan of options) {
+              const score = knownScore(boss, plan.squad, plan.characters);
+              if (score === null || !code) continue;
+              plans = registerScore(plans, code, plan.id, {
+                damage: score, duration: readBattle().duration, at: registeredAt,
+              });
+              touched = true;
+            }
+            const persisted = !touched || savePlans(resolveStorage(), plans);
+            say(persisted
+              ? `${options.length}件の候補を ${battleNote()} で比べ、結果を登録しました。`
+              : `${options.length}件の候補を比べましたが、登録をブラウザに保存できませんでした (次に開くと消えます)。`,
+              persisted);
+            renderPlans();
           });
         });
         runAll.dataset.boardCompareRun = String(index);
@@ -3977,6 +3994,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           score.title = 'この候補が一番出ています';
         }
         row.append(score);
+        // 入れ替えながら比べると3件の上限にすぐ当たる — 弱かった候補はその場で消せるようにする
+        const dropCandidate = button('✕', 'board-btn board-chooser-drop', () => {
+          if (!code) return;
+          plans = removePlan(plans, code, plan.id);
+          savePlans(resolveStorage(), plans);
+          renderPlans();
+          renderBoard();
+        });
+        dropCandidate.title = 'この候補を消す (枠に入れている編成はそのまま残ります)';
+        dropCandidate.dataset.boardCandidateDrop = plan.id;
+        row.append(dropCandidate);
         box.append(row);
       });
       return box;
