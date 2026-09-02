@@ -3721,8 +3721,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       target.disabled = true;
     };
 
-    /** 押している間だけ、そのボタンに進捗を出す。 */
+    /**
+     * 押している間だけ、そのボタンに進捗を出す。
+     *
+     * 終わったら**自分で戻す**。描き直しで戻ると思ってはいけない —
+     * 盤面の中のボタンは作り直されるが、属性側のように**静的なマークアップの
+     * ボタンは作り直されない**ので、無効のまま固まる (テストで捕まえた)。
+     */
     const withProgress = async (mark: string, work: () => Promise<void>) => {
+      const target = root.querySelector<HTMLButtonElement>(`[${mark}]`);
+      const label = target?.textContent ?? '';
       runningMark = mark;
       runningText = '計算中…';
       paintProgress();
@@ -3731,7 +3739,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       } finally {
         runningMark = null;
         runningText = '';
-        renderBoard();   // 文言を元に戻す
+        renderBoard();
+        // 描き直されない (静的な) ボタンはここで戻す
+        const still = root.querySelector<HTMLButtonElement>(`[${mark}]`);
+        if (still && still === target) {
+          still.textContent = label;
+          still.disabled = false;
+        }
       }
     };
 
