@@ -13,23 +13,24 @@ import {
 } from './blablalink';
 import { parseRosterCsv } from './csv-import';
 import { summarizeBattle } from './battle-summary';
-import { FAVORITES_KEY, loadFavorites, saveFavorites, toggleFavorite } from './favorites';
+import { loadFavorites, saveFavorites, toggleFavorite } from './favorites';
+import { ALL_KEYS } from './storage-keys';
 import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import { buildIndex, filterByQuery } from './nikke-search';
 import { UNION_SEASON, bossBattle } from './union-bosses';
 import { applyImportedRoster, mergeImportedRoster } from './roster-merge';
 import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
 import {
-  BEATS, ELEMENT_PLANS_KEY, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, baselineBattle, registerScore,
+  BEATS, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, baselineBattle, registerScore,
   bossConditionBattle, counterOf, loadPlans, plansOf, removePlan, sameSquad, savePlans,
   type ElementPlan, type ElementPlans, type PlanElement,
 } from './element-plans';
 import {
-  SOURCE_LABELS, SYNC_META_KEY, canReSync, loadSyncMeta, saveSyncMeta, syncAgoText, syncSummary,
+  SOURCE_LABELS, canReSync, loadSyncMeta, saveSyncMeta, syncAgoText, syncSummary,
   type SyncMeta,
 } from './sync-meta';
 import {
-  BOARD_SLOTS, RAID_BOARD_KEY, bestForElements, bestTriple, bossForElement, boardBattle, candidatesFor as boardCandidatesFor, clashOptionsFor, clashesOf, clearSlot,
+  BOARD_SLOTS, bestForElements, bestTriple, bossForElement, boardBattle, candidatesFor as boardCandidatesFor, clashOptionsFor, clashesOf, clearSlot,
   emptyBoard, isEmptySquad, loadBoard, openSlotCandidates, saveBoard, totalOf, usageOf,
   usedCount, withSlot, type Candidate, type ClashOption, type OpenCandidate, type RaidBoard,
 } from './raid-board';
@@ -2938,8 +2939,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-reset-confirm]').addEventListener('click', () => {
     cache.clear();
     const store = resolveStorage();
-    for (const key of [STATE_KEY, ROSTER_KEY, SYNC_META_KEY, ELEMENT_PLANS_KEY, BOARD_SKIP_KEY, RAID_BOARD_KEY,
-      FAVORITES_KEY]) {
+    // 消す範囲は storage-keys.ts が正本。**もう無い機能の鍵も消す** —
+    // 機能を消したときに残ると、初期化したつもりで端末に残り続ける。
+    for (const key of ALL_KEYS) {
       try {
         store?.removeItem(key);
       } catch {
@@ -4154,19 +4156,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           portrait.append(createText('span', `B${char.burstStage}`, 'board-pick-burst'));
           const icon = createElementIcon(char.elementCode, 'board-pick-code');
           if (icon) portrait.append(icon);
-          const star = document.createElement('span');
-          star.className = `board-pick-star${favorites.has(char.name) ? ' is-on' : ''}`;
-          star.textContent = '★';
-          star.dataset.boardFav = char.name;
-          star.title = favorites.has(char.name) ? 'よく使う印を外す' : 'よく使う印を付ける';
-          // 選ぶ操作と混ざらないよう、ここで止める
-          star.addEventListener('click', (event) => {
-            event.stopPropagation();
-            favorites = toggleFavorite(favorites, char.name);
-            saveFavorites(resolveStorage(), favorites);
-            renderBoard();
-          });
-          portrait.append(star);
           cell.append(portrait, createText('span', labelFor(char.name), 'board-pick-name'));
           if (wanted && char.elementCode === wanted) cell.classList.add('is-counter');
           cell.dataset.boardPick = char.name;
@@ -4179,7 +4168,22 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             cell.disabled = true;
             cell.title = '5人そろっています。誰かを外してから選んでください';
           }
-          grid.append(cell);
+          // ★ は**タイルの外に出す**。ボタンの入れ子は不正な HTML で、
+          // span + click だと**キーボードから押せない** (Codex 指摘)。
+          const on = favorites.has(char.name);
+          const star = button('★', `board-pick-star${on ? ' is-on' : ''}`, () => {
+            favorites = toggleFavorite(favorites, char.name);
+            saveFavorites(resolveStorage(), favorites);
+            renderBoard();
+          });
+          star.dataset.boardFav = char.name;
+          star.setAttribute('aria-pressed', String(on));
+          star.setAttribute('aria-label', `${labelFor(char.name)} を${on ? 'よく使う印から外す' : 'よく使う印に入れる'}`);
+          star.title = on ? 'よく使う印を外す' : 'よく使う印を付ける';
+
+          const wrap = el('div', 'board-picker-slot');
+          wrap.append(cell, star);
+          grid.append(wrap);
         }
         if (hits.length === 0) grid.append(createText('p', '一致するニケがいません。', 'board-picker-none'));
       };

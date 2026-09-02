@@ -1131,11 +1131,17 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .board-chooser-score.is-top::after { content: ' ◀ 最大'; font-size: 10px; }
 
 /* お気に入りの印。タイルの上に重ねる */
-.board-pick-star { position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px;
-  display: grid; place-items: center; border-radius: 50%;
-  background: rgb(var(--surface-rgb) / .88); color: var(--ink-3); font-size: 10px; cursor: pointer; }
-.board-pick-star:hover { color: var(--amber-text); }
-.board-pick-star.is-on { color: var(--amber-text); background: rgb(var(--amber-rgb) / .22); }
+/* ★ はタイルの外の実ボタン。中に入れるとボタンの入れ子になり、キーボードから押せない */
+.board-picker-slot { position: relative; }
+.board-picker-slot .board-picker-cell { width: 100%; }
+.board-pick-star { position: absolute; right: 3px; bottom: 3px; width: 22px; height: 22px;
+  display: grid; place-items: center; padding: 0; border: 1px solid rgb(var(--line-rgb) / .18);
+  border-radius: 50%; background: rgb(var(--surface-rgb) / .92); color: var(--ink-3);
+  font-size: 11px; line-height: 1; cursor: pointer; }
+.board-pick-star:hover { color: var(--amber-text); border-color: rgb(var(--amber-rgb) / .5); }
+.board-pick-star.is-on { color: var(--amber-text); background: rgb(var(--amber-rgb) / .22);
+  border-color: rgb(var(--amber-rgb) / .45); }
+.board-pick-star:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 1px; }
 
 /* 絞り込みと並び順 */
 .board-picker-tools { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
