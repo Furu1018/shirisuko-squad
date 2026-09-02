@@ -6,9 +6,9 @@
 //   OUT=出力先 node scripts/e2e-loop.mjs
 //
 // Pyodide を CDN から落とすのでネット接続が要る。失敗・ページエラーは終了コード 1。
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './launch-browser.mjs';
 const url = process.argv[2] ?? 'http://localhost:4173/shirisuko-squad/';
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await launchBrowser();
 let failed = false;
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });

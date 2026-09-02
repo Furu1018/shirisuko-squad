@@ -15,7 +15,7 @@
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './launch-browser.mjs';
 
 const outDir = resolve(process.argv[2] ?? 'shots');
 const url = process.argv[3] ?? 'http://localhost:4173/shirisuko-squad/';
@@ -23,7 +23,7 @@ const WIDTHS = [390, 820, 1280];
 const TABS = ['board', 'calc', 'roster', 'plans'];
 
 mkdirSync(outDir, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await launchBrowser();
 let problems = 0;
 try {
 for (const width of WIDTHS) {

@@ -11,7 +11,7 @@
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './launch-browser.mjs';
 
 const outDir = resolve(process.argv[2] ?? 'shots');
 const url = process.argv[3] ?? 'http://localhost:4173/shirisuko-squad/';
@@ -23,7 +23,7 @@ const lap = () => `${((Date.now() - t0) / 1000).toFixed(1)}s`;
 let failed = false;
 let browser;
 try {
-  browser = await chromium.launch({ channel: 'chrome', headless: true });
+  browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text().slice(0, 200)}`); });
