@@ -86,7 +86,7 @@ try {
   const after = await readScores(page.locator('.board-chooser-row'));
   console.log(`[${lap()}] after reload:`, after.join(' / '));
   assert(after.length === 2, `再読込後も候補が2件 (実際 ${after.length})`);
-  const num = (t) => (t.match(/[\d.,]+億/) ?? [''])[0];
+  const num = (t) => (t.match(/[\d.,]+億/) ?? [t])[0];
   assert(before.map(num).join() === after.map(num).join(),
     `再読込後の数値が一致する (${before.map(num).join()} vs ${after.map(num).join()})`);
   assert(after.every((t) => !/未計算/.test(t)), '再読込後に「未計算」に戻らない');
