@@ -92,9 +92,9 @@ describe('属性別編成の保存', () => {
   });
 });
 
-describe('優越コードの対応', () => {
+describe('有利コードの対応', () => {
   it('エンジン (calculator/damage.py の _CODE_ADVANTAGE) と同じ表になっている', () => {
-    // 画面の「電撃編成 → 水冷ボス向け」という案内は、エンジンが優越補正を掛ける条件と
+    // 画面の「電撃編成 → 水冷ボス向け」という案内は、エンジンが有利補正を掛ける条件と
     // 一致していないと嘘になる。エンジンは無改変なので、こちらを合わせて固定する。
     const engine = readFileSync(
       join(import.meta.dirname, '..', '..', 'calculator', 'damage.py'), 'utf8',
@@ -124,7 +124,7 @@ describe('基準戦闘', () => {
   };
 
   it('その編成が想定するボスのコードを敵に設定する', () => {
-    // 電撃編成は水冷ボス向け — 敵を水冷にしないと優越コードの補正が乗らず、比較にならない
+    // 電撃編成は水冷ボス向け — 敵を水冷にしないと有利コードの補正が乗らず、比較にならない
     expect(baselineBattle(base, '전격').enemyCode).toBe('수냉');
     expect(baselineBattle(base, '작열').enemyCode).toBe('풍압');
   });

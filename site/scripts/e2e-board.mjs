@@ -45,6 +45,10 @@ try {
   console.log(`[${lap()}] plans saved:`, await page.locator('[data-plans-row]').count());
 
   await page.locator('[data-view-tab="board"]').click();
+  // 入口は STEP 1 (取り込み)。ここでは育成の取り込みを試さないので «取り込まずに試す» で盤面へ進む。
+  // 押さないと盤面が隠れたままで、以降の操作が «見えない要素» で落ちる。
+  const skip = page.locator('[data-board-skip]');
+  if (await skip.isVisible()) await skip.click();
   const waitIdle = async (label, timeout = 300000) => {
     const s = Date.now();
     await page.waitForFunction(() => {

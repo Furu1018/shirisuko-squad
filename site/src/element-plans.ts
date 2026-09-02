@@ -17,9 +17,9 @@ export type PlanElement = (typeof PLAN_ELEMENTS)[number];
 export const MAX_PLANS_PER_ELEMENT = 3;
 
 /**
- * 「このコードのニケは、どのコードの敵に優越するか」。
+ * 「このコードのニケは、どのコードの敵に有利するか」。
  *
- * **正本は `calculator/damage.py` の `_CODE_ADVANTAGE`** — エンジンはこの表で優越コード補正を
+ * **正本は `calculator/damage.py` の `_CODE_ADVANTAGE`** — エンジンはこの表で有利コード補正を
  * 判定する。ここはその写しで、画面に「電撃編成 → 水冷ボス向け」と出すためだけに使う。
  * エンジンを無改変で保つ以上、値がずれたら画面の案内だけが嘘になるので、テストで対応を固定してある。
  */

@@ -615,7 +615,7 @@ describe('calculator UI', () => {
     }
   });
 
-  it('マイロスターは取込前は案内を出し、取り込むと一覧と内訳が出る', async () => {
+  it('育成状況は取込前は案内を出し、取り込むと一覧と内訳が出る', async () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     } as Parameters<typeof mountCalculator>[1]);
@@ -661,7 +661,7 @@ describe('calculator UI', () => {
     expect(alice[4]).toBe('24 (最低 4)');                   // 1つだけ低いのが見える
   });
 
-  it('マイロスターの並べ替えを切り替えられる', async () => {
+  it('育成状況の並べ替えを切り替えられる', async () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     } as Parameters<typeof mountCalculator>[1]);
@@ -692,7 +692,7 @@ describe('calculator UI', () => {
 
     const groups = [...root.querySelectorAll<HTMLElement>('[data-plans-group]')];
     expect(groups.map((g) => g.dataset.plansGroup)).toEqual(['작열', '수냉', '풍압', '전격', '철갑']);
-    // 電撃編成は水冷ボス向け (エンジンの優越コード表どおり)
+    // 電撃編成は水冷ボス向け (エンジンの有利コード表どおり)
     const denki = groups.find((g) => g.dataset.plansGroup === '전격')!;
     expect(denki.querySelector('.plans-against')!.textContent).toBe('水冷ボス向け');
     expect(denki.querySelector('.plans-empty')).not.toBeNull();
@@ -967,7 +967,7 @@ describe('calculator UI', () => {
 
     expect(boardStart().textContent).toContain('まだ使えません');
     expect(root.querySelector('[data-board-blabla]')).toBeNull();
-    // マイロスターの空状態も «Blablalink 連携» を名指ししない
+    // 育成状況の空状態も «Blablalink 連携» を名指ししない
     expect(root.querySelector('[data-myroster-empty]')!.textContent).not.toContain('Blablalink 連携');
   });
 
@@ -986,7 +986,7 @@ describe('calculator UI', () => {
     expect(root.querySelector<HTMLElement>('[data-blabla-modal]')!.hidden).toBe(false);
   });
 
-  it('マイロスターの空状態から取り込みに進める', () => {
+  it('育成状況の空状態から取り込みに進める', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     } as Parameters<typeof mountCalculator>[1]);
@@ -1020,7 +1020,7 @@ describe('calculator UI', () => {
       catalog, settings, version: 'v1', client, storage: localStorage,
     } as Parameters<typeof mountCalculator>[1]);
 
-    // レイタンス (電撃) には鉄甲の案 (エンジンの優越コード表どおり)
+    // レイタンス (電撃) には鉄甲の案 (エンジンの有利コード表どおり)
     savePlan('철갑', ['리타', '크라운']);
     pickBoss(0, 'レイタンス');
     await settle();

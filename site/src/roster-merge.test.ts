@@ -72,7 +72,7 @@ describe('取込マージの規則', () => {
   });
 
   it('オーバーロードは来たキーだけ重ねる (列が一部だけの CSV で残りを消さない)', () => {
-    // 9種のうち「優越」列しか無い CSV。項目ごと差し替えると残り8種が消える。
+    // 9種のうち「有利」列しか無い CSV。項目ごと差し替えると残り8種が消える。
     const partial: CharacterOverrides = { overload: { element_bonus: 90 } };
     const existing = manual({ overload: { element_bonus: 10, atk_pct: 43, max_ammo_pct: 109 } });
     expect(mergeImportedOverride(partial, existing).overload)

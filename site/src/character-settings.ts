@@ -661,7 +661,7 @@ export function renderCharacterSettings(
   const equipNote = document.createElement('p');
   equipNote.className = 'field-note';
   equipNote.textContent = '部位別装備 · 未装着 / オーバーロード強化0〜5。'
-    + 'オーバーロード「オプション」(優越・攻撃増加など)とは別の、装備の基本ステータスです。'
+    + 'オーバーロード「オプション」(有利・攻撃増加など)とは別の、装備の基本ステータスです。'
     + '強化0以下(T9企業含む)はすべてオーバーロード強化0として計算します。';
   equipEditor.append(equipHeading, equipGrid, equipNote);
   body.append(equipEditor);
@@ -800,11 +800,11 @@ export function renderCharacterSettings(
   const cubeSummary = document.createElement('p');
   cubeSummary.className = 'cube-summary';
   if (noCube) {
-    cubeSummary.textContent = 'キューブを装着しません — キューブのステータスも優越コード効果も付きません。';
+    cubeSummary.textContent = 'キューブを装着しません — キューブのステータスも有利コード効果も付きません。';
   } else if (level) {
     const effect = cubeMeta.template.replace('{0}', String(level.effect));
     cubeSummary.textContent = `攻撃 ${level.atk.toLocaleString('en-US')} · 防御 ${level.def.toLocaleString('en-US')} · `
-      + `HP ${level.hp.toLocaleString('en-US')} · ${effect} · 優越コード ${level.commonElement}%`;
+      + `HP ${level.hp.toLocaleString('en-US')} · ${effect} · 有利コード ${level.commonElement}%`;
   }
   cubeBox.append(cubeHeading, cubeControls, cubeSummary);
   // 고유 스킬이 계산에 안 들어가는 큐브는 그 사실을 숨기지 않는다. 스탯은 붙으므로
@@ -814,7 +814,7 @@ export function renderCharacterSettings(
     note.className = 'cube-unsupported-note';
     note.dataset.cubeUnsupported = '';
     note.textContent = `このキューブの固有効果はまだ計算に反映されません — `
-      + `攻撃力・防御力・HPと優越コード効果のみ適用されます。(${cubeMeta.unsupported})`;
+      + `攻撃力・防御力・HPと有利コード効果のみ適用されます。(${cubeMeta.unsupported})`;
     cubeBox.append(note);
   }
   body.append(cubeBox);

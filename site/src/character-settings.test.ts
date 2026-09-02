@@ -581,7 +581,7 @@ describe('character settings editor', () => {
     expect(value?.cube).toEqual({ name: '탄충', level: 15 });
     expect(root.textContent).toContain('攻撃 2,780');
     expect(root.textContent).toContain('10발 사격 시 탄환 충전 3발 ▲');
-    expect(root.textContent).toContain('優越コード 19.09%');
+    expect(root.textContent).toContain('有利コード 19.09%');
   });
 
   it('searches, adds, edits, deduplicates, and removes advanced stats', () => {

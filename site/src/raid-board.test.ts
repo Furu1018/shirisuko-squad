@@ -127,7 +127,7 @@ describe('候補', () => {
     return out;
   };
 
-  it('ボスに有利なコードの案を引く (エンジンの優越コード表どおり)', () => {
+  it('ボスに有利なコードの案を引く (エンジンの有利コード表どおり)', () => {
     expect(candidatesFor(bossOf('レイタンス'), plans()).element).toBe('철갑');
     expect(candidatesFor(bossOf('レイタンス'), plans()).plans).toHaveLength(2);
     expect(candidatesFor(bossOf('トゥームストーン'), plans()).element).toBe('수냉');

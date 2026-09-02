@@ -460,7 +460,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       <nav class="view-tabs" aria-label="画面切り替え">
         <button type="button" class="view-tab is-on" data-view-tab="board" aria-pressed="true">3凸ボード<b class="tab-beta">NEW</b></button>
         <button type="button" class="view-tab" data-view-tab="calc" aria-pressed="false">計算機</button>
-        <button type="button" class="view-tab" data-view-tab="roster" aria-pressed="false">マイロスター</button>
+        <button type="button" class="view-tab" data-view-tab="roster" aria-pressed="false">育成状況</button>
         <button type="button" class="view-tab" data-view-tab="plans" aria-pressed="false">属性別編成</button>
       </nav>
 
@@ -556,7 +556,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <h3 class="board-sub">詳しく見る</h3>
         <div class="board-more">
           <button type="button" data-board-goto="calc"><b>詳細計算</b><span>編成を手で組んで、戦闘条件・バースト順・タイムラインまで詰める (いまの計算機)</span></button>
-          <button type="button" data-board-goto="roster"><b>マイロスター</b><span>取り込んだ育成状況。どこが伸びしろかを属性別・スキル別に見る</span></button>
+          <button type="button" data-board-goto="roster"><b>育成状況</b><span>取り込んだ自分の育成を一覧で見る。どこが伸びしろかを確かめる</span></button>
           <button type="button" data-board-goto="union"><b>ユニオン運営</b><span>メンバー全員ぶんを一括で計算し、盤面をコードで配る (運営者向け)</span></button>
         </div>
         </div>
@@ -584,7 +584,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
       <section class="panel roster-panel" data-view="roster" aria-labelledby="roster-heading" hidden>
         <div class="section-heading">
-          <div><p class="step">ROSTER</p><h2 id="roster-heading">マイロスター</h2></div>
+          <div><p class="step">ROSTER</p><h2 id="roster-heading">自分の育成状況</h2></div>
         </div>
         <p class="links-lede">取り込んだ<b>自分の育成状況</b>です。どこが伸びしろかを見るための一覧で、ここでは値を変えません (変更は計算機のカードから)。</p>
         <div class="roster-empty" data-myroster-empty hidden>
@@ -608,7 +608,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
               <thead>
                 <tr>
                   <th>ニケ</th><th>コード</th><th>バースト</th><th>突破</th><th>スキル</th>
-                  <th>優越</th><th>攻撃</th><th>装弾</th><th>キューブ</th><th>コレクション</th><th>戦闘力</th>
+                  <th>有利</th><th>攻撃</th><th>装弾</th><th>キューブ</th><th>コレクション</th><th>戦闘力</th>
                 </tr>
               </thead>
               <tbody data-myroster-rows></tbody>
@@ -782,7 +782,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
                 <button type="button" class="phase-add" data-phase-add="element">属性制限を追加 <b>+</b></button>
               </div>
               <div class="phase-list" data-phase-list></div>
-              <p class="field-note"><b>回避区間</b>は通常攻撃だけが外れます。持続ダメージ・スキルダメージと、通常攻撃で発動した追加攻撃は入り続けます。<b>属性制限</b>は選んだ属性に<b>優越する</b>キャラクターのダメージだけを通します — 風圧にすると灼熱のキャラクターだけが入ります。ゲーム内と同様に<b>優越コードバフ</b>で優越になったキャラクターも通ります(ラピ:レッドフードの «付着型榴弾» など)。</p>
+              <p class="field-note"><b>回避区間</b>は通常攻撃だけが外れます。持続ダメージ・スキルダメージと、通常攻撃で発動した追加攻撃は入り続けます。<b>属性制限</b>は選んだ属性に<b>有利する</b>キャラクターのダメージだけを通します — 風圧にすると灼熱のキャラクターだけが入ります。ゲーム内と同様に<b>有利コードバフ</b>で有利になったキャラクターも通ります(ラピ:レッドフードの «付着型榴弾» など)。</p>
             </fieldset>
           </div>
           <section class="console-editor">
@@ -2558,8 +2558,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const SORTS: Array<{ key: SortKey; label: string; hint: string }> = [
     { key: 'power', label: '戦闘力', hint: 'ゲーム内の戦闘力 — もう一度押すと逆順になります' },
     { key: 'name', label: '名前', hint: '五十音順 — もう一度押すと逆順になります' },
-    { key: 'element', label: '優越コード', hint: 'オーバーロードの優越コードダメージ — もう一度押すと逆順になります' },
-    { key: 'elementAtk', label: '優越+攻撃', hint: '優越コード + 攻撃力増加の合計 — もう一度押すと逆順になります' },
+    { key: 'element', label: '有利コード', hint: 'オーバーロードの有利コードダメージ — もう一度押すと逆順になります' },
+    { key: 'elementAtk', label: '有利+攻撃', hint: '有利コード + 攻撃力増加の合計 — もう一度押すと逆順になります' },
   ];
 
   /** 처음 고를 때의 방향. 이름은 오름차순, 수치는 높은 순이 자연스럽다. */
@@ -2939,12 +2939,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   });
   // 起動時: まだ設定を持たないキャラだけロスターの値で埋める。
   // 保存済みのデッキ設定は「その人がこの計算機で決めたこと」なので上書きしない。
-  // マイロスターの描き直し。取込のたびに呼ぶ (中身は下で差し込む)。
+  // 育成状況の描き直し。取込のたびに呼ぶ (中身は下で差し込む)。
   let renderMyRoster: () => void = () => undefined;
   let renderPlans: () => void = () => undefined;
   let renderBoard: () => void = () => undefined;
   let renderBoardSync: () => void = () => undefined;
-  // 盤面の STEP 1 (取り込み) を開く。マイロスターの空状態からも呼ぶ。
+  // 盤面の STEP 1 (取り込み) を開く。育成状況の空状態からも呼ぶ。
   let openBoardImport: () => void = () => undefined;
 
   const applyRosterToDecks = () => {
@@ -4157,7 +4157,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     renderBoardSync();
   }
 
-  // ── マイロスター (育成状況) ──
+  // ── 育成状況 (育成状況) ──
   // 取り込んだロスターを読むだけの画面。値は変えない — 変更は計算機のカード側に一本化する。
   {
     const emptyBox = element<HTMLElement>(root, '[data-myroster-empty]');

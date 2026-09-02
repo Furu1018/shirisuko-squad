@@ -21,7 +21,7 @@ export interface RosterEntry {
   skillTotal: number | null;
   /** スキルの最低値。「どれか1つだけ低い」を拾う。 */
   skillMin: number | null;
-  /** オーバーロードの主要3種 (優越コード・攻撃力・最大装弾)。 */
+  /** オーバーロードの主要3種 (有利コード・攻撃力・最大装弾)。 */
   overload: { element: number; atk: number; ammo: number };
   cubeName: string | null;
   /** コレクション段階 (SR15 等)。未装着は '없음'。 */

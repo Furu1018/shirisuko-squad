@@ -93,7 +93,7 @@ export const STAT_NAMES: Record<string, string> = {
   effect_interval: '効果間隔',
   effect_range_pct: '効果範囲',
   effect_target_count_add: '効果対象数増加',
-  element_bonus_pct: '優越コードダメージ',
+  element_bonus_pct: '有利コードダメージ',
   element_code_override: 'コード変更',
   element_received_dmg_pct: 'コード被ダメージ増加',
   enemy_buff_cleanse: '敵バフ解除',
