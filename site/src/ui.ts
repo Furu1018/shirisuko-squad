@@ -13,6 +13,7 @@ import {
 } from './blablalink';
 import { parseRosterCsv } from './csv-import';
 import { summarizeBattle } from './battle-summary';
+import { FAVORITES_KEY, loadFavorites, saveFavorites, toggleFavorite } from './favorites';
 import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import { buildIndex, filterByQuery } from './nikke-search';
 import { UNION_SEASON, bossBattle } from './union-bosses';
@@ -395,6 +396,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   };
   let roster = loadRoster();
+  /** よく使うニケの印。200名から毎回探さずに済ませるための、自分で決める並び。 */
+  let favorites = loadFavorites(resolveStorage());
 
   // 편성·설정·전투 조건을 localStorage에 저장해 새로고침해도 마지막 상태로 복원한다.
   const STATE_KEY = 'nikke-state-v1';
@@ -2921,7 +2924,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-reset-confirm]').addEventListener('click', () => {
     cache.clear();
     const store = resolveStorage();
-    for (const key of [STATE_KEY, ROSTER_KEY, SYNC_META_KEY, ELEMENT_PLANS_KEY, BOARD_SKIP_KEY, RAID_BOARD_KEY]) {
+    for (const key of [STATE_KEY, ROSTER_KEY, SYNC_META_KEY, ELEMENT_PLANS_KEY, BOARD_SKIP_KEY, RAID_BOARD_KEY,
+      FAVORITES_KEY]) {
       try {
         store?.removeItem(key);
       } catch {
@@ -3524,6 +3528,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     /** 枠の中で編成を組んでいる最中の枠。null = 閉じている。 */
     let pickerOpen: number | null = null;
     let pickerQuery = '';
+    /** お気に入りだけに絞るか。 */
+    let pickerFavOnly = false;
+    /** バースト段階の絞り込み。null = 全部。 */
+    let pickerBurst: '1' | '2' | '3' | null = null;
     /** 選べるニケ。取り込んでいれば手持ちだけ、まだなら全員から選ばせる。 */
     const pickableNikke = (): CharacterMeta[] => {
       const owned = Object.keys(roster);
@@ -3839,12 +3847,48 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         box.append(createText('p', 'このボスのコードに対応する編成がありません。', 'board-chooser-empty'));
         return box;
       }
-      box.append(createText('p', `${elementLabel(code)} 編成の案 (属性別編成タブで保存したもの)`, 'board-chooser-head'));
-      if (options.length === 0) box.append(createText('p', 'まだ案がありません。', 'board-chooser-empty'));
+      const head = el('div', 'board-compare-head');
+      head.append(createText('b', `候補を比べる (${elementLabel(code)} 編成)`));
+      // いまの編成を候補に足す。組む → 足す → 組み替える → 比べる、が1画面で回る。
+      const slotNow = board.slots[index]!;
+      if (!isEmptySquad(slotNow.squad) && options.length < MAX_PLANS_PER_ELEMENT
+        && !options.some((plan) => sameSquad(plan.squad, slotNow.squad))) {
+        const add = button('いまの編成を候補に加える', 'board-btn', () => {
+          const result = addPlan(plans, code, [...slotNow.squad]);
+          if (!result.added) {
+            say(result.reason === 'full'
+              ? `候補は ${MAX_PLANS_PER_ELEMENT}件までです。どれかを消してから加えてください。`
+              : '同じ編成がすでに候補にあります。');
+            return;
+          }
+          plans = result.plans;
+          savePlans(resolveStorage(), plans);
+          renderBoard();
+        });
+        add.dataset.boardCompareAdd = String(index);
+        head.append(add);
+      }
+      if (options.length > 1) {
+        const runAll = button('候補をぜんぶ計算して比べる', 'board-btn lead', () => {
+          void withBusy(async () => {
+            await runJobs(dedupe(options.map((plan) => jobFor(boss, plan.squad))), '候補を計算中');
+            say(`${options.length}件の候補を ${battleNote()} で比べました。`, true);
+          });
+        });
+        runAll.dataset.boardCompareRun = String(index);
+        head.append(runAll);
+      }
+      box.append(head);
+      if (options.length === 0) {
+        box.append(createText('p', 'まだ候補がありません。「この枠の編成を組む」で組んでから、ここに加えられます。', 'board-chooser-empty'));
+      }
+      // 一番出た候補に印を付ける — 数字が並んでいても、どれが上かは一目で分かる方がよい
+      const scoresOf = options.map((plan) => knownScore(boss, plan.squad));
+      const topScore = Math.max(...scoresOf.filter((v): v is number => v !== null), -Infinity);
       options.forEach((plan, planIndex) => {
         const row = el('div', 'board-chooser-row');
         const current = sameSquad(plan.squad, board.slots[index]!.squad);
-        const pick = button(`案 ${planIndex + 1}`, `board-btn${current ? ' is-on' : ''}`, () => {
+        const pick = button(current ? `候補 ${planIndex + 1} (いま)` : `候補 ${planIndex + 1} にする`, `board-btn${current ? ' is-on' : ''}`, () => {
           chooserOpen = null;
           commit(withSlot(board, index, { boss: boss.name, squad: plan.squad }));
           void computeSlots([index]);
@@ -3854,11 +3898,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const members = el('span', 'board-chooser-members');
         for (const name of plan.squad.filter(Boolean)) members.append(createText('span', labelFor(name), 'board-who'));
         row.append(members);
-        const known = knownScore(boss, plan.squad);
-        row.append(createText('span', known === null ? '' : formatDamage(known), 'board-chooser-score'));
+        const known = scoresOf[planIndex] ?? null;
+        const score = createText('span', known === null ? '未計算' : formatDamage(known), 'board-chooser-score');
+        if (known !== null && known === topScore && options.length > 1) {
+          score.classList.add('is-top');
+          score.title = 'この候補が一番出ています';
+        }
+        row.append(score);
         box.append(row);
       });
-      box.append(button('属性別編成で案を作る', 'board-btn', () => switchView('plans')));
       return box;
     };
 
@@ -3930,15 +3978,45 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
        */
       const counterRank = (char: CharacterMeta) => (wanted && char.elementCode === wanted ? 0 : 1);
       const powerOf = (char: CharacterMeta) => combatPower[char.name] ?? 0;
-      const ordered = [...pickable].sort((a, b) => counterRank(a) - counterRank(b)
+      // お気に入りを最優先。«いつも使う顔ぶれ» は自分で決めた方が速い。
+      // 有利コードより前に置く — 印を付けた人が埋もれては意味がない。
+      const favRank = (char: CharacterMeta) => (favorites.has(char.name) ? 0 : 1);
+      const ordered = [...pickable].sort((a, b) => favRank(a) - favRank(b)
+        || counterRank(a) - counterRank(b)
         || powerOf(b) - powerOf(a)
         || labelFor(a.name).localeCompare(labelFor(b.name), 'ja'));
+
+      // ── 絞り込み (バースト段階) と 並び順 ──
+      const tools = el('div', 'board-picker-tools');
+      for (const stage of ['1', '2', '3'] as const) {
+        const on = pickerBurst === stage;
+        const chip = button(`B${stage}`, `board-picker-tool${on ? ' is-on' : ''}`, () => {
+          pickerBurst = on ? null : stage;
+          renderBoard();
+        });
+        chip.dataset.boardPickerBurstFilter = stage;
+        tools.append(chip);
+      }
+      const onlyFav = pickerFavOnly;
+      const favChip = button('★ お気に入りだけ', `board-picker-tool is-sort${onlyFav ? ' is-on' : ''}`, () => {
+        pickerFavOnly = !onlyFav;
+        renderBoard();
+      });
+      favChip.dataset.boardPickerFavOnly = '';
+      favChip.title = favorites.size === 0
+        ? 'タイルの ★ を押すと «よく使う» 印が付きます'
+        : `印を付けた ${favorites.size}名だけを出します`;
+      tools.append(favChip);
+      box.append(tools);
 
       const grid = el('div', 'board-picker-grid');
       const draw = () => {
         grid.replaceChildren();
         const full = slot.squad.filter(Boolean).length >= 5;
-        const hits = filterByQuery(ordered, pickerQuery, buildIndex);
+        let pool = ordered;
+        if (pickerFavOnly) pool = pool.filter((c) => favorites.has(c.name));
+        if (pickerBurst) pool = pool.filter((c) => c.burstStage === pickerBurst);
+        const hits = filterByQuery(pool, pickerQuery, buildIndex);
         for (const char of hits.slice(0, 60)) {
           const here = slot.squad.includes(char.name);
           const elsewhere = (used.get(char.name) ?? []).some((at) => at !== index);
@@ -3964,6 +4042,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           portrait.append(createText('span', `B${char.burstStage}`, 'board-pick-burst'));
           const icon = createElementIcon(char.elementCode, 'board-pick-code');
           if (icon) portrait.append(icon);
+          const star = document.createElement('span');
+          star.className = `board-pick-star${favorites.has(char.name) ? ' is-on' : ''}`;
+          star.textContent = '★';
+          star.dataset.boardFav = char.name;
+          star.title = favorites.has(char.name) ? 'よく使う印を外す' : 'よく使う印を付ける';
+          // 選ぶ操作と混ざらないよう、ここで止める
+          star.addEventListener('click', (event) => {
+            event.stopPropagation();
+            favorites = toggleFavorite(favorites, char.name);
+            saveFavorites(resolveStorage(), favorites);
+            renderBoard();
+          });
+          portrait.append(star);
           cell.append(portrait, createText('span', labelFor(char.name), 'board-pick-name'));
           if (wanted && char.elementCode === wanted) cell.classList.add('is-counter');
           cell.dataset.boardPick = char.name;

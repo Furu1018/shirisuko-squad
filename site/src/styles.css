@@ -1124,6 +1124,27 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
   background: rgb(var(--surface-rgb) / .88); color: var(--ink); font-size: 9px; font-weight: 800; }
 .board-pick-code { position: absolute; top: 2px; right: 2px; width: 13px; height: 13px; }
 .board-pick-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+/* 候補を比べる — 1ボスにつき最大3つ、数字を並べて決める */
+.board-compare-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.board-compare-head b { font-size: 12.5px; }
+.board-chooser-score.is-top { color: var(--success); font-weight: 800; }
+.board-chooser-score.is-top::after { content: ' ◀ 最大'; font-size: 10px; }
+
+/* お気に入りの印。タイルの上に重ねる */
+.board-pick-star { position: absolute; right: 2px; bottom: 2px; width: 18px; height: 18px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: rgb(var(--surface-rgb) / .88); color: var(--ink-3); font-size: 10px; cursor: pointer; }
+.board-pick-star:hover { color: var(--amber-text); }
+.board-pick-star.is-on { color: var(--amber-text); background: rgb(var(--amber-rgb) / .22); }
+
+/* 絞り込みと並び順 */
+.board-picker-tools { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+.board-picker-tool { padding: 4px 10px; border: 1px solid rgb(var(--line-rgb) / .25); border-radius: 999px;
+  background: var(--surface); color: var(--ink); font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.board-picker-tool:hover { border-color: rgb(var(--accent-rgb) / .5); }
+.board-picker-tool.is-on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.board-picker-tool.is-sort { margin-left: auto; font-weight: 400; }
+
 .board-picker-burst { margin: 0 0 6px; font-size: 11.5px; color: var(--ink-2); }
 .board-picker-burst .is-warn { color: var(--danger); font-weight: 700; }
 .board-picker-none { margin: 4px 2px; font-size: 12px; color: var(--ink-2); }

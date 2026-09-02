@@ -1074,6 +1074,48 @@ describe('calculator UI', () => {
     expect(note()).not.toContain('がいません');
   });
 
+  it('★ を付けたニケが先に並び、お気に入りだけに絞れる', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    pickBoss(0, 'レイタンス');
+    root.querySelector<HTMLButtonElement>('[data-board-pick-open="0"]')!.click();
+
+    // 有利コードではない (= 本来なら後ろの) ニケに印を付ける
+    root.querySelector<HTMLElement>('[data-board-fav="앨리스"]')!.click();
+    const first = root.querySelector<HTMLElement>('[data-board-pick]')!.dataset.boardPick;
+    expect(first).toBe('앨리스');
+    expect(JSON.parse(localStorage.getItem('nikke-favorites-v1')!)).toEqual(['앨리스']);
+
+    // 絞り込むと印を付けた人だけになる
+    root.querySelector<HTMLButtonElement>('[data-board-picker-fav-only]')!.click();
+    const shown = [...root.querySelectorAll<HTMLElement>('[data-board-pick]')]
+      .map((cell) => cell.dataset.boardPick);
+    expect(shown).toEqual(['앨리스']);
+  });
+
+  it('候補を加えて、まとめて計算して比べられる', async () => {
+    const client = new FakeClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    pickBoss(0, 'レイタンス');
+
+    // 1つ目の候補を組んで加える
+    root.querySelector<HTMLButtonElement>('[data-board-pick-open="0"]')!.click();
+    for (const name of ['리타', '크라운', '앨리스', '나가', '프리바티']) {
+      root.querySelector<HTMLButtonElement>(`[data-board-pick="${name}"]`)!.click();
+    }
+    root.querySelector<HTMLButtonElement>('[data-board-change="0"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-board-compare-add="0"]')!.click();
+
+    expect(root.querySelector('[data-board-chooser="0"]')!.textContent).toContain('候補を比べる');
+    // 候補が1件だけなら «ぜんぶ計算» は出さない (比べる相手がいない)
+    expect(root.querySelector('[data-board-compare-run="0"]')).toBeNull();
+  });
+
   it('入れたニケは枠から外せる', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
