@@ -4,7 +4,7 @@ import type { StorageLike } from './cache';
 import { addPlan, emptyPlans, type ElementPlans } from './element-plans';
 import {
   BOARD_SLOTS, RAID_BOARD_KEY, bestTriple, boardBattle, candidatesFor, clashOptionsFor, clashesOf,
-  clearSlot, emptyBoard, loadBoard, openSlotCandidates, saveBoard, totalOf, usageOf,
+  bestForElements, bossForElement, clearSlot, emptyBoard, loadBoard, openSlotCandidates, saveBoard, totalOf, usageOf,
   usedCount, withSlot, withoutNames, type Candidate, type RaidBoard,
 } from './raid-board';
 import { UNION_SEASON, type UnionBoss } from './union-bosses';
@@ -217,5 +217,69 @@ describe('盤面の戦闘条件', () => {
 
   it('ボスが防御力を持たなければ今の値を使う', () => {
     expect(boardBattle(base, { name: 'x', elementCode: '풍압', enemyDef: null }).enemyDef).toBe(100);
+  });
+});
+
+describe('属性を3つ選んで組む', () => {
+  const c = (boss: string, score: number, ...names: string[]): Candidate => ({ boss, squad: squad(...names), score });
+
+  it('属性ごとの候補から、同じニケを使わずに合計最大の組を返す (枠の属性は固定)', () => {
+    const water1 = c('トゥームストーン', 3.5, '앨리스', '크라운');
+    const water2 = c('トゥームストーン', 2.9, '헬름', '노아');
+    const fire = c('モダニア', 3.0, '라피 : 레드 후드', '크라운');   // water1 と 크라운 が被る
+    const picked = bestForElements([[water1, water2], [water1, water2], [fire]]);
+    // 水冷×2 は別の案で埋まり、灼熱は 크라운 が空いた側と組む
+    expect(picked.map((p) => p && [p.boss, p.score])).toEqual([
+      ['トゥームストーン', 3.5], ['トゥームストーン', 2.9], null,
+    ]);
+    // fire は water1 (크라운) と被る → 3枠目は null。ただし合計最大なら被らない組み合わせを選ぶ
+    const picked2 = bestForElements([[water2], [water1], [fire]]);
+    expect(picked2.map((p) => p && p.boss)).toEqual(['トゥームストーン', 'トゥームストーン', null]);
+  });
+
+  it('どの枠も埋められる組み合わせがあれば、合計が下がってもそちらを選ぶ (埋まった枠数が最優先)', () => {
+    const strong = c('レイタンス', 9.0, '리타');
+    const alt = c('レイタンス', 1.0, '크라운');
+    const needsRita = c('モダニア', 2.0, '리타');
+    // [strong+null=9.0 (1枠空き)] より [alt+needsRita=3.0 (全部埋まる)] を取る
+    expect(bestForElements([[strong, alt], [needsRita]]).map((p) => p?.score)).toEqual([1.0, 2.0]);
+  });
+
+  it('候補が無い枠は null、他の枠はそのまま組める', () => {
+    const water = c('トゥームストーン', 3.5, '앨리스');
+    expect(bestForElements([[], [water], []])).toEqual([null, water, null]);
+    expect(bestForElements([])).toEqual([]);
+  });
+
+  it('属性から殴る相手のボスを引ける (有利コードの逆引き)', () => {
+    expect(bossForElement('철갑', UNION_SEASON.bosses)!.name).toBe('レイタンス');
+    expect(bossForElement('수냉', UNION_SEASON.bosses)!.name).toBe('トゥームストーン');
+    expect(bossForElement('철갑', [])).toBeNull();
+  });
+
+  it('枠の個別設定スナップショットは保存・読み直しで保たれ、withSlot でも運ばれる', () => {
+    const storage = memoryStorage();
+    const cubed = { 리타: { cube: { name: '렐릭 베어 큐브', level: 15 } } } as never;
+    let board = emptyBoard();
+    board = withSlot(board, 0, { boss: 'レイタンス', squad: squad('리타'), characters: cubed });
+    expect(board.slots[0]!.characters).toBe(cubed);
+    saveBoard(storage, board);
+    expect(loadBoard(storage, BOSSES).slots[0]!.characters).toEqual(cubed);
+    // 形がおかしいスナップショットは捨てる (枠は残す)
+    const raw = JSON.parse(JSON.stringify(board)) as { slots: Array<Record<string, unknown>> };
+    raw.slots[0]!.characters = ['配列はだめ'];
+    saveBoard(storage, raw as never);
+    expect(loadBoard(storage, BOSSES).slots[0]!.characters).toBeUndefined();
+    expect(loadBoard(storage, BOSSES).slots[0]!.boss).toBe('レイタンス');
+  });
+
+  it('空き枠の候補も案のスナップショットを運ぶ', () => {
+    const cubed = { 앨리스: { cube: { name: '렐릭 베어 큐브', level: 15 } } } as never;
+    let plans = emptyPlans();
+    plans = addPlan(plans, '수냉', squad('앨리스', '헬름'), { characters: cubed }).plans;
+    const board = emptyBoard();
+    const found = openSlotCandidates(board, 0, UNION_SEASON.bosses, plans)
+      .find((cand) => cand.boss.name === 'トゥームストーン')!;
+    expect(found.characters).toEqual(cubed);
   });
 });

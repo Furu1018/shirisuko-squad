@@ -1295,6 +1295,114 @@ describe('calculator UI', () => {
     expect(root.querySelector('[data-board-clash]')).toBeNull();
   });
 
+  it('「今の編成を保存」は個別設定 (スキル等) ごと案に入り、「3案を比較」のダメージが登録として残る', async () => {
+    const client = new FakeClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // デッキに 리타 だけ入れ、個別設定 (スキル1 = 4) を付けてから保存
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    chooseCharacter(root, 0, '리타');
+    const toggle = root.querySelector<HTMLInputElement>('[data-slot-card="0"] [data-custom-toggle]')!;
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change'));
+    const skillOne = root.querySelector<HTMLSelectElement>('[data-slot-card="0"] [data-skill-level="1"]')!;
+    skillOne.value = '4';
+    skillOne.dispatchEvent(new Event('change'));
+    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+
+    const stored = () => (JSON.parse(localStorage.getItem('nikke-plans-v1')!) as {
+      byElement: Record<string, Array<{ id: string; characters?: Record<string, { skillLevels?: Record<string, number> }>;
+        registered?: { damage: number; duration: number } }>>;
+    }).byElement['철갑']![0]!;
+    expect(stored().characters!['리타']!.skillLevels!['1']).toBe(4);
+    expect(root.querySelector('.plans-chip.is-snapshot')).not.toBeNull();
+
+    // 比較 → スナップショットで計算し、結果が登録される
+    root.querySelector<HTMLButtonElement>('[data-plans-compare="철갑"]')!.click();
+    await settle();
+    expect(client.lastRequest!.characters!['리타']!.skillLevels!['1']).toBe(4);
+    expect(stored().registered!.damage).toBe(123_456);
+    expect(stored().registered!.duration).toBe(180);
+
+    // 再読込 (再マウント) しても登録値が出る
+    root.remove();
+    root = document.createElement('main');
+    document.body.append(root);
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    const cell = root.querySelector<HTMLElement>('[data-plans-score]')!;
+    expect(cell.textContent).toContain('123,456');
+    expect(cell.textContent).toContain('登録');
+  });
+
+  it('枠に入れた案のスナップショット (キューブ) が盤面の計算リクエストに届く', async () => {
+    localStorage.setItem('nikke-plans-v1', JSON.stringify({
+      schemaVersion: 1,
+      byElement: {
+        철갑: [{
+          id: 'p1', squad: ['리타', '', '', '', ''], savedAt: '2026-09-02T00:00:00.000Z',
+          characters: { 리타: { cube: { name: '재장', level: 15 } } },
+        }],
+      },
+    }));
+    const client = new FakeClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    pickBoss(0, 'レイタンス');
+    await settle();
+    expect(boardCalls(client)).toBe(1);
+    expect(client.lastRequest!.characters!['리타']!.cube!.name).toBe('재장');
+    // 枠にもスナップショットが残る (保存 → 読み直しでも運ばれる)
+    expect((JSON.parse(localStorage.getItem('nikke-raid-board-v1')!) as {
+      slots: Array<{ characters?: Record<string, unknown> }>;
+    }).slots[0]!.characters!['리타']).toBeTruthy();
+  });
+
+  it('属性を3つ選ぶ (同属性2回可) と、被りなしで理論値合計が最大の3凸が入る', async () => {
+    const client = new FakeClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // 水冷に2案 (顔ぶれは別)、灼熱に1案
+    savePlan('수냉', ['앨리스', '크라운']);
+    savePlan('수냉', ['프리바티', '나가']);
+    savePlan('작열', ['라피 : 레드 후드']);
+
+    const pick = (at: number, code: string) => {
+      const select = root.querySelector<HTMLSelectElement>(`[data-board-element="${at}"]`)!;
+      select.value = code;
+    };
+    pick(0, '수냉');
+    pick(1, '수냉');
+    pick(2, '작열');
+    root.querySelector<HTMLButtonElement>('[data-board-elements-run]')!.click();
+    await settle();
+
+    const slots = storedBoard().slots;
+    // 水冷×2 は別の案で埋まり (トゥームストーン)、灼熱はモダニア
+    expect(slots.map((slot) => slot.boss)).toEqual(['トゥームストーン', 'トゥームストーン', 'モダニア']);
+    const all = slots.flatMap((slot) => slot.squad.filter(Boolean));
+    expect(new Set(all).size).toBe(all.length);   // 被りなし
+    expect(root.querySelector('[data-board-clash]')).toBeNull();
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('理論値の合計');
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('370,368');   // 123,456 × 3
+
+    // 同属性3回で候補が2つしか無ければ、3枠目は属性だけ入って空き — 他の枠は組む
+    pick(2, '수냉');
+    root.querySelector<HTMLButtonElement>('[data-board-elements-run]')!.click();
+    await settle();
+    const again = storedBoard().slots;
+    expect(again[2]!.boss).toBe('トゥームストーン');
+    expect(again[2]!.squad.filter(Boolean)).toEqual([]);
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('3凸目には被りなしで入れられる候補がありませんでした');
+  });
+
   it('「編成を変える」で同じコードの別の案に差し替えられ、「詳細計算へ」で計算機に載る', async () => {
     const client = new FakeClient();
     mountCalculator(root, {

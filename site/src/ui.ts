@@ -20,16 +20,16 @@ import { UNION_SEASON, bossBattle } from './union-bosses';
 import { applyImportedRoster, mergeImportedRoster } from './roster-merge';
 import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
 import {
-  BEATS, ELEMENT_PLANS_KEY, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, baselineBattle,
+  BEATS, ELEMENT_PLANS_KEY, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, baselineBattle, registerScore,
   bossConditionBattle, counterOf, loadPlans, plansOf, removePlan, sameSquad, savePlans,
-  type ElementPlans, type PlanElement,
+  type ElementPlan, type ElementPlans, type PlanElement,
 } from './element-plans';
 import {
   SOURCE_LABELS, SYNC_META_KEY, canReSync, loadSyncMeta, saveSyncMeta, syncAgoText, syncSummary,
   type SyncMeta,
 } from './sync-meta';
 import {
-  BOARD_SLOTS, RAID_BOARD_KEY, bestTriple, boardBattle, candidatesFor as boardCandidatesFor, clashOptionsFor, clashesOf, clearSlot,
+  BOARD_SLOTS, RAID_BOARD_KEY, bestForElements, bestTriple, bossForElement, boardBattle, candidatesFor as boardCandidatesFor, clashOptionsFor, clashesOf, clearSlot,
   emptyBoard, isEmptySquad, loadBoard, openSlotCandidates, saveBoard, totalOf, usageOf,
   usedCount, withSlot, type Candidate, type ClashOption, type OpenCandidate, type RaidBoard,
 } from './raid-board';
@@ -550,6 +550,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <h2 id="board-heading" class="board-sec">3凸を組む · ${UNION_SEASON.label}</h2>
         <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した案があればそこから入れることもできます。</p>
         <p class="board-status" data-board-status hidden></p>
+        <div class="board-elements" data-board-elements>
+          <b class="board-elements-label">属性で組む</b>
+          <select data-board-element="0" aria-label="1凸目の属性"></select>
+          <select data-board-element="1" aria-label="2凸目の属性"></select>
+          <select data-board-element="2" aria-label="3凸目の属性"></select>
+          <button type="button" class="board-btn lead" data-board-elements-run title="選んだ属性の候補 (各属性 最大3案) から、同じニケを2度使わない組み合わせで理論値の合計が最大のものを3枠に入れます。同じ属性を2回以上選んでも構いません">被りなしで理論値最大</button>
+          <span class="board-elements-note">同じ属性を2回選べます (例: 水冷・水冷・灼熱)</span>
+        </div>
         <div class="board-slots" data-board-slots></div>
         <div class="board-total" data-board-total></div>
         <div class="board-used" data-board-used></div>
@@ -560,7 +568,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <div class="board-more">
           <button type="button" data-board-goto="calc"><b>詳細計算</b><span>編成を手で組んで、戦闘条件・バースト順・タイムラインまで詰める (いまの計算機)</span></button>
           <button type="button" data-board-goto="roster"><b>育成状況</b><span>取り込んだ自分の育成を一覧で見る。どこが伸びしろかを確かめる</span></button>
-          <button type="button" data-board-goto="union"><b>ユニオン運営</b><span>メンバー全員ぶんを一括で計算し、盤面をコードで配る (運営者向け)</span></button>
         </div>
         </div>
       </section>
@@ -3230,10 +3237,25 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   applyParallel(false);
 
   // ── 属性別編成 (5属性 × 最大3案) ──
-  // 保存されるのは**顔ぶれだけ**。各キャラの育成値はロスター側を見るので、
-  // 取り込み直せばここの案も自動で新しい育成値で計算される。
+  // 保存されるのは**顔ぶれ + 個別設定のスナップショット (キューブ等)**。
+  // スナップショットに無いニケの育成値はロスター側を見るので、取り込み直せば自動で新しくなる。
+  // 「3案を比較」で出したダメージは案に**登録**され、再読込しても残る。
   // 案は3凸ボードも読むので、両方の外に置く
   let plans: ElementPlans = loadPlans(resolveStorage());
+  /**
+   * 編成の個別設定。**案 (キューブ込みで登録したスナップショット) が最優先**、
+   * 無いニケはロスター (取込値)。「編成はキューブ込みで1つの案」を計算に反映する入口。
+   */
+  const charactersWith = (
+    squad: readonly string[], snapshot?: Record<string, CharacterOverrides>,
+  ): Record<string, CharacterOverrides> =>
+    Object.fromEntries(squad.filter(Boolean).flatMap((name) => {
+      const base = snapshot?.[name] ?? roster[name];
+      return base ? [[name, cloneOverride(base)]] : [];
+    }));
+  /** デッキの個別設定のスナップショット (登録用に切り離す)。 */
+  const snapshotOf = (deck: DeckState): Record<string, CharacterOverrides> =>
+    Object.fromEntries(Object.entries(deck.characters).map(([name, value]) => [name, cloneOverride(value)]));
   {
     const groupsBox = element<HTMLElement>(root, '[data-plans-groups]');
     // 計算中かどうかはボタンではなくここに持つ。保存・削除で renderPlans() が
@@ -3267,9 +3289,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const save = el('button', 'roster-import', '今の編成を保存');
         (save as HTMLButtonElement).type = 'button';
         save.dataset.plansSave = code;
-        save.title = '計算機で今開いているデッキの顔ぶれを、この属性の案として保存します';
+        save.title = '計算機で今開いているデッキを、キューブなどの個別設定ごとこの属性の案として保存します';
         save.addEventListener('click', () => {
-          const result = addPlan(plans, code, activeDeck().squad);
+          const result = addPlan(plans, code, activeDeck().squad, { characters: snapshotOf(activeDeck()) });
           if (result.added) {
             const saved = commit(result.plans);
             say(code, saved ? '保存しました。'
@@ -3307,9 +3329,18 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           for (const name of plan.squad.filter(Boolean)) {
             members.append(createText('span', labelFor(name), 'plans-chip'));
           }
+          if (plan.characters && Object.keys(plan.characters).length > 0) {
+            const mark = createText('span', '個別設定つき', 'plans-chip is-snapshot');
+            mark.title = 'キューブなどの個別設定ごと保存された案です。計算にもこの設定を使います';
+            members.append(mark);
+          }
           row.append(members);
           const score = el('span', 'plans-score');
           score.dataset.plansScore = plan.id;
+          if (plan.registered) {
+            score.textContent = `${formatDamage(plan.registered.damage)} (登録 · ${plan.registered.duration}秒)`;
+            score.title = `「3案を比較」などで計算して登録した理論値です (${new Date(plan.registered.at).toLocaleString('ja-JP')})`;
+          }
           row.append(score);
           const apply = el('button', 'roster-import', '計算機に入れる');
           (apply as HTMLButtonElement).type = 'button';
@@ -3356,13 +3387,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       bossNote.classList.toggle('is-ok', ok);
     };
 
-    const runOne = async (deckSquad: readonly string[], battle: BattleSettings) => {
+    const runOne = async (plan: ElementPlan, battle: BattleSettings) => {
       const deck: DeckState = {
         id: 1,
-        squad: [...deckSquad],
-        characters: Object.fromEntries(deckSquad.filter(Boolean)
-          .filter((name) => roster[name])
-          .map((name) => [name, cloneOverride(roster[name]!)])),
+        squad: [...plan.squad],
+        characters: charactersWith(plan.squad, plan.characters),
       };
       const request = requestForDeck(deck, battle);
       // 「計算」と同じ検証を通す — 通常計算が弾く値 (範囲外のオーバーロード等) を
@@ -3403,10 +3432,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         let done = 0;
         for (const [index, plan] of saved.entries()) {
           sayBoss(`計算中… ${done}/${saved.length * 2}`);
-          const plainTotal = await runOne(plan.squad, plain);
+          const plainTotal = await runOne(plan, plain);
           done += 1;
           sayBoss(`計算中… ${done}/${saved.length * 2}`);
-          const bossTotal = await runOne(plan.squad, withBoss);
+          const bossTotal = await runOne(plan, withBoss);
           done += 1;
           rows.push({ index: index + 1, squad: plan.squad, plain: plainTotal, boss: bossTotal });
         }
@@ -3473,10 +3502,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           const deck: DeckState = {
             id: 1,
             squad: [...plan.squad],
-            // 育成値はロスターを正本にする — 取り込み直せばこの案も自動で新しい値になる
-            characters: Object.fromEntries(plan.squad.filter(Boolean)
-              .filter((name) => roster[name])
-              .map((name) => [name, cloneOverride(roster[name]!)])),
+            // 案のスナップショット (キューブ等) が最優先。無いニケはロスターの取込値
+            characters: charactersWith(plan.squad, plan.characters),
           };
           const request = requestForDeck(deck, battle);
           const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
@@ -3489,13 +3516,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           say(code, `計算中… ${done}/${saved.length}`);
         }
         const best = Math.max(...totals.values());
+        // 出した理論値は案に**登録**する — 「編成とダメージを登録」。再読込しても残る
+        const registeredAt = new Date().toISOString();
+        for (const [id, total] of totals) {
+          plans = registerScore(plans, code, id, { damage: total, duration: battle.duration, at: registeredAt });
+        }
+        savePlans(resolveStorage(), plans);
         for (const [id, total] of totals) {
           const cell = groupsBox.querySelector<HTMLElement>(`[data-plans-score="${id}"]`);
           if (!cell) continue;
           const share = best > 0 ? Math.round((total / best) * 1000) / 10 : 0;
-          cell.textContent = `${formatDamage(total)} (${share}%)`;
+          cell.textContent = `${formatDamage(total)} (${share}% · 登録しました)`;
           cell.classList.toggle('is-best', total === best);
         }
+        renderBoard();   // 盤面の在庫表示にも登録値が効く
         say(code, `${elementLabel(BEATS[code])}ボス相当 · 戦闘 ${battle.duration}秒 · コアとパーツ無しで比較しました。`, true);
       } catch (error) {
         say(code, `計算に失敗しました — ${error instanceof Error ? error.message : String(error)}`);
@@ -3559,32 +3593,35 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderBoard();
     };
 
-    /** 1枠ぶんのリクエスト。育成値はロスターが正本 — 取り込み直せば盤面も新しい値で計算される。 */
-    const requestFor = (boss: UnionBoss, squad: readonly string[]) => {
+    /** スナップショットの型。長いので別名。 */
+    type Snapshot = Record<string, CharacterOverrides> | undefined;
+    /**
+     * 1枠ぶんのリクエスト。案のスナップショット (キューブ等) が最優先、
+     * 無いニケはロスターが正本 — 取り込み直せば盤面も新しい値で計算される。
+     */
+    const requestFor = (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot) => {
       const deck: DeckState = {
         id: 1,
         squad: [...squad],
-        characters: Object.fromEntries(squad.filter(Boolean)
-          .filter((name) => roster[name])
-          .map((name) => [name, cloneOverride(roster[name]!)])),
+        characters: charactersWith(squad, snapshot),
       };
       const request = requestForDeck(deck, boardBattle(readBattle(), boss));
       return { deck, request, key: cacheKey(request, version) };
     };
 
     /** 分かっている点数。計算はしない — 保存された結果があればそれを読む。 */
-    const knownScore = (boss: UnionBoss, squad: readonly string[]): number | null => {
+    const knownScore = (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot): number | null => {
       if (isEmptySquad(squad)) return null;
       try {
-        const { key } = requestFor(boss, squad);
+        const { key } = requestFor(boss, squad, snapshot);
         return scores.get(key) ?? cache.get(key)?.squadTotal ?? null;
       } catch {
         return null;
       }
     };
 
-    const computeScore = async (boss: UnionBoss, squad: readonly string[]): Promise<number> => {
-      const { deck, request, key } = requestFor(boss, squad);
+    const computeScore = async (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot): Promise<number> => {
+      const { deck, request, key } = requestFor(boss, squad, snapshot);
       // 「計算」と同じ検証を通す (属性別編成と同じ理由)
       const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
       if (problems.length > 0) throw new Error(problems[0]!);
@@ -3601,16 +3638,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     };
 
     interface Job { key: string; run: () => Promise<void> }
-    const jobFor = (boss: UnionBoss | undefined, squad: readonly string[]): Job | null => {
+    const jobFor = (boss: UnionBoss | undefined, squad: readonly string[], snapshot?: Snapshot): Job | null => {
       if (!boss || isEmptySquad(squad)) return null;
       let key: string;
       try {
-        key = requestFor(boss, squad).key;
+        key = requestFor(boss, squad, snapshot).key;
       } catch {
         // 組み立てられない編成は computeScore が同じ理由で失敗して伝える
         key = `${boss.name}/${squad.join('/')}`;
       }
-      return { key, run: async () => { await computeScore(boss, squad); } };
+      return { key, run: async () => { await computeScore(boss, squad, snapshot); } };
     };
     /** 同じ候補を2度回さない。 */
     const dedupe = (jobs: Array<Job | null>): Job[] => {
@@ -3666,12 +3703,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const slot = board.slots[index]!;
       const boss = bossOf(index);
       if (!boss) return [];
-      const jobs: Array<Job | null> = [jobFor(boss, slot.squad)];
+      const jobs: Array<Job | null> = [jobFor(boss, slot.squad, slot.characters)];
       for (const option of clashOptionsFor(board, index)) {
         const otherBoss = bossOf(option.other);
-        jobs.push(jobFor(boss, option.here));
-        jobs.push(jobFor(otherBoss, board.slots[option.other]!.squad));
-        jobs.push(jobFor(otherBoss, option.there));
+        const other = board.slots[option.other]!;
+        jobs.push(jobFor(boss, option.here, slot.characters));
+        jobs.push(jobFor(otherBoss, other.squad, other.characters));
+        jobs.push(jobFor(otherBoss, option.there, other.characters));
       }
       return jobs;
     };
@@ -3690,13 +3728,18 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const boss = bossByName.get(name);
       if (!boss) return;
       const { element: code, plans: options } = boardCandidatesFor(boss, plans);
-      let squad = options[0]?.squad ?? ['', '', '', '', ''];
+      let picked: ElementPlan | undefined = options[0];
       let bestKnown = -Infinity;
       for (const plan of options) {
-        const known = knownScore(boss, plan.squad);
-        if (known !== null && known > bestKnown) { bestKnown = known; squad = plan.squad; }
+        const known = knownScore(boss, plan.squad, plan.characters)
+          ?? plan.registered?.damage ?? null;
+        if (known !== null && known > bestKnown) { bestKnown = known; picked = plan; }
       }
-      commit(withSlot(board, index, { boss: name, squad }));
+      commit(withSlot(board, index, {
+        boss: name,
+        squad: picked?.squad ?? ['', '', '', '', ''],
+        characters: picked?.characters,
+      }));
       if (options.length === 0) {
         say(code
           ? `${name} は ${elementLabel(code)} が有利です。「この枠の編成を組む」から選んでください。`
@@ -3713,15 +3756,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         say('入れられる案がありません。属性別編成タブで案を保存してください (他の枠と全員被る案は除きます)。');
         return;
       }
-      await runJobs(dedupe(candidates.map((c) => jobFor(c.boss, c.squad))), '残りで探索中');
+      await runJobs(dedupe(candidates.map((c) => jobFor(c.boss, c.squad, c.characters))), '残りで探索中');
       let best: OpenCandidate | null = null;
       let bestScore = -Infinity;
       for (const candidate of candidates) {
-        const score = knownScore(candidate.boss, candidate.squad);
+        const score = knownScore(candidate.boss, candidate.squad, candidate.characters);
         if (score !== null && score > bestScore) { bestScore = score; best = candidate; }
       }
       if (!best) { say('計算できる案がありませんでした。'); return; }
-      commit(withSlot(board, index, { boss: best.boss.name, squad: best.squad }));
+      commit(withSlot(board, index, { boss: best.boss.name, squad: best.squad, characters: best.characters }));
       say(best.removed.length > 0
         ? `${best.boss.name} (案 ${best.planIndex + 1}) が最大でした。他の枠と被る ${best.removed.map(labelFor).join('・')} は外してあります。`
         : `${best.boss.name} (案 ${best.planIndex + 1}) が最大でした。`, true);
@@ -3729,21 +3772,26 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
     /** 全候補 (ボス × 案) を計算し、被りなしで合計最大の3つを枠に入れる。 */
     const searchBest = () => withBusy(async () => {
-      const all: Array<{ boss: UnionBoss; squad: string[] }> = [];
+      const all: Array<{ boss: UnionBoss; plan: ElementPlan }> = [];
       for (const boss of UNION_SEASON.bosses) {
-        for (const plan of boardCandidatesFor(boss, plans).plans) all.push({ boss, squad: plan.squad });
+        for (const plan of boardCandidatesFor(boss, plans).plans) all.push({ boss, plan });
       }
       if (all.length === 0) { say('保存した案がありません。各枠の「この枠の編成を組む」から直接選べます。'); return; }
-      await runJobs(dedupe(all.map((c) => jobFor(c.boss, c.squad))), '全候補を計算中');
-      const scored: Candidate[] = all.flatMap(({ boss, squad }) => {
-        const score = knownScore(boss, squad);
-        return score === null ? [] : [{ boss: boss.name, squad, score }];
+      await runJobs(dedupe(all.map((c) => jobFor(c.boss, c.plan.squad, c.plan.characters))), '全候補を計算中');
+      const scored: Candidate[] = all.flatMap(({ boss, plan }) => {
+        const score = knownScore(boss, plan.squad, plan.characters);
+        return score === null ? [] : [{
+          boss: boss.name, squad: plan.squad, score,
+          ...(plan.characters ? { characters: plan.characters } : {}),
+        }];
       });
       const picked = bestTriple(scored);
       if (picked.length === 0) { say('計算できる案がありませんでした。'); return; }
       let next = emptyBoard();
       picked.forEach((candidate, index) => {
-        next = withSlot(next, index, { boss: candidate.boss, squad: candidate.squad });
+        next = withSlot(next, index, {
+          boss: candidate.boss, squad: candidate.squad, characters: candidate.characters,
+        });
       });
       chooserOpen = null;
       commit(next);
@@ -3761,21 +3809,23 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const otherBoss = bossOf(option.other);
       if (!boss || !otherBoss) return;
       await runJobs(dedupe([
-        jobFor(boss, slot.squad), jobFor(boss, option.here),
-        jobFor(otherBoss, other.squad), jobFor(otherBoss, option.there),
+        jobFor(boss, slot.squad, slot.characters), jobFor(boss, option.here, slot.characters),
+        jobFor(otherBoss, other.squad, other.characters), jobFor(otherBoss, option.there, other.characters),
       ]), '代案を計算中');
-      const hereTotal = (knownScore(boss, option.here) ?? 0) + (knownScore(otherBoss, other.squad) ?? 0);
-      const thereTotal = (knownScore(boss, slot.squad) ?? 0) + (knownScore(otherBoss, option.there) ?? 0);
+      const hereTotal = (knownScore(boss, option.here, slot.characters) ?? 0)
+        + (knownScore(otherBoss, other.squad, other.characters) ?? 0);
+      const thereTotal = (knownScore(boss, slot.squad, slot.characters) ?? 0)
+        + (knownScore(otherBoss, option.there, other.characters) ?? 0);
       const names = option.names.map(labelFor).join('・');
       // 外した結果だれも残らない枠は、ボスごと空に戻す — 「残りで一番出るボスを探す」が使える状態にする
       if (hereTotal >= thereTotal) {
         commit(isEmptySquad(option.here) ? clearSlot(board, index)
-          : withSlot(board, index, { boss: slot.boss, squad: option.here }));
+          : withSlot(board, index, { boss: slot.boss, squad: option.here, characters: slot.characters }));
         say(`${names} を ${index + 1}凸目から外しました (合計 ${formatDamage(hereTotal)} ≥ 譲る場合の ${formatDamage(thereTotal)})。`
           + (isEmptySquad(option.here) ? ` ${index + 1}凸目は空になったので、残りで探し直せます。` : ''), true);
       } else {
         commit(isEmptySquad(option.there) ? clearSlot(board, option.other)
-          : withSlot(board, option.other, { boss: other.boss, squad: option.there }));
+          : withSlot(board, option.other, { boss: other.boss, squad: option.there, characters: other.characters }));
         say(`${names} を ${option.other + 1}凸目から譲りました (合計 ${formatDamage(thereTotal)} > 外す場合の ${formatDamage(hereTotal)})。`
           + (isEmptySquad(option.there) ? ` ${option.other + 1}凸目は空になったので、残りで探し直せます。` : ''), true);
       }
@@ -3813,10 +3863,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const text = el('span', 'board-clash-text');
       text.append(createText('b', names), document.createTextNode(` は ${option.other + 1}凸目でも使っています。`));
       if (boss && otherBoss) {
-        const mine = knownScore(boss, board.slots[index]!.squad);
-        const hereScore = isEmptySquad(option.here) ? 0 : knownScore(boss, option.here);
-        const theirs = knownScore(otherBoss, other.squad);
-        const thereScore = isEmptySquad(option.there) ? 0 : knownScore(otherBoss, option.there);
+        const mineSlot = board.slots[index]!;
+        const mine = knownScore(boss, mineSlot.squad, mineSlot.characters);
+        const hereScore = isEmptySquad(option.here) ? 0 : knownScore(boss, option.here, mineSlot.characters);
+        const theirs = knownScore(otherBoss, other.squad, other.characters);
+        const thereScore = isEmptySquad(option.there) ? 0 : knownScore(otherBoss, option.there, other.characters);
         if (mine !== null && hereScore !== null && theirs !== null && thereScore !== null) {
           const hereTotal = hereScore + theirs;
           const thereTotal = mine + thereScore;
@@ -3854,7 +3905,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (!isEmptySquad(slotNow.squad) && options.length < MAX_PLANS_PER_ELEMENT
         && !options.some((plan) => sameSquad(plan.squad, slotNow.squad))) {
         const add = button('いまの編成を候補に加える', 'board-btn', () => {
-          const result = addPlan(plans, code, [...slotNow.squad]);
+          const result = addPlan(plans, code, [...slotNow.squad], { characters: slotNow.characters });
           if (!result.added) {
             say(result.reason === 'full'
               ? `候補は ${MAX_PLANS_PER_ELEMENT}件までです。どれかを消してから加えてください。`
@@ -3871,7 +3922,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (options.length > 1) {
         const runAll = button('候補をぜんぶ計算して比べる', 'board-btn lead', () => {
           void withBusy(async () => {
-            await runJobs(dedupe(options.map((plan) => jobFor(boss, plan.squad))), '候補を計算中');
+            await runJobs(dedupe(options.map((plan) => jobFor(boss, plan.squad, plan.characters))), '候補を計算中');
             say(`${options.length}件の候補を ${battleNote()} で比べました。`, true);
           });
         });
@@ -3883,14 +3934,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         box.append(createText('p', 'まだ候補がありません。「この枠の編成を組む」で組んでから、ここに加えられます。', 'board-chooser-empty'));
       }
       // 一番出た候補に印を付ける — 数字が並んでいても、どれが上かは一目で分かる方がよい
-      const scoresOf = options.map((plan) => knownScore(boss, plan.squad));
+      const scoresOf = options.map((plan) => knownScore(boss, plan.squad, plan.characters));
       const topScore = Math.max(...scoresOf.filter((v): v is number => v !== null), -Infinity);
       options.forEach((plan, planIndex) => {
         const row = el('div', 'board-chooser-row');
         const current = sameSquad(plan.squad, board.slots[index]!.squad);
         const pick = button(current ? `候補 ${planIndex + 1} (いま)` : `候補 ${planIndex + 1} にする`, `board-btn${current ? ' is-on' : ''}`, () => {
           chooserOpen = null;
-          commit(withSlot(board, index, { boss: boss.name, squad: plan.squad }));
+          commit(withSlot(board, index, { boss: boss.name, squad: plan.squad, characters: plan.characters }));
           void computeSlots([index]);
         });
         pick.dataset.boardPick = `${index}:${plan.id}`;
@@ -3899,7 +3950,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         for (const name of plan.squad.filter(Boolean)) members.append(createText('span', labelFor(name), 'board-who'));
         row.append(members);
         const known = scoresOf[planIndex] ?? null;
-        const score = createText('span', known === null ? '未計算' : formatDamage(known), 'board-chooser-score');
+        // 今の条件での値が無ければ、案に登録した理論値を出す (どちらか分かる印つき)
+        const registered = plan.registered;
+        const score = createText('span',
+          known !== null ? formatDamage(known)
+            : registered ? `${formatDamage(registered.damage)} (登録値)` : '未計算',
+          'board-chooser-score');
+        if (known === null && registered) {
+          score.title = `「比べる」で計算して登録した理論値です (${registered.duration}秒戦闘)。今の条件で計算し直すと変わることがあります`;
+        }
         if (known !== null && known === topScore && options.length > 1) {
           score.classList.add('is-top');
           score.title = 'この候補が一番出ています';
@@ -3947,7 +4006,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           const chip = button(`${labelFor(name)} ✕`, 'board-picker-chip', () => {
             const next = [...slot.squad];
             next[at] = '';
-            commit(withSlot(board, index, { boss: slot.boss, squad: next }));
+            commit(withSlot(board, index, { boss: slot.boss, squad: next, characters: slot.characters }));
           });
           chip.title = '外す';
           chip.dataset.boardPickerDrop = `${index}:${at}`;
@@ -4028,7 +4087,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
               if (free < 0) return;
               next[free] = char.name;
             }
-            commit(withSlot(board, index, { boss: slot.boss, squad: next }));
+            commit(withSlot(board, index, { boss: slot.boss, squad: next, characters: slot.characters }));
           });
           // 見た目は計算機のニケ一覧と同じ (画像 + バースト帯 + 属性アイコン)
           const portrait = el('div', 'board-pick-face');
@@ -4126,7 +4185,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const saved = plansOf(plans, code);
         let best: number | null = null;
         for (const plan of saved) {
-          const known = knownScore(boss, plan.squad);
+          const known = knownScore(boss, plan.squad, plan.characters) ?? plan.registered?.damage ?? null;
           if (known !== null && (best === null || known > best)) best = known;
         }
         const card = el('div', `board-el ${ELEMENT_CLASS[code] ?? ''}`);
@@ -4147,7 +4206,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const usage = usageOf(board);
       const slotScores = board.slots.map((slot, index) => {
         const boss = bossOf(index);
-        return boss ? knownScore(boss, slot.squad) : null;
+        return boss ? knownScore(boss, slot.squad, slot.characters) : null;
       });
       const best = Math.max(0, ...slotScores.map((score) => score ?? 0));
       const owned = Object.keys(roster).length || catalog.length;
@@ -4251,6 +4310,74 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderUsed(usage);
       renderStock();
     };
+
+    // ── 属性で組む (同じ属性を2回以上でもよい — 同じボスに複数回凸できる) ──
+    const elementSelects = [...root.querySelectorAll<HTMLSelectElement>('[data-board-element]')];
+    for (const select of elementSelects) {
+      const none = el('option', undefined, '— 属性 —');
+      none.value = '';
+      select.append(none);
+      for (const code of PLAN_ELEMENTS) {
+        const target = bossForElement(code, UNION_SEASON.bosses);
+        const option = el('option', undefined, `${elementLabel(code)}${target ? ` (${target.name})` : ''}`);
+        option.value = code;
+        select.append(option);
+      }
+      // いまの盤面から初期値を写す (枠 i のボス → その有利コード)
+      const index = Number(select.dataset.boardElement);
+      const boss = bossOf(index);
+      const current = boss ? counterOf(boss.elementCode) : null;
+      if (current) select.value = current;
+    }
+    const runElements = () => withBusy(async () => {
+      const picks = elementSelects.map((select) => select.value as PlanElement | '');
+      if (picks.some((pick) => !pick)) {
+        say('属性を3つ選んでください (同じ属性を2回選んでも構いません — 同じボスに複数回凸できます)。');
+        return;
+      }
+      const chosen = picks as PlanElement[];
+      const missing = [...new Set(chosen)].filter((code) => plansOf(plans, code).length === 0);
+      if (missing.length > 0) {
+        say(`${missing.map((code) => elementLabel(code)).join('・')} の候補がまだありません。枠で編成を組んで「いまの編成を候補に加える」か、属性別編成タブで保存してください。`);
+        return;
+      }
+      // 選んだ属性の候補を全部 (重複は1回) 計算してから、被りなしの割り当てを解く
+      await runJobs(dedupe(chosen.flatMap((code) => {
+        const boss = bossForElement(code, UNION_SEASON.bosses) ?? undefined;
+        return plansOf(plans, code).map((plan) => jobFor(boss, plan.squad, plan.characters));
+      })), '候補を計算中');
+      const lists: Candidate[][] = chosen.map((code) => {
+        const boss = bossForElement(code, UNION_SEASON.bosses);
+        if (!boss) return [];
+        return plansOf(plans, code).flatMap((plan) => {
+          const score = knownScore(boss, plan.squad, plan.characters);
+          return score === null ? [] : [{
+            boss: boss.name, squad: plan.squad, score,
+            ...(plan.characters ? { characters: plan.characters } : {}),
+          }];
+        });
+      });
+      const picked = bestForElements(lists);
+      let next = emptyBoard();
+      picked.forEach((candidate, index) => {
+        const code = chosen[index]!;
+        const boss = bossForElement(code, UNION_SEASON.bosses);
+        next = withSlot(next, index, candidate
+          ? { boss: candidate.boss, squad: candidate.squad, characters: candidate.characters }
+          : { boss: boss?.name ?? null, squad: ['', '', '', '', ''] });
+      });
+      chooserOpen = null;
+      pickerOpen = null;
+      commit(next);
+      const total = picked.reduce((sum, candidate) => sum + (candidate?.score ?? 0), 0);
+      const holes = picked.map((candidate, index) => (candidate ? null : index + 1))
+        .filter((value): value is number => value !== null);
+      say(holes.length === 0
+        ? `${chosen.map((code) => elementLabel(code)).join('・')} で被りなしの3凸を組みました — 理論値の合計 ${formatDamage(total)} (${battleNote()})。`
+        : `${holes.join('・')}凸目には被りなしで入れられる候補がありませんでした (合計 ${formatDamage(total)})。候補を増やすか、枠で直接組んでください。`, holes.length === 0);
+    });
+    const elementsRun = element<HTMLButtonElement>(root, '[data-board-elements-run]');
+    elementsRun.addEventListener('click', () => { void runElements(); });
 
     // ── 取込の帯 (最上部・常設)。計算機タブの取込を、入口からも押せるようにする ──
     const syncMain = element<HTMLElement>(root, '[data-board-sync-main]');

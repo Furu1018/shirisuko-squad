@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { StorageLike } from './cache';
 import {
   BEATS, ELEMENT_PLANS_KEY, baselineBattle, bossConditionBattle, counterOf, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans,
-  isEmptySquad, loadPlans, plansOf, removePlan, sameSquad, savePlans, type ElementPlans,
+  isEmptySquad, loadPlans, plansOf, registerScore, removePlan, sameSquad, savePlans, type ElementPlans,
 } from './element-plans';
 
 const memoryStorage = (seed: Record<string, string> = {}): StorageLike => {
@@ -280,5 +280,48 @@ describe('補助', () => {
     plans = addPlan(plans, '작열', squad('B')).plans;
     const [a, b] = plansOf(plans, '작열');
     expect(a!.id).not.toBe(b!.id);
+  });
+});
+
+describe('キューブ込みの登録', () => {
+  const cubed = { cube: { name: '렐릭 베어 큐브', level: 15 } } as never;
+
+  it('保存時の個別設定は編成にいるニケのぶんだけ残り、読み直しても保たれる', () => {
+    const storage = memoryStorage();
+    const { plans, added } = addPlan(emptyPlans(), '철갑', squad('리타', '크라운'), {
+      characters: { 리타: cubed, 나가: cubed },   // 나가 は編成にいない → 落ちる
+    });
+    expect(added).toBe(true);
+    expect(Object.keys(plansOf(plans, '철갑')[0]!.characters!)).toEqual(['리타']);
+    savePlans(storage, plans);
+    expect(plansOf(loadPlans(storage), '철갑')[0]!.characters).toEqual({ 리타: cubed });
+  });
+
+  it('個別設定なしで保存すれば characters は持たない (ロスター任せ)', () => {
+    const { plans } = addPlan(emptyPlans(), '철갑', squad('리타'));
+    expect(plansOf(plans, '철갑')[0]!.characters).toBeUndefined();
+  });
+
+  it('計算した理論値を案に登録でき、読み直しても残る', () => {
+    const storage = memoryStorage();
+    let { plans } = addPlan(emptyPlans(), '수냉', squad('앨리스'));
+    const id = plansOf(plans, '수냉')[0]!.id;
+    plans = registerScore(plans, '수냉', id, { damage: 3_690_000_000, duration: 180, at: '2026-09-02T00:00:00.000Z' });
+    expect(plansOf(plans, '수냉')[0]!.registered!.damage).toBe(3_690_000_000);
+    savePlans(storage, plans);
+    expect(plansOf(loadPlans(storage), '수냉')[0]!.registered!.duration).toBe(180);
+    // 無い id なら何も変えない
+    expect(registerScore(plans, '수냉', 'no-such-id', { damage: 1, duration: 90, at: 'x' })).toBe(plans);
+  });
+
+  it('壊れた登録値は捨てる (編成は残す)', () => {
+    const storage = memoryStorage();
+    const { plans } = addPlan(emptyPlans(), '전격', squad('나가'));
+    const raw = JSON.parse(JSON.stringify(plans)) as { byElement: Record<string, Array<Record<string, unknown>>> };
+    raw.byElement['전격']![0]!.registered = { damage: 'とても大きい', duration: 180, at: 'x' };
+    savePlans(storage, raw as never);
+    const back = loadPlans(storage);
+    expect(plansOf(back, '전격')).toHaveLength(1);
+    expect(plansOf(back, '전격')[0]!.registered).toBeUndefined();
   });
 });

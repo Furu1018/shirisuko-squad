@@ -12,8 +12,9 @@
 // 保存キーは `nikke-` で始める規約 (本家しりすこPADと同一オリジンで localStorage を共有するため)。
 import type { StorageLike } from './cache';
 import {
-  counterOf, plansOf, type ElementPlan, type ElementPlans, type PlanElement,
+  BEATS, counterOf, plansOf, type ElementPlan, type ElementPlans, type PlanElement,
 } from './element-plans';
+import type { CharacterOverrides } from './types';
 import type { UnionBoss } from './union-bosses';
 
 export const RAID_BOARD_KEY = 'nikke-raid-board-v1';
@@ -26,6 +27,12 @@ export interface BoardSlot {
   boss: string | null;
   /** 5人ぶんの内部キー (韓国語)。空文字は空き枠。 */
   squad: string[];
+  /**
+   * 個別設定のスナップショット (案から枠に入れたときのキューブ等)。
+   * 入っているニケはこの値で計算し、無いニケはロスターに任せる。
+   * 枠のピッカーで手で組んだだけの枠には無い。
+   */
+  characters?: Record<string, CharacterOverrides>;
 }
 
 export interface RaidBoard {
@@ -35,6 +42,11 @@ export interface RaidBoard {
 }
 
 const emptySlot = (): BoardSlot => ({ boss: null, squad: ['', '', '', '', ''] });
+
+/** スナップショットの形だけ確かめる (中身は validateRequest が見る)。 */
+const keepCharacters = (value: unknown): Record<string, CharacterOverrides> | undefined =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, CharacterOverrides> : undefined;
 
 export const emptyBoard = (): RaidBoard => ({
   schemaVersion: 1,
@@ -68,8 +80,11 @@ export function loadBoard(
     data.slots.slice(0, BOARD_SLOTS).forEach((slot, index) => {
       if (!slot || typeof slot !== 'object') return;
       const boss = typeof slot.boss === 'string' && bossNames.includes(slot.boss) ? slot.boss : null;
+      const characters = keepCharacters(slot.characters);
       // ボスが無い枠に顔ぶれだけ残っても意味が無い (ボスを選ぶと案が入り直す)
-      board.slots[index] = boss ? { boss, squad: normalizeSquad(slot.squad) } : emptySlot();
+      board.slots[index] = boss
+        ? { boss, squad: normalizeSquad(slot.squad), ...(characters ? { characters } : {}) }
+        : emptySlot();
     });
     return board;
   } catch {
@@ -92,7 +107,11 @@ export function withSlot(board: RaidBoard, index: number, slot: BoardSlot): Raid
   return {
     schemaVersion: 1,
     slots: board.slots.map((current, i) => (i === index
-      ? { boss: slot.boss, squad: normalizeSquad(slot.squad) } : current)),
+      ? {
+        boss: slot.boss,
+        squad: normalizeSquad(slot.squad),
+        ...(keepCharacters(slot.characters) ? { characters: slot.characters } : {}),
+      } : current)),
   };
 }
 
@@ -183,6 +202,8 @@ export interface Candidate {
   boss: string;
   squad: string[];
   score: number;
+  /** 案の個別設定スナップショット。枠に入れるとき一緒に運ぶ。 */
+  characters?: Record<string, CharacterOverrides>;
 }
 
 /**
@@ -195,6 +216,8 @@ export interface OpenCandidate {
   planIndex: number;
   squad: string[];
   removed: string[];
+  /** 案の個別設定スナップショット。枠に入れるとき一緒に運ぶ。 */
+  characters?: Record<string, CharacterOverrides>;
 }
 
 export function openSlotCandidates(
@@ -211,7 +234,7 @@ export function openSlotCandidates(
       const removed = plan.squad.filter((name) => name && used.has(name));
       const squad = withoutNames(plan.squad, removed);
       if (isEmptySquad(squad)) return;
-      out.push({ boss, planIndex, squad, removed });
+      out.push({ boss, planIndex, squad, removed, ...(plan.characters ? { characters: plan.characters } : {}) });
     });
   }
   return out;
@@ -260,6 +283,67 @@ export function bestTriple(candidates: readonly Candidate[], slots = BOARD_SLOTS
     if (best) return (best as number[]).map((i) => pool[i]!);
   }
   return [];
+}
+
+/** その属性 (有利コード) で殴る相手のボス。今シーズンはコード1つにボス1体。 */
+export function bossForElement(
+  element: PlanElement, bosses: readonly UnionBoss[],
+): UnionBoss | null {
+  return bosses.find((boss) => boss.elementCode === BEATS[element]) ?? null;
+}
+
+/**
+ * 「属性を3つ選ぶ」(同じ属性を2回以上でもよい — ユニオンレイドは同じボスに複数回凸できる) に対する、
+ * **同じニケを2度使わない**割り当て。
+ *
+ * 枠 i には選んだ属性 i の案しか入れない (bestTriple と違い、属性の組は固定)。
+ * 案は属性ごとに高々3つなので総当たりでも 3^3 = 27 通り。点数の合計が最大の組を返す。
+ * ある枠にどの案も入れられない (全部他の枠と被る・案が無い) 場合、その枠は null —
+ * **他の枠は諦めない** (2枠ぶんだけでも組めた方が役に立つ)。
+ */
+export function bestForElements(
+  candidatesBySlot: ReadonlyArray<readonly Candidate[]>,
+): Array<Candidate | null> {
+  const slots = candidatesBySlot.length;
+  const members = candidatesBySlot.map((list) =>
+    list.map((candidate) => new Set(candidate.squad.filter(Boolean))));
+  let best: Array<number | null> = Array.from({ length: slots }, () => null);
+  let bestScore = -Infinity;
+  let bestFilled = 0;
+  const chosen: Array<number | null> = [];
+  const walk = (slot: number, total: number, filled: number) => {
+    if (slot === slots) {
+      // 埋まった枠が多い方を優先し、同数なら合計で選ぶ (0点の案でも空きよりよい)
+      if (filled > bestFilled || (filled === bestFilled && total > bestScore)) {
+        bestFilled = filled;
+        bestScore = total;
+        best = [...chosen];
+      }
+      return;
+    }
+    const list = candidatesBySlot[slot]!;
+    for (let i = 0; i < list.length; i += 1) {
+      const mine = members[slot]![i]!;
+      let clash = false;
+      for (let prev = 0; prev < slot && !clash; prev += 1) {
+        const at = chosen[prev];
+        if (at === null || at === undefined) continue;
+        for (const name of members[prev]![at]!) {
+          if (mine.has(name)) { clash = true; break; }
+        }
+      }
+      if (clash) continue;
+      chosen.push(i);
+      walk(slot + 1, total + list[i]!.score, filled + 1);
+      chosen.pop();
+    }
+    // この枠を諦める道も試す (どの案も被るとき、後ろの枠まで道連れにしない)
+    chosen.push(null);
+    walk(slot + 1, total, filled);
+    chosen.pop();
+  };
+  walk(0, 0, 0);
+  return best.map((index, slot) => (index === null ? null : candidatesBySlot[slot]![index]!));
 }
 
 /** 合計。未設定・未計算 (null) の枠は 0 として足す。 */

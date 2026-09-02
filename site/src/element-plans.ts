@@ -6,6 +6,7 @@
 //
 // 保存キーは `nikke-` で始める規約 (本家しりすこPADと同一オリジンで localStorage を共有するため)。
 import type { StorageLike } from './cache';
+import type { CharacterOverrides } from './types';
 
 export const ELEMENT_PLANS_KEY = 'nikke-plans-v1';
 
@@ -31,6 +32,19 @@ export const BEATS: Record<PlanElement, PlanElement> = {
   철갑: '전격',
 };
 
+/**
+ * 案に登録した理論値。**どの条件で出した値か**を一緒に残す —
+ * 数字だけ覚えると、戦闘時間を変えた後で古い値を新しい値と見比べてしまう。
+ */
+export interface RegisteredScore {
+  /** squadTotal (理論ダメージ)。 */
+  damage: number;
+  /** 計算したときの戦闘時間 (秒)。 */
+  duration: number;
+  /** 計算した時刻 (ISO)。 */
+  at: string;
+}
+
 export interface ElementPlan {
   /** 並べ替え・削除の目印。中身が同じでも別案なら別 id。 */
   id: string;
@@ -40,6 +54,14 @@ export interface ElementPlan {
   savedAt: string;
   /** 任意のメモ。「バースト回し重視」など。 */
   note?: string;
+  /**
+   * 個別設定のスナップショット (キューブ・オーバーロード・スキル等)。
+   * **編成はキューブ込みで1つの案** — 同じ顔ぶれでもキューブが違えば別の結果になる。
+   * 入っているニケはこの値で計算し、入っていないニケはロスター (取込値) に任せる。
+   */
+  characters?: Record<string, CharacterOverrides>;
+  /** 登録した理論値。計算するたびに上書きされる。 */
+  registered?: RegisteredScore;
 }
 
 export interface ElementPlans {
@@ -85,6 +107,8 @@ export function loadPlans(storage: StorageLike | null | undefined): ElementPlans
         if (!plan || typeof plan !== 'object') continue;
         const squad = normalizeSquad((plan as ElementPlan).squad);
         if (isEmptySquad(squad)) continue;      // 空の案は残さない
+        const characters = (plan as ElementPlan).characters;
+        const registered = (plan as ElementPlan).registered;
         kept.push({
           id: typeof (plan as ElementPlan).id === 'string' && (plan as ElementPlan).id
             ? (plan as ElementPlan).id : makeId(),
@@ -93,6 +117,15 @@ export function loadPlans(storage: StorageLike | null | undefined): ElementPlans
             ? (plan as ElementPlan).savedAt : new Date(0).toISOString(),
           ...(typeof (plan as ElementPlan).note === 'string' && (plan as ElementPlan).note
             ? { note: (plan as ElementPlan).note } : {}),
+          // 個別設定は中身までは検査しない (エンジンへ渡る前に validateRequest が見る)。
+          // 編成にいないニケのぶんは持っていても使われないだけなので、そのまま残す
+          ...(characters && typeof characters === 'object' && !Array.isArray(characters)
+            ? { characters } : {}),
+          ...(registered && typeof registered === 'object'
+            && typeof registered.damage === 'number' && Number.isFinite(registered.damage)
+            && typeof registered.duration === 'number'
+            && typeof registered.at === 'string'
+            ? { registered } : {}),
         });
         if (kept.length >= MAX_PLANS_PER_ELEMENT) break;
       }
@@ -139,7 +172,7 @@ export function addPlan(
   plans: ElementPlans,
   element: PlanElement,
   squad: readonly string[],
-  note?: string,
+  extras?: { note?: string; characters?: Record<string, CharacterOverrides> },
 ): { plans: ElementPlans; added: boolean; reason?: 'empty' | 'duplicate' | 'full' } {
   const normalized = normalizeSquad(squad);
   if (isEmptySquad(normalized)) return { plans, added: false, reason: 'empty' };
@@ -148,15 +181,37 @@ export function addPlan(
     return { plans, added: false, reason: 'duplicate' };
   }
   if (current.length >= MAX_PLANS_PER_ELEMENT) return { plans, added: false, reason: 'full' };
+  // スナップショットは編成にいるニケのぶんだけ残す (デッキには外した人の設定も残っている)
+  const kept = Object.fromEntries(Object.entries(extras?.characters ?? {})
+    .filter(([name]) => normalized.includes(name)));
   const next: ElementPlan = {
     id: makeId(),
     squad: normalized,
     savedAt: new Date().toISOString(),
-    ...(note ? { note } : {}),
+    ...(extras?.note ? { note: extras.note } : {}),
+    ...(Object.keys(kept).length > 0 ? { characters: kept } : {}),
   };
   return {
     plans: { schemaVersion: 1, byElement: { ...plans.byElement, [element]: [...current, next] } },
     added: true,
+  };
+}
+
+/**
+ * 計算した理論値を案に登録する。無い id なら何もしない。
+ * 「編成とダメージを登録」— 数字は次に計算するまで残り、再読込しても消えない。
+ */
+export function registerScore(
+  plans: ElementPlans, element: PlanElement, id: string, registered: RegisteredScore,
+): ElementPlans {
+  const current = plansOf(plans, element);
+  if (!current.some((plan) => plan.id === id)) return plans;
+  return {
+    schemaVersion: 1,
+    byElement: {
+      ...plans.byElement,
+      [element]: current.map((plan) => (plan.id === id ? { ...plan, registered } : plan)),
+    },
   };
 }
 
