@@ -1,4 +1,5 @@
-import { growthLabel, labelFor } from './display-name';
+import { cubeTemplate, growthLabel, labelFor, labelForCube } from './display-name';
+import { statName } from './stat-names';
 import type {
   BuffTargetRow,
   CharacterControl,
@@ -97,7 +98,7 @@ function summaryText(name: string, catalog: SettingsCatalog, value?: CharacterOv
   return `${value ? '個別値' : '既定値'} · ${growthLabel(growth.label)} · 好感度 ${growth.affinity} · ${skillSummary} · `
     + `優コ ${numberText(overload.element_bonus ?? 0)} · `
     + `攻増 ${numberText(overload.atk_pct ?? 0)} · 装弾 ${numberText(overload.max_ammo_pct ?? 0)} · `
-    + `${cube.name === NO_CUBE ? 'キューブなし' : `${cube.name} Lv${cube.level}`} · ${controlSummary}`;
+    + `${cube.name === NO_CUBE ? 'キューブなし' : `${labelForCube(cube.name)} Lv${cube.level}`} · ${controlSummary}`;
 }
 
 /**
@@ -713,7 +714,7 @@ export function renderCharacterSettings(
   for (const [key, meta] of Object.entries(catalog.overloadFields)) {
     const label = document.createElement('label');
     const text = document.createElement('span');
-    text.textContent = meta.label;
+    text.textContent = statName(key);
     const input = document.createElement('input');
     input.type = 'number';
     input.step = '0.01';
@@ -753,7 +754,7 @@ export function renderCharacterSettings(
   for (const cubeName of Object.keys(catalog.cubes)) {
     const option = document.createElement('option');
     option.value = cubeName;
-    option.textContent = cubeName;
+    option.textContent = labelForCube(cubeName);
     cubeSelect.append(option);
   }
   // 저장된 편성이 지금 카탈로그에 없는 큐브를 가리킬 수 있다(데이터 갱신·구버전 상태).
@@ -802,7 +803,8 @@ export function renderCharacterSettings(
   if (noCube) {
     cubeSummary.textContent = 'キューブを装着しません — キューブのステータスも有利コード効果も付きません。';
   } else if (level) {
-    const effect = cubeMeta.template.replace('{0}', String(level.effect));
+    // settings.json の効果文は韓国語 (エンジン由来)。表示は公式の日本語表記に置き換える。
+    const effect = cubeTemplate(cubeMeta.template).replace('{0}', String(level.effect));
     cubeSummary.textContent = `攻撃 ${level.atk.toLocaleString('en-US')} · 防御 ${level.def.toLocaleString('en-US')} · `
       + `HP ${level.hp.toLocaleString('en-US')} · ${effect} · 有利コード ${level.commonElement}%`;
   }
@@ -1091,10 +1093,13 @@ export function renderCharacterSettings(
     manualSelect.replaceChildren();
     for (const [key, meta] of Object.entries(catalog.manualStats)) {
       if (key in current.manualStats!) continue;
-      if (query && !meta.label.toLocaleLowerCase('ko').includes(query) && !key.includes(query)) continue;
+      // 韓国語の label でも日本語の対訳でも引けるようにする (どちらで打つ人も居る)
+      const ja = statName(key);
+      if (query && !meta.label.toLocaleLowerCase('ko').includes(query)
+        && !ja.toLocaleLowerCase('ja').includes(query) && !key.includes(query)) continue;
       const option = document.createElement('option');
       option.value = key;
-      option.textContent = meta.label;
+      option.textContent = ja;
       manualSelect.append(option);
     }
     add.disabled = manualSelect.options.length === 0;
@@ -1120,7 +1125,7 @@ export function renderCharacterSettings(
     row.className = 'manual-row';
     row.dataset.manualRow = key;
     const text = document.createElement('span');
-    text.textContent = meta.label;
+    text.textContent = statName(key);
     const input = document.createElement('input');
     input.type = 'number';
     input.step = '0.01';

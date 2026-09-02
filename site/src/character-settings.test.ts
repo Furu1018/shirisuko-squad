@@ -580,7 +580,8 @@ describe('character settings editor', () => {
 
     expect(value?.cube).toEqual({ name: '탄충', level: 15 });
     expect(root.textContent).toContain('攻撃 2,780');
-    expect(root.textContent).toContain('10발 사격 시 탄환 충전 3발 ▲');
+    // 効果文はゲーム公式の日本語表記に置き換わる (data/cube-name-ja.json)
+    expect(root.textContent).toContain('10発射撃した時 「弾丸チャージ3発▲」');
     expect(root.textContent).toContain('有利コード 19.09%');
   });
 
@@ -591,7 +592,8 @@ describe('character settings editor', () => {
     search.value = '분배';
     search.dispatchEvent(new Event('input'));
     const select = root.querySelector<HTMLSelectElement>('[data-manual-select]')!;
-    expect([...select.options].map((option) => option.text)).toContain('분배 대미지');
+    // 選択肢は日本語で出す (韓国語で打っても引ける — 検索は両方を見る)
+    expect([...select.options].map((option) => option.text)).toContain('分裂ダメージ増加');
 
     select.value = 'split_dmg_pct';
     root.querySelector<HTMLButtonElement>('[data-add-stat]')!.click();

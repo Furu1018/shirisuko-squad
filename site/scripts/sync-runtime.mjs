@@ -190,6 +190,25 @@ const manifest = {
 
 writeFileSync(join(runtimeDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 writeFileSync(join(publicDir, 'catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`);
+// ハーモニーキューブの日本語表記 (名前と効果文)。正本は data/cube-name-ja.json
+// (ゲームの CDN から ko/ja を1回ずつ引いた公式表記 — scraper/cube_ja.py の生成物)。
+// 新しいキューブが増えたら、黙って韓国語が画面に出る前にここで落とす。
+{
+  const cubeJa = JSON.parse(readFileSync(join(repoRoot, 'data', 'cube-name-ja.json'), 'utf8'));
+  const cubes = Object.values(JSON.parse(settings).cubes ?? {});
+  const missingName = Object.keys(JSON.parse(settings).cubes ?? {}).filter((name) => !cubeJa.names[name]);
+  const missingTemplate = cubes
+    .map((cube) => cube.template)
+    .filter((template) => template && !cubeJa.templates[template]);
+  const rerun = ' — python scraper/cube_ja.py を流し直してください';
+  if (missingName.length) {
+    throw new Error(`cube-name-ja.json に日本語名がありません: ${missingName.join(', ')}${rerun}`);
+  }
+  if (missingTemplate.length) {
+    throw new Error(`cube-name-ja.json に効果文の対訳がありません: ${missingTemplate.join(' / ')}${rerun}`);
+  }
+}
+
 writeFileSync(join(publicDir, 'settings.json'), settings);
 
 

@@ -65,3 +65,23 @@ const MAKER_LABELS: Record<string, string> = {
 export function labelForMaker(code: string): string {
   return MAKER_LABELS[code] ?? code;
 }
+
+// ハーモニーキューブの名前も内部キーは韓国語のまま (保存値・エンジンとの契約)。
+// 対訳の正本は `data/cube-name-ja.json` — **ゲームの CDN から引いた公式表記**で、
+// 推測ではない (`scraper/cube_names_ja.py`)。新しいキューブが増えたら流し直す。
+import cubeNamesJa from '../../data/cube-name-ja.json';
+
+const CUBE_LABELS: Record<string, string> = cubeNamesJa.names;
+// 効果文 (「전투 시작 시 …」) も公式の日本語表記に置き換える。
+// 文そのものを鍵にする — settings.json の値がそのまま来るため。
+const CUBE_TEMPLATES: Record<string, string> = cubeNamesJa.templates;
+
+/** キューブの効果文 → 日本語の公式表記。知らない文はそのまま返す。 */
+export function cubeTemplate(template: string): string {
+  return CUBE_TEMPLATES[template] ?? template;
+}
+
+/** ハーモニーキューブ (内部キー) → 日本語表示。知らないキーはそのまま返す。 */
+export function labelForCube(name: string): string {
+  return CUBE_LABELS[name] ?? name;
+}
