@@ -5,9 +5,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { StorageLike } from './cache';
-import { LATEST_NOTICE_ID } from './notices';
 import { mountCalculator, type CalculatorClientLike } from './ui';
-import { decodeBattleCode, encodeBattleCode } from './share-code';
 import './styles.css';
 import type {
   CharacterMeta,
@@ -227,33 +225,6 @@ describe('calculator UI', () => {
     expect(savedSquad().slice(0, 3)).toEqual([before[2], before[1], before[0]]);
   });
 
-  it('exposes composition-only presets as a first-class squad action', () => {
-    mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-
-    // 프리셋과 공유는 같은 창이다 — 단추도 하나로 합쳤다.
-    const open = root.querySelector<HTMLButtonElement>('[data-share-open]')!;
-    expect(open).not.toBeNull();
-    expect(open.textContent).toContain('プリセット');
-    expect(open.textContent).toContain('編成共有');
-    expect(root.querySelector('[data-preset-open]')).toBeNull();
-    open.click();
-
-    const modal = root.querySelector<HTMLElement>('[data-share-modal]')!;
-    expect(modal.hidden).toBe(false);
-    // 창 하나가 저장(프리셋)과 주고받기(코드·링크)를 같이 맡는다.
-    expect(root.querySelector('[data-preset-name]')).not.toBeNull();
-    expect(root.querySelector('[data-share-out]')).not.toBeNull();
-    expect(modal.textContent).toContain('個人スペックと戦闘条件は含まれません');
-
-    const name = root.querySelector<HTMLInputElement>('[data-preset-name]')!;
-    name.value = '솔레 1군';
-    root.querySelector<HTMLButtonElement>('[data-preset-save]')!.click();
-    const stored = JSON.parse(localStorage.getItem('nikke-presets-v1')!) as Array<Record<string, unknown>>;
-    expect(stored).toHaveLength(1);
-    expect(Object.keys(stored[0]!).sort()).toEqual(['at', 'code', 'name']);
-    expect(stored[0]?.name).toBe('솔레 1군');
-  });
-
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
@@ -405,35 +376,6 @@ describe('calculator UI', () => {
     expect(saved.decks[0]!.burstSequence).toBeUndefined();
   });
 
-  it('외부고리 탭이 네 곳으로 새 탭에서 나간다', () => {
-    mountCalculator(root, {
-      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
-    });
-
-    const tab = root.querySelector<HTMLButtonElement>('[data-view-tab="links"]')!;
-    expect(tab.textContent).toBe('外部リンク');
-    tab.click();
-
-    const panel = root.querySelector<HTMLElement>('[data-view="links"]')!;
-    expect(panel.hidden).toBe(false);
-    // 계산기 판은 물러나 있어야 한다.
-    expect(root.querySelector<HTMLElement>('form[data-view="calc"]')!.hidden).toBe(true);
-
-    const cards = [...root.querySelectorAll<HTMLAnchorElement>('.link-card')];
-    expect(cards).toHaveLength(4);
-    expect(cards.map((card) => card.querySelector('.link-name')?.textContent))
-      .toEqual(['しりすこPAD', 'しりすこPAD GB', 'nikke-calc (原作)', 'Blablalink']);
-    for (const card of cards) {
-      expect(card.target).toBe('_blank');
-      // 남의 페이지에 우리 창을 넘기지 않는다.
-      expect(card.rel).toContain('noopener');
-      expect(card.rel).toContain('noreferrer');
-      expect(card.href.startsWith('https://')).toBe(true);
-    }
-    // 우리가 운영하는 곳이 아니라는 사실이 화면에 적혀 있어야 한다.
-    expect(panel.textContent).toContain('私たちが運営しているものではありません');
-  });
-
   it('적 수치를 초기화하면 조건 한 줄도 함께 바뀐다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
@@ -460,116 +402,6 @@ describe('calculator UI', () => {
     expect(summary.textContent).not.toContain('灼熱');
     expect(summary.textContent).not.toContain('パーツ');
     expect(summary.textContent).toContain('無属性');
-  });
-
-  it('받은 전투 조건 코드를 적용해도 조건 한 줄이 따라온다', () => {
-    mountCalculator(root, {
-      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
-    });
-
-    const summary = root.querySelector<HTMLElement>('[data-battle-summary]')!;
-    expect(summary.textContent).toContain('無属性');
-
-    root.querySelector<HTMLButtonElement>('[data-battle-share-open]')!.click();
-    const input = root.querySelector<HTMLTextAreaElement>('[data-battle-share-in]')!;
-    // 90초 · 적 전격
-    input.value = encodeBattleCode(
-      { ...decodeBattleCode('NK3-e30'), duration: 90, enemyCode: '전격' } as never,
-    );
-    root.querySelector<HTMLButtonElement>('[data-battle-share-apply]')!.click();
-
-    expect(root.querySelector<HTMLInputElement>('#duration')!.value).toBe('90');
-    expect(summary.textContent).toContain('電撃');
-    expect(summary.textContent).toContain('90秒');
-  });
-
-  it('조합 공유는 「이 덱만」으로 열리고, 받은 덱 하나가 다른 덱을 지우지 않는다', () => {
-    mountCalculator(root, {
-      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
-    });
-
-    // 덱 1·3을 서로 다르게 채우고 5덱 모드를 켠다.
-    const fill = (deckId: number, names: string[]) => {
-      root.querySelector<HTMLInputElement>('#squad-mode')!.checked = true;
-      const state = JSON.parse(localStorage.getItem('nikke-state-v1') ?? '{}');
-      void state; void deckId; void names;
-    };
-    void fill;
-
-    root.querySelector<HTMLButtonElement>('[data-share-open]')!.click();
-    const scope = root.querySelector<HTMLElement>('[data-share-scope]')!;
-    expect(scope).not.toBeNull();
-    // 기본은 「이 덱만」이다 — 덱 하나를 옮기는 일이 판 전체를 옮기는 일보다 잦다.
-    expect(scope.querySelector('.share-scope-pick.is-on')?.textContent).toBe('このデッキのみ');
-    expect(root.querySelector('[data-share-scope-note]')?.textContent)
-      .toContain('デッキ 1 にのみ入ります');
-
-    // 「5덱 전부」로 바꾸면 안내도 따라 바뀐다.
-    root.querySelector<HTMLButtonElement>('[data-share-scope-pick="all"]')!.click();
-    expect(scope.querySelector('.share-scope-pick.is-on')?.textContent).toBe('5デッキすべて');
-    expect(root.querySelector('[data-share-scope-note]')?.textContent)
-      .toContain('盤面全体が変わります');
-  });
-
-  it('프리셋은 어느 범위로 저장했는지 함께 알린다', () => {
-    mountCalculator(root, {
-      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
-    });
-
-    root.querySelector<HTMLButtonElement>('[data-share-open]')!.click();
-    root.querySelector<HTMLInputElement>('[data-preset-name]')!.value = '한 덱짜리';
-    root.querySelector<HTMLButtonElement>('[data-preset-save]')!.click();
-    expect(root.querySelector('[data-share-msg]')?.textContent).toContain('デッキ 1 のみ');
-
-    root.querySelector<HTMLButtonElement>('[data-share-scope-pick="all"]')!.click();
-    root.querySelector<HTMLInputElement>('[data-preset-name]')!.value = '판 전체';
-    root.querySelector<HTMLButtonElement>('[data-preset-save]')!.click();
-    expect(root.querySelector('[data-share-msg]')?.textContent).toContain('5デッキすべて');
-
-    const stored = JSON.parse(localStorage.getItem('nikke-presets-v1')!) as Array<{ name: string }>;
-    expect(stored.map((item) => item.name).sort()).toEqual(['판 전체', '한 덱짜리']);
-  });
-
-  it('유니온 탭에는 판 전체를 한 코드로 주고받는 줄이 있다', () => {
-    mountCalculator(root, {
-      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
-      blablaProxy: 'https://proxy.example',
-    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
-
-    expect(root.querySelector('[data-union-set-copy]')).not.toBeNull();
-    expect(root.querySelector('[data-union-set-paste]')).not.toBeNull();
-    expect(root.querySelector('[data-union-set-apply]')).not.toBeNull();
-    // 명단이 담기지 않는다는 사실은 화면에 적혀 있어야 한다 — 남의 계정 정보다.
-    const step = root.querySelector<HTMLElement>('[data-union-step="3"]')!;
-    expect(step.textContent).toContain('ユニオンメンバーの名簿は含まれません');
-  });
-
-  it('Blablalink プロキシ無しでもユニオンタブが既定で開き、盤面とボスプリセットがある (β)', () => {
-    // Pages ビルドは VITE_BLABLA_PROXY 空。以前はタブもパネル本体もプロキシ条件で消えていて、
-    // 既定ビューを union にすると初期表示が空白になった — その回帰を塞ぐ。
-    mountCalculator(root, {
-      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
-      blablaProxy: '',
-    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
-
-    // 入口は3凸ボード。ユニオン運営はタブから開く
-    const boardTab = root.querySelector<HTMLButtonElement>('[data-view-tab="board"]')!;
-    expect(boardTab.classList.contains('is-on')).toBe(true);
-    expect(root.querySelector<HTMLElement>('[data-view="board"]')!.hidden).toBe(false);
-    const tab = root.querySelector<HTMLButtonElement>('[data-view-tab="union"]')!;
-    tab.click();
-    expect(tab.classList.contains('is-on')).toBe(true);
-    const panel = root.querySelector<HTMLElement>('[data-view="union"]')!;
-    expect(panel.hidden).toBe(false);
-    expect(root.querySelector('[data-union-bosses]')).not.toBeNull();
-    expect(root.querySelector('[data-union-preset]')).not.toBeNull();
-    // サーバースキャンだけはプロキシが要る — 入口を隠して理由を書く
-    expect(root.querySelector<HTMLButtonElement>('[data-union-scan]')!.hidden).toBe(true);
-    expect(root.querySelector('[data-union-scan-status]')!.textContent).toContain('プロキシなし');
-    // enikk タブは出さない
-    expect(root.querySelector('[data-view-tab="enikk"]')).toBeNull();
-    // 計算タブの5ボスボタン
-    expect(root.querySelectorAll('[data-boss-preset]').length).toBe(5);
   });
 
   it('CSV を取り込み直すと編成中のキャラの育成値が更新され、操作設定は残る', async () => {
@@ -1428,17 +1260,6 @@ describe('calculator UI', () => {
     expect(root.querySelector('[data-errors]')!.textContent).not.toContain('キューブ設定');
   });
 
-  it('공유 서버 주소가 없으면 「공유에서 판 고르기」를 감춘다', () => {
-    mountCalculator(root, {
-      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
-      blablaProxy: 'https://proxy.example',
-    } as Parameters<typeof mountCalculator>[1] & { blablaProxy: string });
-
-    // 시험 환경에는 VITE_SHARE_API가 없다 — 누를 수 없는 단추를 남기지 않는다.
-    const button = root.querySelector<HTMLButtonElement>('[data-union-set-share]');
-    expect(button?.hidden).toBe(true);
-  });
-
   it('블라블라링크 연동 창은 자동을 기본값으로 공식 서버 다섯 곳을 보여 준다', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
@@ -1838,7 +1659,7 @@ describe('calculator UI', () => {
     expect(titles).toEqual(['レアリティ', 'クラス', 'コード', '武器', '企業']);
   });
 
-  it('sends the synchro level from the battle panel, and keeps it out of shared codes', async () => {
+  it('sends the synchro level from the battle panel', async () => {
     const client = new FakeClient();
     mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
     const level = root.querySelector<HTMLInputElement>('#synchro-level')!;
@@ -1852,49 +1673,6 @@ describe('calculator UI', () => {
     await flush();
     expect(client.lastRequest?.synchroLevel).toBe(250);
 
-    // 공유 코드에는 담기지 않는다 — 콘솔과 같은 계정 육성 상태다.
-    root.querySelector<HTMLButtonElement>('[data-battle-share-open]')!.click();
-    const code = root.querySelector<HTMLTextAreaElement>('[data-battle-share-out]')!.value;
-    root.querySelector<HTMLTextAreaElement>('[data-battle-share-in]')!.value = code;
-    level.value = '700';
-    root.querySelector<HTMLButtonElement>('[data-battle-share-apply]')!.click();
-    // 남의 조건을 얹어도 내 레벨은 그대로다.
-    expect(root.querySelector<HTMLInputElement>('#synchro-level')!.value).toBe('700');
-  });
-
-  it('更新履歴は自動では開かず、未読なら NEW の印だけ付く。閉じると既読になる', () => {
-    // 入口は 3凸ボード — 初めて来た人にもお知らせを被せない
-    mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-    const modal = () => root.querySelector<HTMLElement>('[data-notice-modal]')!;
-    const badge = () => root.querySelector<HTMLElement>('[data-notice-new]')!;
-    expect(modal().hidden).toBe(true);
-    expect(badge().hidden).toBe(false);
-
-    root.querySelector<HTMLButtonElement>('[data-notice-open]')!.click();
-    expect(modal().hidden).toBe(false);
-    expect(root.querySelectorAll('[data-notice]').length).toBeGreaterThan(0);
-    root.querySelector<HTMLButtonElement>('[data-notice-dismiss]')!.click();
-    expect(modal().hidden).toBe(true);
-    expect(badge().hidden).toBe(true);
-    expect(localStorage.getItem('nikke-notice-seen')).toBe(LATEST_NOTICE_ID);
-
-    // 次に来たときは印も付かない
-    root.remove();
-    root = document.createElement('main');
-    document.body.append(root);
-    mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-    expect(root.querySelector<HTMLElement>('[data-notice-modal]')!.hidden).toBe(true);
-    expect(root.querySelector<HTMLElement>('[data-notice-new]')!.hidden).toBe(true);
-    // それでもいつでも開ける
-    root.querySelector<HTMLButtonElement>('[data-notice-open]')!.click();
-    expect(root.querySelector<HTMLElement>('[data-notice-modal]')!.hidden).toBe(false);
-  });
-
-  it('新しいお知らせが出たら NEW の印が戻る (自動では開かない)', () => {
-    localStorage.setItem('nikke-notice-seen', '2000-01-01');
-    mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-    expect(root.querySelector<HTMLElement>('[data-notice-modal]')!.hidden).toBe(true);
-    expect(root.querySelector<HTMLElement>('[data-notice-new]')!.hidden).toBe(false);
   });
 
   it('자세히 보기를 켜면 대미지를 1의 자리까지 적는다', async () => {
@@ -1915,7 +1693,6 @@ describe('calculator UI', () => {
       }
     }
     mountCalculator(root, { catalog, settings, version: 'v1', client: new BigClient(), storage: localStorage });
-    root.querySelector<HTMLButtonElement>('[data-notice-dismiss]')!.click();
     root.querySelector<HTMLFormElement>('form')!.requestSubmit();
     await flush();
     await flush();
@@ -1942,7 +1719,6 @@ describe('calculator UI', () => {
 
   it('keeps the control fold open and live inside the card', async () => {
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-    root.querySelector<HTMLButtonElement>('[data-notice-dismiss]')!.click();
     const card = root.querySelector<HTMLElement>('[data-slot-card="0"]')!;
     card.querySelector<HTMLInputElement>('[data-custom-toggle]')!.click();
     card.querySelector<HTMLButtonElement>('[data-control-open]')!.click();
@@ -1969,7 +1745,6 @@ describe('calculator UI', () => {
   it('does not yank the page back to the squad when results arrive', async () => {
     const client = new FakeClient();
     mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
-    root.querySelector<HTMLButtonElement>('[data-notice-dismiss]')!.click();
     // jsdom에는 scrollIntoView가 없다 — 누가 불렀는지 보려고 심는다.
     const pulled: string[] = [];
     const proto = Element.prototype as unknown as { scrollIntoView?: () => void };
@@ -2324,7 +2099,8 @@ describe('calculator UI', () => {
 
     expect(localStorage.getItem('nikke-state-v1')).toBeNull();
     expect(localStorage.getItem('nikke-roster-v1')).toBeNull();
-    expect(localStorage.getItem('nikke-custom-v1')).toBeNull();
+    expect(localStorage.getItem('nikke-sync-v1')).toBeNull();
+    expect(localStorage.getItem('nikke-raid-board-v1')).toBeNull();
     expect(reloads).toBe(1);
     expect(modal.hidden).toBe(true);
   });
@@ -2489,32 +2265,6 @@ describe('calculator UI', () => {
 
     expect(root.querySelectorAll('[data-character-result]').length).toBeGreaterThan(0);
     expect(root.querySelectorAll('[data-dmg-split]')).toHaveLength(0);
-  });
-
-  it('offers a report button once results exist and surfaces render failures', async () => {
-    const client = new FakeClient();
-    mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
-    // 계산 전에는 결과가 없으니 보고서 버튼도 없다.
-    expect(root.querySelector('[data-report-open]')).toBeNull();
-
-    root.querySelector<HTMLInputElement>('#duration')!.value = '10';
-    root.querySelector<HTMLFormElement>('form')!.requestSubmit();
-    await flush();
-
-    const open = root.querySelector<HTMLButtonElement>('[data-report-open]')!;
-    expect(open).not.toBeNull();
-
-    open.click();
-    await flush();
-
-    // 초상화를 받는 동안 모달이 먼저 열리고 진행 상태를 보여준다.
-    // (그리기 실패 경로는 report.test.ts에서 직접 검증한다.)
-    expect(root.querySelector<HTMLElement>('[data-report-modal]')!.hidden).toBe(false);
-    expect(root.querySelector<HTMLElement>('[data-report-preview]')!.textContent)
-      .toContain('レポートを描画中');
-
-    root.querySelector<HTMLButtonElement>('[data-report-close]')!.click();
-    expect(root.querySelector<HTMLElement>('[data-report-modal]')!.hidden).toBe(true);
   });
 
   it('reuses a cached result instead of recalculating', async () => {

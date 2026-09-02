@@ -12,40 +12,9 @@ import {
   type RawProfile,
 } from './blablalink';
 import { parseRosterCsv } from './csv-import';
+import { summarizeBattle } from './battle-summary';
 import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
-import {
-  formatEok,
-  loadEnikkComps,
-  WEAKNESS_KO,
-  type EnikkImport,
-  type EnikkPlayer,
-} from './enikk';
 import { buildIndex, filterByQuery } from './nikke-search';
-import {
-  buildAddPrompt,
-  CUSTOM_KEY,
-  customToMeta,
-  customToSettings,
-  loadCustom,
-  parseCustomInput,
-  unsupportedEffects,
-} from './custom-nikke';
-import {
-  canvasToBlob,
-  copyImage,
-  downloadImage,
-  loadPortraits,
-  renderReport,
-  reportFilename,
-  type ReportMeta,
-} from './report';
-import { csvBlob, csvFileName, csvText, damageCsv } from './export-csv';
-import {
-  applyShareToDecks, decodeBattleCode, decodeShareCode, encodeBattleCode, encodeShareCode,
-} from './share-code';
-import { LATEST_NOTICE_ID, NOTICES, noticeFragment, noticeToShow } from './notices';
-import { mountSharePanel, squadPreview, type SharePanel } from './share-panel';
-import { startPresence } from './presence';
 import { UNION_SEASON, bossBattle } from './union-bosses';
 import { applyImportedRoster, mergeImportedRoster } from './roster-merge';
 import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
@@ -59,20 +28,17 @@ import {
   type SyncMeta,
 } from './sync-meta';
 import {
-  BOARD_SLOTS, bestTriple, boardBattle, candidatesFor as boardCandidatesFor, clashOptionsFor, clashesOf, clearSlot,
+  BOARD_SLOTS, RAID_BOARD_KEY, bestTriple, boardBattle, candidatesFor as boardCandidatesFor, clashOptionsFor, clashesOf, clearSlot,
   emptyBoard, isEmptySquad, loadBoard, openSlotCandidates, saveBoard, totalOf, usageOf,
   usedCount, withSlot, type Candidate, type ClashOption, type OpenCandidate, type RaidBoard,
 } from './raid-board';
 import type { UnionBoss } from './union-bosses';
-import { mountUnionRaid } from './union-raid';
-import { EXTERNAL_LINKS, hostOf } from './external-links';
 import {
   BURST_STAGES,
   candidatesFor, cycleLine, cyclesFromTimeline, estimateCycles, HOTKEYS, MAX_CYCLES,
   picksFrom, progressOf, sequenceForDeck, sequenceFrom, stepKey, stepsFor, trimSequence,
   type BurstStage, type BurstStep,
 } from './burst-order';
-import { ShareServer, summarizeBattle, summarizeSquad } from './share-server';
 import { createTimelineBlock } from './timeline';
 import {
   aggregateDeckResults,
@@ -367,9 +333,6 @@ function renderCharacterCards(
 // 그리지 않는다 — 프록시 없이 브라우저에서 직접 부르면 CORS와 로그인 세션 두 가지가 동시에
 // 막아 반드시 실패한다(`worker/README.md`).
 const BLABLA_PROXY = (import.meta.env.VITE_BLABLA_PROXY ?? '').trim().replace(/\/+$/, '');
-// 설정 공유 서버(`worker-share/`). 비어 있으면 공유 모달이 코드 주고받기만 그린다 —
-// 서버 없이 부르면 반드시 실패하므로 탭을 만들어 두는 쪽이 더 헷갈린다.
-const SHARE_API = (import.meta.env.VITE_SHARE_API ?? '').trim().replace(/\/+$/, '');
 
 export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies): () => void {
   const { catalog, settings, version, client, storage, reload } = deps;
@@ -433,30 +396,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   };
   let roster = loadRoster();
 
-  // 임의 니케(커스텀). localStorage에만 저장되고 요청마다 엔진에 주입된다.
-  const customChars = loadCustom((key) => resolveStorage()?.getItem(key) ?? null);
-  const saveCustom = () => {
-    try {
-      resolveStorage()?.setItem(CUSTOM_KEY, JSON.stringify(customChars));
-    } catch {
-      /* 무시 */
-    }
-  };
-  const registerCustom = (name: string) => {
-    const custom = customChars[name];
-    if (!custom) return;
-    if (!catalogByName.has(name)) {
-      const meta = customToMeta(custom);
-      catalog.push(meta);
-      catalogByName.set(name, meta);
-    }
-    settings.characters[name] = customToSettings(custom);
-  };
-  const customPayload = (): Record<string, { nikke: Record<string, unknown>; skills: unknown[] }> =>
-    Object.fromEntries(Object.entries(customChars).map(([n, c]) => [n, { nikke: c.nikke, skills: c.skills }]));
-
   // 편성·설정·전투 조건을 localStorage에 저장해 새로고침해도 마지막 상태로 복원한다.
   const STATE_KEY = 'nikke-state-v1';
+  // 3凸ボードの «取り込まずに試す» を覚える鍵。PAD と同一オリジンなので nikke- を必ず付ける
+  const BOARD_SKIP_KEY = 'nikke-board-skip-import-v1';
   interface SavedState {
     decks: DeckState[];
     fiveDeckMode: boolean;
@@ -511,7 +454,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <span class="brand-beta">BETA</span>
           <span class="brand-lede">NIKKE ユニオンレイドの3凸を、自分の育成で決める</span>
         </div>
-        <div class="trust-row brand-tools" aria-label="サービスの情報"><span>${catalog.length}名対応</span><span class="online-now" data-online hidden title="直近1~2分の間にこの計算機を開いた人数です。タブを非表示にすると数えません"><b class="online-dot" aria-hidden="true"></b><span data-online-text></span></span><button type="button" class="notice-open" data-notice-open title="これまでに何が変わったかを見ます">更新履歴<b class="notice-new" data-notice-new hidden>NEW</b></button><a class="credit-link" href="https://github.com/Jgaram/nikke-calc" target="_blank" rel="noreferrer noopener" title="この計算機の元のリポジトリ (エンジン・データは無改変)">原作 nikke-calc に感謝</a></div>
+        <div class="trust-row brand-tools" aria-label="サービスの情報"><span>${catalog.length}名対応</span><a class="credit-link" href="https://github.com/Jgaram/nikke-calc" target="_blank" rel="noreferrer noopener" title="この計算機の元のリポジトリ (エンジン・データは無改変)">原作 nikke-calc に感謝</a></div>
       </header>
 
       <nav class="view-tabs" aria-label="画面切り替え">
@@ -519,8 +462,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <button type="button" class="view-tab" data-view-tab="calc" aria-pressed="false">計算機</button>
         <button type="button" class="view-tab" data-view-tab="roster" aria-pressed="false">マイロスター</button>
         <button type="button" class="view-tab" data-view-tab="plans" aria-pressed="false">属性別編成</button>
-        <button type="button" class="view-tab" data-view-tab="union" aria-pressed="false">ユニオンレイド<b class="tab-beta">BETA</b></button>
-        <button type="button" class="view-tab" data-view-tab="links" aria-pressed="false">外部リンク</button>
       </nav>
 
       <section class="panel board-panel" data-view="board" aria-labelledby="board-heading" hidden>
@@ -676,147 +617,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         </div>
       </section>
 
-      <section class="panel links-panel" data-view="links" aria-labelledby="links-heading" hidden>
-        <div class="section-heading">
-          <div><p class="step">LINKS</p><h2 id="links-heading">外部リンク</h2></div>
-        </div>
-        <p class="links-lede">ニケを回すのに使う<b>他の方々のツール</b>です。新しいタブで開きます。</p>
-        <p class="links-warn"><b>ここに載っている先は私たちが運営しているものではありません。</b>計算機に入れておいた値やアカウント情報が先方へ渡ることはなく、先方の内容やアドレスが変わっても私たちには分かりません。</p>
-        <div class="links-grid" data-links-grid></div>
-      </section>
 
-      <section class="panel union-panel" data-view="union" aria-labelledby="union-heading" hidden>
-        <div class="section-heading">
-          <div><p class="step">UNION</p><h2 id="union-heading">ユニオンレイド <b class="beta-tag">BETA</b></h2></div>
-        </div>
-        <div class="union-modes" role="group" aria-label="計算対象">
-          <button type="button" class="union-mode is-on" data-union-mode="union" aria-pressed="true">ユニオン</button>
-          <button type="button" class="union-mode" data-union-mode="personal" aria-pressed="false">個人用</button>
-        </div>
-        <p class="union-lede" data-union-lede-union>ユニオンメンバー<b>それぞれの実際のスペックとシンクロレベル</b>で同じボス・同じデッキを回し、誰がどれだけ貢献できるかを見比べます。ニケ一覧を公開している人だけ計算できます。</p>
-        <p class="union-lede" data-union-lede-personal hidden><b>自分のスペックだけ</b>を使います。名簿を取り込む必要はなく、ボスごとに異なる戦闘条件をかけてデッキを3つまで回し、一目で見比べます — 計算機に設定してあるシンクロ・コンソール・ニケ育成をそのまま使います。</p>
 
-        <div class="union-step" data-union-step="1">
-          <h3>ユニオン名簿の取り込み</h3>
-          <p class="field-note">ユニオンメンバーの名簿は<b>指揮官ご自身のログインでのみ</b>開けます(私たちのサーバーからは遮断されています)。そのため一度だけご自身で取り出していただきます — Cookie やパスワードには一切触れません。</p>
-          <ol class="union-guide">
-            <li>Blablalink にログインしたまま<b>ユニオンスクエア</b>を開きます。</li>
-            <li><kbd>F12</kbd> → <b>Console</b> タブに下の内容を貼り付けて <kbd>Enter</kbd>。</li>
-            <li>名簿がクリップボードに入ります。下の欄に貼り付けてください。</li>
-            <li>クリップボードが使えない場合は<b>ページ上に欄が表示され、内容がすべて選択された状態になります</b> — <kbd>Ctrl</kbd>+<kbd>A</kbd> → <kbd>Ctrl</kbd>+<kbd>C</kbd> でコピーしたあと、<b>✕</b> か <kbd>Esc</kbd>、または欄の外を押して閉じてください。</li>
-          </ol>
-          <textarea class="union-snippet" data-union-snippet rows="3" readonly spellcheck="false"></textarea>
-          <div class="union-actions">
-            <button type="button" class="roster-import" data-union-copy>スニペットをコピー</button>
-          </div>
-          <textarea class="union-paste" data-union-paste rows="3" placeholder="ここに名簿を貼り付けてください" spellcheck="false"></textarea>
-          <div class="union-actions">
-            <button type="button" class="roster-import" data-union-read>名簿を読み込む</button>
-            <span class="union-status" data-union-list-status></span>
-          </div>
-        </div>
-
-        <div class="union-step" data-union-step="2" hidden>
-          <h3>公開状況の確認</h3>
-          <p class="field-note">一人ずつ実際に照会してみないと分かりません。3人ずつ同時に問い合わせ、公開している人はニケ詳細まで一緒に取得しておきます。</p>
-          <div class="union-actions">
-            <button type="button" class="roster-import" data-union-scan>公開状況をスキャン</button>
-            <button type="button" class="roster-import" data-union-scan-stop hidden>中断</button>
-            <span class="union-status" data-union-scan-status></span>
-          </div>
-          <div class="union-progress" data-union-scan-progress hidden><i></i></div>
-
-          <details class="union-direct">
-            <summary>自分のブラウザで直接取得する — 「ユニオンメンバーにのみ公開」まで見えます</summary>
-            <p class="field-note">上のスキャンは私たちのサーバーを経由します。私たちのアカウントはこのユニオンに所属していないため、<b>「ユニオンメンバーにのみ公開」にしている人は永遠に非公開に見えます</b>。指揮官ご自身のブラウザで直接取得すればその方々まで見えます — サーバーを経由しないほうが安心な方にもこちらの方法が向いています。</p>
-            <p class="field-note">ユニオンメンバーの人数分だけ照会するため<b>32名なら2~3分</b>かかり、進行状況がコンソールに1行ずつ表示されます。終わったら上と同じ方法でコピーして下に貼り付けてください。</p>
-            <textarea class="union-snippet" data-union-direct-snippet rows="3" readonly spellcheck="false"></textarea>
-            <div class="union-actions">
-              <button type="button" class="roster-import" data-union-direct-copy>直接取得スニペットをコピー</button>
-            </div>
-            <textarea class="union-paste" data-union-direct-paste rows="3" placeholder="直接取得したデータをここに貼り付けてください (NKU1-…)" spellcheck="false"></textarea>
-            <div class="union-actions">
-              <button type="button" class="roster-import" data-union-direct-read>直接取得したデータを読み込む</button>
-              <span class="union-status" data-union-direct-status></span>
-            </div>
-          </details>
-
-          <div class="union-members" data-union-members></div>
-          <div class="union-ask" data-union-ask hidden>
-            <p data-union-ask-text></p>
-            <button type="button" class="roster-import" data-union-pick-all>公開している人を全員選ぶ</button>
-            <button type="button" class="roster-import" data-union-pick-none>全員解除</button>
-          </div>
-        </div>
-
-        <div class="union-step" data-union-step="3" hidden>
-          <h3>ボスとデッキ</h3>
-          <p class="field-note">ボスは<b>戦闘条件コード</b>(NK3-)、デッキは<b>編成コード</b>(NK2-)で埋めます。計算機に設定してある内容を取り込むことも、<b>共有一覧から選んで</b>入れることもできます。チェックを外したボスは計算しません — 風圧には強いのに電撃には弱い人もいますから。</p>
-          <div class="union-board-bar">
-            <span class="union-board-label">盤面全体</span>
-            <button type="button" class="roster-import" data-union-set-share>共有から盤面を選ぶ</button>
-            <button type="button" class="roster-import" data-union-set-paste>盤面コードを貼り付け</button>
-            <button type="button" class="roster-import" data-union-set-copy>この盤面コードをコピー</button>
-            <span class="union-status" data-union-set-status></span>
-          </div>
-          <p class="field-note">ボス5体と各枠のデッキまで<b>1つのコード</b>(NK4-)に収まります — 前シーズンの盤面をまるごと移したりユニオンの部屋に配ったりするとき、20回も貼り付けずに済みます。<b>ユニオンメンバーの名簿は含まれません。</b></p>
-          <div class="union-set-box" data-union-set-box hidden>
-            <textarea class="custom-json" data-union-set-code rows="3" placeholder="盤面コード (NK4-…)"></textarea>
-            <div class="deck-copy-actions">
-              <button type="button" class="deck-copy-apply" data-union-set-apply>この盤面を適用</button>
-              <button type="button" class="deck-copy-cancel" data-union-set-close>閉じる</button>
-            </div>
-          </div>
-          <div class="union-bosses" data-union-bosses></div>
-
-          <div class="custom-modal" data-union-share-modal hidden>
-            <div class="custom-card share-card" role="dialog" aria-label="共有から選ぶ">
-              <div class="custom-head"><h2 data-union-share-title>共有から選ぶ</h2><button type="button" class="custom-close" data-union-share-close aria-label="閉じる">✕</button></div>
-              <p class="custom-desc" data-union-share-desc></p>
-              <div data-union-share-body></div>
-              <p class="custom-msg" data-union-share-msg hidden></p>
-            </div>
-          </div>
-        </div>
-
-        <div class="union-step" data-union-step="4" hidden>
-          <h3>シミュレーション</h3>
-          <p class="field-note">ユニオンメンバー × ボス × デッキを1つずつ回します。<b>時間がかかるのでウィンドウを開いたままお待ちください</b> — 結果は出た順に下へ積み上がります。</p>
-          <div class="union-actions">
-            <button type="button" class="roster-import union-run" data-union-run disabled>シミュレーション実行</button>
-            <button type="button" class="roster-import" data-union-stop hidden>中断</button>
-            <span class="union-status" data-union-run-status></span>
-          </div>
-          <div class="union-progress" data-union-run-progress hidden><i></i></div>
-          <div class="union-report" data-union-report></div>
-        </div>
-      </section>
-
-      <section class="panel enikk-panel" data-view="enikk" aria-labelledby="enikk-heading" hidden>
-        <div class="section-heading">
-          <div><p class="step">ENIKK</p><h2 id="enikk-heading">ENIKK 조합 가져오기</h2></div>
-        </div>
-        <p class="enikk-lede">enikk.app 솔로레이드 랭킹에서 <b>그 사람이 실제로 쓴 5덱을 통째로</b> 가져옵니다. 최신 시즌 상위 <b>300명</b>(KR·JP·GLOBAL·NA·TW-HK·SEA 각 50명)이 대상이고, 누르면 우리 5덱에 그대로 깔립니다.</p>
-        <p class="enikk-warn" data-enikk-warn>불러오는 데 <b>5~10초쯤</b> 걸립니다 — enikk에서 300명분을 한 번에 받아오기 때문입니다. 받아온 뒤에는 이 브라우저에 저장해 두고 다시 받지 않습니다.</p>
-        <div class="enikk-actions">
-          <button type="button" class="roster-import" data-enikk-load>조합 가져오기</button>
-          <button type="button" class="roster-import" data-enikk-refresh hidden>다시 받기</button>
-          <span class="enikk-status" data-enikk-status></span>
-        </div>
-        <div class="enikk-exclude">
-          <label class="enikk-exclude-label" for="enikk-exclude">제외할 니케</label>
-          <div class="enikk-exclude-row">
-            <input id="enikk-exclude" type="search" list="enikk-exclude-list" placeholder="안 가진 니케 이름을 넣으세요" autocomplete="off" data-enikk-exclude-input />
-            <datalist id="enikk-exclude-list" data-enikk-exclude-options></datalist>
-            <button type="button" class="roster-import" data-enikk-exclude-add>추가</button>
-          </div>
-          <div class="enikk-exclude-chips" data-enikk-exclude-chips></div>
-          <p class="field-note">넣은 니케가 낀 덱은 <b>가져오기에서 빠집니다</b>. 그 니케가 없어도 짤 수 있는 조합만 남기려는 것입니다.</p>
-        </div>
-        <div class="enikk-summary" data-enikk-summary hidden></div>
-        <div class="enikk-compare" data-enikk-compare hidden></div>
-        <div class="enikk-list" data-enikk-list hidden></div>
-      </section>
 
       <form class="calculator-layout" data-view="calc" novalidate>
         <section class="panel squad-panel" aria-labelledby="squad-heading">
@@ -830,8 +632,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
               </span>
               ${blablaProxy ? '<button type="button" class="roster-import" data-blabla-open title="Blablalink のプロフィール URL から所持ニケの育成状況を一括で読み込みます">Blablalink 連携</button>' : ''}
               <span class="roster-sync" data-sync-box hidden><span class="roster-sync-when" data-sync-when></span><button type="button" class="roster-import" data-sync-again title="覚えているプロフィールから育成状況を取り込み直します">今の育成を取り込む</button></span>
-              <button type="button" class="roster-import" data-add-nikke title="未実装・未登録のニケを自分で追加します">新しいニケを追加</button>
-              <button type="button" class="roster-import" data-share-open title="編成に名前を付けてこのブラウザに保存したり、コードやリンクでやり取りします。個人スペックと戦闘条件は含まれません">プリセット / 編成共有</button>
               <button type="button" class="roster-import danger" data-reset-all title="編成・設定・CSV ロスター・追加したニケ・保存された結果をすべて消して初期状態に戻します">完全初期化</button>
               <label class="toggle-field mode-toggle" title="他のデッキで既に設定済みの個別設定を、編成時にそのまま引き継ぎます"><input id="carry-settings" type="checkbox" checked /><span class="toggle"></span><span>設定を引き継ぐ</span></label>
               <label class="toggle-field mode-toggle"><input id="squad-mode" type="checkbox" /><span class="toggle"></span><span>5デッキモード</span></label>
@@ -903,7 +703,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <div class="section-heading compact target-heading">
             <div><h2 id="settings-heading">戦闘条件</h2></div>
             <div class="target-actions">
-              <button type="button" class="reset-enemy" data-battle-share-open title="戦闘条件をコードにして共有したり、受け取ったコードを貼り付けて適用します">戦闘条件を共有</button>
               <button type="button" class="reset-enemy" data-reset-enemy>敵の数値を初期化</button>
               <button type="button" class="reset-enemy" data-clear-cache title="同じ条件で保存された結果を消し、次の実行から計算し直します">保存された結果を消す</button>
             </div>
@@ -1007,48 +806,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       </section>
       <footer><p>非公式ファン制作ツール · 実際の戦闘環境とは差がある場合があります。</p><a href="https://github.com/Furu1018/shirisuko-squad" target="_blank" rel="noreferrer">SOURCE / GITHUB ↗</a></footer>
 
-      <div class="custom-modal" data-history-modal hidden>
-        <div class="custom-card roster-card" role="dialog" aria-label="計算履歴">
-          <div class="custom-head"><h2>計算履歴</h2><button type="button" class="custom-close" data-history-close aria-label="閉じる">✕</button></div>
-          <p class="custom-desc">結果で«結果を保存»を押した時点の編成と数値がこのブラウザに残ります。編成を復元してそのときの編成に戻れます。<b>数値はそのときのスペック・戦闘条件で出した値</b>なので、今の設定と違う場合は計算し直す必要があります。</p>
-          <div class="history-list" data-history-list></div>
-        </div>
-      </div>
 
-      <div class="custom-modal" data-battle-share-modal hidden>
-        <div class="custom-card share-card" role="dialog" aria-label="戦闘条件の共有">
-          <div class="custom-head"><h2>戦闘条件の共有</h2><button type="button" class="custom-close" data-battle-share-close aria-label="閉じる">✕</button></div>
-          <p class="custom-desc">戦闘時間・敵コード・コア・回避区間・属性制限・乱数処理といった<b>«どんな状況で測ったか»</b>をやり取りします。<b>コンソールとシンクロレベルは含まれません</b> — アカウントの育成状態なので、他人の値が付いてくると自分のスペックで測った結果ではなくなります。編成と個人スペックも含まれません(そちらは«編成共有»)。</p>
-          ${SHARE_API ? '<div class="share-tabs" data-battle-share-tabs></div>' : ''}
-          <div class="share-pane" data-battle-share-pane="upload" hidden></div>
-          <div class="share-pane" data-battle-share-pane="list" hidden></div>
-          <div class="share-pane" data-battle-share-pane="code">
-            <div class="squad-code-block">
-              <h4>自分の戦闘条件コード</h4>
-              <textarea class="share-out" data-battle-share-out readonly rows="3"></textarea>
-              <button type="button" class="share-copy" data-battle-share-copy>コードをコピー</button>
-            </div>
-            <div class="squad-code-block">
-              <h4>受け取ったコードを適用</h4>
-              <textarea class="share-in" data-battle-share-in rows="3" placeholder="NK3- で始まるコードを貼り付けてください"></textarea>
-              <button type="button" class="share-apply" data-battle-share-apply>適用</button>
-            </div>
-          </div>
-          <p class="share-msg" data-battle-share-msg hidden></p>
-        </div>
-      </div>
 
       <!-- 업데이트 공지. 새 내용이 있을 때 처음 들어오면 한 번 뜨고, 닫으면 그 판을
            본 것으로 적어 다시 뜨지 않는다. 「업데이트 내역」으로 언제든 다시 연다. -->
-      <div class="custom-modal" data-notice-modal hidden>
-        <div class="custom-card notice-card" role="dialog" aria-label="更新履歴">
-          <div class="custom-head"><h2>更新履歴</h2><button type="button" class="custom-close" data-notice-close aria-label="閉じる">✕</button></div>
-          <div class="notice-body" data-notice-body></div>
-          <div class="deck-copy-actions">
-            <button type="button" class="deck-copy-apply" data-notice-dismiss>確認 · 次回から表示しない</button>
-          </div>
-        </div>
-      </div>
 
       <!-- 캐릭터 설정 뭉치를 띄우는 창. 카드가 좁아 그 자리에서 펼치면 다섯 장이
            서로를 밀어낸다 — 필터 판과 같은 방식으로 창을 띄운다. -->
@@ -1092,60 +853,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         </div>
       </div>
 
-      <div class="custom-modal" data-share-modal hidden>
-        <div class="custom-card share-card" role="dialog" aria-label="プリセット / 編成共有">
-          <div class="custom-head"><h2>プリセット / 編成共有</h2><button type="button" class="custom-close" data-share-close aria-label="閉じる">✕</button></div>
-          <p class="custom-desc">誰を編成したか(キャラクターの組み合わせ)だけをやり取りします。<b>オーバーロード・攻撃力・限界突破といった個人スペックと戦闘条件は含まれません</b> — 適用するとキャラクターだけが変わり、スペックは各自の設定(CSV ロスターを入れていればその値)がそのまま使われます。${SHARE_API ? '<b>サーバーへは«投稿»を押したときだけ送信されます。</b>' : 'サーバーへは送信されません。'}</p>
-          <div class="share-scope" data-share-scope>
-            <span class="share-scope-label">範囲</span>
-            <button type="button" class="share-scope-pick is-on" data-share-scope-pick="one">このデッキのみ</button>
-            <button type="button" class="share-scope-pick" data-share-scope-pick="all">5デッキすべて</button>
-            <span class="share-scope-note" data-share-scope-note></span>
-          </div>
-          ${SHARE_API ? '<div class="share-tabs" data-share-tabs></div>' : ''}
-          <div class="share-pane" data-share-pane="upload" hidden></div>
-          <div class="share-pane" data-share-pane="list" hidden></div>
-          <div class="share-pane" data-share-pane="code">
-          <div class="squad-code-block">
-            <h4>自分の編成コード</h4>
-            <textarea class="custom-json" data-share-out rows="3" readonly></textarea>
-            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-copy>コードをコピー</button></div>
-          </div>
-          <div class="squad-code-block">
-            <h4>共有リンク</h4>
-            <textarea class="custom-json" data-share-url rows="2" readonly></textarea>
-            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-url-copy>リンクをコピー</button></div>
-          </div>
-          <div class="squad-code-block">
-            <h4>受け取ったコードを適用</h4>
-            <textarea class="custom-json" data-share-in rows="3" placeholder="受け取った編成コードか共有リンクを貼り付けてください"></textarea>
-            <div class="deck-copy-actions"><button type="button" class="deck-copy-apply" data-share-apply>この編成を適用</button></div>
-          </div>
-          <div class="squad-code-block">
-            <h4>このブラウザに保存</h4>
-            <div class="preset-row">
-              <input type="text" class="preset-name" data-preset-name placeholder="プリセット名 (例: 水冷ソロレイド 1デッキ)" maxlength="40" />
-              <button type="button" class="deck-copy-apply" data-preset-save>保存</button>
-            </div>
-            <div class="preset-list" data-preset-list></div>
-          </div>
-          </div>
-          <p class="custom-msg" data-share-msg hidden></p>
-        </div>
-      </div>
 
-      <div class="custom-modal" data-report-modal hidden>
-        <div class="custom-card report-card" role="dialog" aria-label="レポート画像">
-          <div class="custom-head"><h2>レポート画像</h2><button type="button" class="custom-close" data-report-close aria-label="閉じる">✕</button></div>
-          <p class="custom-desc">下の画像をコピーしてコミュニティにそのまま貼り付けられます。コピーが使えない場合は PNG で保存するか、画像を右クリックしてコピーしてください。このブラウザ内でのみ生成されます。</p>
-          <div class="report-preview" data-report-preview></div>
-          <p class="report-msg" data-report-msg hidden></p>
-          <div class="deck-copy-actions">
-            <button type="button" class="deck-copy-apply" data-report-copy>画像をコピー</button>
-            <button type="button" class="deck-copy-cancel" data-report-save>PNG 保存</button>
-          </div>
-        </div>
-      </div>
 
       <div class="custom-modal" data-reset-modal hidden>
         <div class="custom-card reset-card" role="dialog" aria-label="完全初期化の確認">
@@ -1193,43 +901,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         </div>
       </div>
 
-      <div class="custom-modal" data-custom-modal hidden>
-        <div class="custom-card" role="dialog" aria-label="新しいニケを追加">
-          <div class="custom-head"><h2>新しいニケを追加</h2><button type="button" class="custom-close" data-custom-close aria-label="閉じる">✕</button></div>
-          <p class="custom-desc">未実装・未登録のニケを自分で追加します。サーバーへは送信されず、このブラウザにのみ保存されます。</p>
-          <ol class="custom-steps">
-            <li>下の<b>プロンプトをコピー</b>を押して他の LLM(チャットボット)に貼り付け、その下にニケの名前・スキル説明を付けて結果の JSON を受け取ってください。</li>
-            <li>受け取った JSON を下の欄に貼り付けて<b>追加</b>を押してください。または<b>手入力ヘルプ</b>を見て手で作成しても構いません。</li>
-          </ol>
-          <div class="custom-caution">
-            <b>ご注意ください</b>
-            <ul>
-              <li>特殊または複雑なスキル(条件付き発動・ゲージ・モード切り替え・スタック条件など)は計算に<b>反映されません。</b>基本射撃・バフ・バーストを中心に近似されるだけです。そうしたスキルが主力ダメージのキャラクター(例: ゲージでダメージが伸びるキャラクター)は<b>結果が実際よりかなり低く</b>出るので参考程度にしてください。</li>
-              <li>LLM の性能によっては<b>正確な変換が難しいことがあるので参考用</b>として使い、値をご自身で確認・補正することをおすすめします。</li>
-              <li>可能であれば下の<b>手入力ヘルプ</b>を見て人が直接値を入れるほうが正確です。</li>
-            </ul>
-          </div>
-          <details class="custom-help">
-            <summary>手入力ヘルプ (スキーマ · 人が作成するとき)</summary>
-            <div class="custom-help-body">
-              <p><b>最上位</b>: <code>{ "name": "正式名称", "nikke": {…ステータス}, "skills": [ …効果 ] }</code></p>
-              <p><b>nikke 共通</b>: rarity(SSR/SR/R) · element_code(전격/작열/수냉/풍압/철갑 ※韓国語の内部キーのまま) · class(화력형/방어형/지원형 ※同上) · manufacturer(엘리시온/미실리스/테트라/필그림/어브노멀 ※同上) · weapon_type(AR/SMG/MG/SR/RL/SG) · burst_stage(1~3) · burst_cooldown(秒) · max_ammo · reload_time(秒) · fire_rate(秒あたりの発射数) · pellets(SG のみ 2↑) · muzzles(通常 1) · damage_coeff(1発の係数 %)</p>
-              <p><b>武器別の追加項目</b>: 連射型(AR·SMG·MG·SG)は <code>core_dmg_mult</code>(コア %、例 200)。チャージ型(SR·RL)は <code>charge_time</code>(フルチャージ秒、例 1.0~1.5)と <code>full_charge_mult</code>(フルチャージ %、例 250·350)。チャージ型で省略するとそれぞれ 1.0·250 が既定で適用されます。</p>
-              <p><b>skills の各要素</b>: source(스킬1/스킬2/버스트스킬 ※韓国語のまま) · type(buff または damage) · name · trigger:{ timing:[…], condition:[…] } · target · stat · polarity(beneficial/harmful) · max_stack(通常 1) · values:{ "1":値, "10":値 } または fixed_value:値 · duration(持続秒。即時/永続は省略または -1)</p>
-              <p><b>認識される timing</b>: battle_start · full_burst_start · full_burst_start_count:N · full_burst_end · burst_cast · burst_cast_count:N · last_bullet · last_bullet_fire · hit_count:N · full_charge_hit · passive</p>
-              <p><b>認識される target</b>: self · all_allies · all_allies_excl_self · all_enemies · target · same_target · allies:N · allies_top_atk:N · allies_weapon:&lt;武器&gt; · allies_class:공격|방어|지원 · allies_code:&lt;属性&gt; · allies_code_weapon:&lt;属性&gt;:&lt;武器&gt; · enemies_top_atk:N</p>
-              <p><b>認識される buff stat</b>: atk_pct · atk_flat · atk_dmg_pct · normal_atk_dmg_pct · crit_rate · crit_dmg · core_dmg_pct · element_bonus_pct · burst_dmg_pct · pierce_dmg_pct · charge_dmg_pct · charge_speed_pct · max_ammo_pct · max_ammo_flat · reload_speed_pct · attack_speed_pct · accuracy_pct · def_pct · def_ignore_pct · enemy_def_down_pct · received_dmg(敵の被ダメージ増加) · burst_cooldown(秒)</p>
-              <p><b>damage stat</b>(type が damage): bonus_damage · burst_damage · damage (values がダメージ係数)</p>
-              <p class="custom-help-note">一覧にない stat·timing·target は計算で無視されます。迷ったら最も近い標準値を使ってください。</p>
-            </div>
-          </details>
-          <button type="button" class="custom-btn" data-copy-prompt>① プロンプトをコピー</button>
-          <textarea class="custom-json" data-custom-json placeholder="② ここに結果の JSON を貼り付けるか、ヘルプを見て直接作成してください" rows="8"></textarea>
-          <div class="custom-actions"><button type="button" class="custom-btn primary" data-custom-submit>追加</button></div>
-          <p class="custom-msg" data-custom-msg hidden></p>
-          <div class="custom-list" data-custom-list></div>
-        </div>
-      </div>
     </div>
   `;
 
@@ -1259,6 +930,24 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const rosterNote = element<HTMLElement>(root, '[data-roster-note]');
 
   const activeDeck = () => decks[activeDeckId - 1]!;
+
+  /**
+   * 編成 (ニケ名の並び) を、いま見ているデッキに入れる。
+   * 育成値はロスターを正本にする — 取り込み直せばここも新しい値になる。
+   */
+  const applySquadToDeck = (squad: readonly string[]) => {
+    const deck = activeDeck();
+    deck.squad = Array.from({ length: 5 }, (_, i) => squad[i] ?? '');
+    for (const name of deck.squad) {
+      if (name && !deck.characters[name] && roster[name]) {
+        deck.characters[name] = cloneOverride(roster[name]!);
+      }
+    }
+    saveState();
+    renderDeckTabs();
+    renderSquad();
+    showErrors([]);
+  };
 
   const showErrors = (messages: string[]) => {
     errors.replaceChildren();
@@ -1429,9 +1118,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderSquad();
       try {
         await prepared;
-        const custom = customPayload();
-        const request = requestForDeck(deck, readBattle(),
-          Object.keys(custom).length > 0 ? custom : undefined);
+        const request = requestForDeck(deck, readBattle());
         if (validateRequest(request).length > 0) return;
         const key = cacheKey(request, version);
         let result = cache.get(key);
@@ -1510,72 +1197,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   buffOrderModal.addEventListener('click', (event) => {
     if (event.target === buffOrderModal) buffOrderModal.hidden = true;
   });
-
-  // ── 업데이트 공지 ───────────────────────────────────────────────────────
-  // 본 적 있는 공지 id를 적어 둔다. 새 공지가 올라오면 id가 달라져 다시 뜬다.
-  const NOTICE_KEY = 'nikke-notice-seen';
-  // 3凸ボードの «取り込まずに試す» を覚える鍵。PAD と同一オリジンなので nikke- を必ず付ける
-  const BOARD_SKIP_KEY = 'nikke-board-skip-import-v1';
-  const noticeModal = element<HTMLElement>(root, '[data-notice-modal]');
-  const noticeBody = element<HTMLElement>(root, '[data-notice-body]');
-  const noticeNew = element<HTMLElement>(root, '[data-notice-new]');
-
-  const renderNotices = () => {
-    noticeBody.replaceChildren();
-    for (const notice of NOTICES) {
-      const block = document.createElement('section');
-      block.className = 'notice-entry';
-      block.dataset.notice = notice.id;
-      const head = document.createElement('div');
-      head.className = 'notice-head';
-      head.append(createText('b', notice.date), createText('span', notice.title));
-      block.append(head);
-      const list = document.createElement('ul');
-      for (const item of notice.items) {
-        const row = document.createElement('li');
-        const tag = createText('em', item.tag, 'notice-tag');
-        tag.dataset.noticeTag = item.tag;
-        const body = document.createElement('span');
-        body.append(noticeFragment(item.text));
-        row.append(tag, body);
-        list.append(row);
-      }
-      block.append(list);
-      noticeBody.append(block);
-    }
-  };
-
-  const openNotice = () => {
-    renderNotices();
-    noticeModal.hidden = false;
-  };
-  /** 닫으면 최신 공지를 본 것으로 적는다 — 새 공지가 나오기 전까지 다시 뜨지 않는다. */
-  const closeNotice = () => {
-    noticeModal.hidden = true;
-    noticeNew.hidden = true;
-    try {
-      resolveStorage()?.setItem(NOTICE_KEY, LATEST_NOTICE_ID);
-    } catch {
-      /* 저장 실패는 무시 — 다음에 한 번 더 뜰 뿐이다 */
-    }
-  };
-  element<HTMLButtonElement>(root, '[data-notice-open]').addEventListener('click', openNotice);
-  element<HTMLButtonElement>(root, '[data-notice-close]').addEventListener('click', closeNotice);
-  element<HTMLButtonElement>(root, '[data-notice-dismiss]').addEventListener('click', closeNotice);
-  noticeModal.addEventListener('click', (event) => {
-    if (event.target === noticeModal) closeNotice();
-  });
-  {
-    let seen: string | null = null;
-    try {
-      seen = resolveStorage()?.getItem(NOTICE_KEY) ?? null;
-    } catch {
-      /* 못 읽으면 처음 온 것으로 본다 */
-    }
-    // 入口では自動で開かない — 最初に見せるのは 3凸ボードであって、お知らせではない
-    // (ユニオンレイド主役の方針・ROADMAP「🎯 方針」)。未読があれば「更新履歴」に NEW を付けるだけ
-    noticeNew.hidden = !noticeToShow(seen);
-  }
 
   // ── 캐릭터 설정 창 ──────────────────────────────────────────────────────
   // 어떤 캐릭터의 어느 뭉치를 보고 있는지 기억한다. 값을 바꾸면 카드가 다시 그려지고
@@ -2364,513 +1985,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     return messages;
   };
 
-  // ── 설정 공유 서버 ──────────────────────────────────────────────────────
-  // 전투 조건과 조합이 같은 서버·같은 판을 쓴다. 주소가 없으면 판을 아예 만들지
-  // 않고 코드 주고받기만 남는다.
-  const shareServer = SHARE_API ? new ShareServer(SHARE_API) : null;
-  const sharePanelHosts = (prefix: 'share' | 'battle-share') => ({
-    tabs: element<HTMLElement>(root, `[data-${prefix}-tabs]`),
-    upload: element<HTMLElement>(root, `[data-${prefix}-pane="upload"]`),
-    list: element<HTMLElement>(root, `[data-${prefix}-pane="list"]`),
-    code: element<HTMLElement>(root, `[data-${prefix}-pane="code"]`),
-  });
-
-  // ── 조합 공유 코드 ──────────────────────────────────────────────────────
-  const shareModal = element<HTMLElement>(root, '[data-share-modal]');
-  const shareOut = element<HTMLTextAreaElement>(root, '[data-share-out]');
-  const shareIn = element<HTMLTextAreaElement>(root, '[data-share-in]');
-  const shareUrl = element<HTMLTextAreaElement>(root, '[data-share-url]');
-  const shareMsg = element<HTMLElement>(root, '[data-share-msg]');
-  const showShareMsg = (message: string, ok = false) => {
-    shareMsg.hidden = message === '';
-    shareMsg.textContent = message;
-    shareMsg.classList.toggle('is-ok', ok);
-  };
-  // 편성 프리셋 — 자주 쓰는 조합을 이름 붙여 이 브라우저에 둔다. 담는 건 공유 코드
-  // 하나뿐이라(=편성만) 스펙이 바뀌어도 그대로 쓸 수 있고, 저장 용량도 거의 안 든다.
-  const PRESET_KEY = 'nikke-presets-v1';
-  const PRESET_MAX = 50;
-  interface Preset { name: string; code: string; at: string; }
-  const presetName = element<HTMLInputElement>(root, '[data-preset-name]');
-  const presetList = element<HTMLElement>(root, '[data-preset-list]');
-  let presets: Preset[] = (() => {
-    try {
-      const raw = resolveStorage()?.getItem(PRESET_KEY);
-      const parsed = raw ? (JSON.parse(raw) as Preset[]) : [];
-      return Array.isArray(parsed) ? parsed.filter((p) => p && p.name && p.code) : [];
-    } catch {
-      return [];
-    }
-  })();
-  const savePresets = () => {
-    try {
-      resolveStorage()?.setItem(PRESET_KEY, JSON.stringify(presets));
-    } catch {
-      /* 저장 실패는 무시 */
-    }
-  };
-  const renderPresets = () => {
-    presetList.replaceChildren();
-    if (presets.length === 0) {
-      presetList.append(createText('p', '保存されたプリセットはありません。', 'preset-empty'));
-      return;
-    }
-    for (const preset of presets) {
-      const row = document.createElement('div');
-      row.className = 'preset-item';
-      row.dataset.preset = preset.name;
-      const load = document.createElement('button');
-      load.type = 'button';
-      load.className = 'preset-load';
-      load.textContent = preset.name;
-      load.title = `${preset.at.slice(0, 10)} 保存 · 押して読み込む`;
-      load.addEventListener('click', () => {
-        applyShareText(preset.code);
-        refreshShareFields();
-      });
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'preset-remove';
-      remove.textContent = '削除';
-      remove.setAttribute('aria-label', `${preset.name} を削除`);
-      remove.addEventListener('click', () => {
-        presets = presets.filter((item) => item.name !== preset.name);
-        savePresets();
-        renderPresets();
-      });
-      row.append(load, remove);
-      presetList.append(row);
-    }
-  };
-  element<HTMLButtonElement>(root, '[data-preset-save]').addEventListener('click', () => {
-    const name = presetName.value.trim();
-    if (!name) {
-      showShareMsg('プリセット名を入力してください。');
-      presetName.focus();
-      return;
-    }
-    if (!decksInScope().some((deck) => deck.squad.some(Boolean))) {
-      showShareMsg(shareScope === 'all'
-        ? '編成が空なので保存するものがありません。'
-        : `デッキ ${activeDeckId} が空です。他のデッキを含めるには上で«5デッキすべて»を選んでください。`);
-      return;
-    }
-    if (presets.length >= PRESET_MAX && !presets.some((p) => p.name === name)) {
-      showShareMsg(`プリセットは ${PRESET_MAX}件まで保存できます。使わないものを消してください。`);
-      return;
-    }
-    const code = shareScopeCode();
-    presets = [{ name, code, at: new Date().toISOString() },
-      ...presets.filter((item) => item.name !== name)];
-    savePresets();
-    renderPresets();
-    presetName.value = '';
-    showShareMsg(`«${name}» として保存しました`
-      + `(${shareScope === 'all' ? '5デッキすべて' : `デッキ ${activeDeckId} のみ`})。`
-      + ' 編成だけを含むので、スペックが変わってもそのまま使えます。', true);
-  });
-
-  // 계산 기록 — 그때의 편성(공유 코드)과 수치·조건을 남긴다. 편성만 되살릴 수 있게
-  // 코드로 담아, 스펙이 바뀌어도 조합은 그대로 복원된다.
-  const HISTORY_KEY = 'nikke-history-v1';
-  const HISTORY_MAX = 30;
-  interface HistoryEntry {
-    at: string; code: string; total: number; duration: number;
-    decks: Array<{ id: number; total: number; squad: string[] }>;
-    conditions: string;
-  }
-  const historyModal = element<HTMLElement>(root, '[data-history-modal]');
-  const historyList = element<HTMLElement>(root, '[data-history-list]');
-  let calcHistory: HistoryEntry[] = (() => {
-    try {
-      const raw = resolveStorage()?.getItem(HISTORY_KEY);
-      const parsed = raw ? (JSON.parse(raw) as HistoryEntry[]) : [];
-      return Array.isArray(parsed) ? parsed.filter((item) => item && item.code) : [];
-    } catch {
-      return [];
-    }
-  })();
-  const persistHistory = () => {
-    try {
-      resolveStorage()?.setItem(HISTORY_KEY, JSON.stringify(calcHistory));
-    } catch {
-      /* 저장 실패는 무시 */
-    }
-  };
-  const saveHistory = (batch: BatchResult) => {
-    const battle = readBattle();
-    const entry: HistoryEntry = {
-      at: new Date().toISOString(),
-      code: encodeShareCode(decks, fiveDeckMode),
-      total: batch.total,
-      duration: batch.decks[0]?.result.duration ?? 0,
-      decks: batch.decks.map((deck) => ({
-        id: deck.deckId,
-        total: deck.result.squadTotal,
-        squad: deck.request.squad.filter(Boolean),
-      })),
-      conditions: `${battle.duration}秒 · 防御力 ${battle.enemyDef.toLocaleString('en-US')}`
-        + `${battle.enemyCode ? ` · ${elementLabel(battle.enemyCode)}` : ' · コードなし'}`
-        + `${battle.coreEnabled ? ` · コア ${battle.corePx}px` : ''} · シード ${battle.seed}`,
-    };
-    calcHistory = [entry, ...calcHistory].slice(0, HISTORY_MAX);
-    persistHistory();
-    renderHistory();
-    historyModal.hidden = false;
-  };
-  const renderHistory = () => {
-    historyList.replaceChildren();
-    if (calcHistory.length === 0) {
-      historyList.append(createText('p', 'まだ保存された結果がありません。結果で«結果を保存»を押してください。', 'preset-empty'));
-      return;
-    }
-    for (const entry of calcHistory) {
-      const row = document.createElement('article');
-      row.className = 'history-item';
-      row.dataset.historyItem = entry.at;
-      const head = document.createElement('div');
-      head.className = 'history-head';
-      head.append(
-        createText('strong', formatDamage(entry.total)),
-        createText('span', new Date(entry.at).toLocaleString('ja-JP')),
-      );
-      row.append(head, createText('p', entry.conditions, 'history-cond'));
-      for (const deck of entry.decks) {
-        row.append(createText(
-          'p',
-          `デッキ ${deck.id} · ${formatDamage(deck.total)} — ${deck.squad.map(labelFor).join(', ') || '空のデッキ'}`,
-          'history-deck',
-        ));
-      }
-      const actions = document.createElement('div');
-      actions.className = 'history-actions';
-      const restore = document.createElement('button');
-      restore.type = 'button';
-      restore.className = 'preset-load';
-      restore.textContent = 'この編成を復元';
-      restore.addEventListener('click', () => {
-        // 기록은 «그때 그 판»이다 — 범위 고르개와 무관하게 판 전체를 되살린다.
-        applyShareText(entry.code, 'all');
-        historyModal.hidden = true;
-      });
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'preset-remove';
-      remove.textContent = '削除';
-      remove.addEventListener('click', () => {
-        calcHistory = calcHistory.filter((item) => item.at !== entry.at);
-        persistHistory();
-        renderHistory();
-      });
-      actions.append(restore, remove);
-      row.append(actions);
-      historyList.append(row);
-    }
-  };
-  element<HTMLButtonElement>(root, '[data-history-close]').addEventListener('click', () => {
-    historyModal.hidden = true;
-  });
-  historyModal.addEventListener('click', (event) => {
-    if (event.target === historyModal) historyModal.hidden = true;
-  });
-
-  /**
-   * 주고받을 범위. 「이 덱만」이 기본이다 — 덱 하나를 옮기는 일이 판 전체를 옮기는
-   * 일보다 훨씬 잦은데, 예전에는 그것도 5덱 코드로 나가고 받는 쪽에서는 판을 통째로
-   * 덮었다(2~5덱이 조용히 지워졌다).
-   *
-   * 저장·복사·올리기와 **적용까지 같은 값을 본다** — 「이 덱만」으로 받으면 코드에 든
-   * 첫 덱이 지금 보고 있는 덱에 들어가고 나머지 덱은 그대로 남는다.
-   */
-  type ShareScope = 'one' | 'all';
-  let shareScope: ShareScope = 'one';
-  const scopeBox = element<HTMLElement>(root, '[data-share-scope]');
-  const scopeNote = element<HTMLElement>(root, '[data-share-scope-note]');
-
-  /** 지금 보고 있는 덱의 자리(0부터). 덱 순서를 바꿔도 따라간다. */
-  const activeDeckIndex = (): number => {
-    const at = decks.findIndex((deck) => deck.id === activeDeckId);
-    return at >= 0 ? at : 0;
-  };
-
-  /** 범위에 맞춰 담을 덱들. 「이 덱만」이면 지금 덱 하나다. */
-  const decksInScope = (): DeckState[] =>
-    (shareScope === 'all' ? decks : [decks[activeDeckIndex()]!]);
-
-  const shareScopeCode = (): string =>
-    (shareScope === 'all'
-      ? encodeShareCode(decks, fiveDeckMode)
-      : encodeShareCode([decks[activeDeckIndex()]!], false));
-
-  const renderScope = () => {
-    for (const button of scopeBox.querySelectorAll<HTMLButtonElement>('[data-share-scope-pick]')) {
-      button.classList.toggle('is-on', button.dataset.shareScopePick === shareScope);
-    }
-    scopeNote.textContent = shareScope === 'all'
-      ? '5デッキを1つのコードに収め、受け取ると盤面全体が変わります。'
-      : `デッキ ${activeDeckId} だけを収め、受け取るとデッキ ${activeDeckId} にのみ入ります。`;
-  };
-
-  for (const button of scopeBox.querySelectorAll<HTMLButtonElement>('[data-share-scope-pick]')) {
-    button.addEventListener('click', () => {
-      shareScope = button.dataset.shareScopePick === 'all' ? 'all' : 'one';
-      renderScope();
-      refreshShareFields();
-      showShareMsg('');
-    });
-  }
-
-  const refreshShareFields = () => {
-    const code = shareScopeCode();
-    shareOut.value = code;
-    // 코드가 짧아져 링크로도 무리가 없다 — 받는 쪽은 열기만 하면 적용된다.
-    shareUrl.value = `${location.origin}${location.pathname}#deck=${encodeURIComponent(code)}`;
-  };
-  const openShareModal = (focusPreset = false) => {
-    renderScope();
-    refreshShareFields();
-    renderPresets();
-    shareIn.value = '';
-    showShareMsg('');
-    shareModal.hidden = false;
-    squadSharePanel?.open();
-    // 프리셋은 «코드» 탭 안에 있다 — 겨냥해 열었으면 그 탭으로 간다.
-    if (focusPreset) {
-      root.querySelector<HTMLButtonElement>('[data-share-tab="code"]')?.click();
-      presetName.focus();
-    }
-  };
-  element<HTMLButtonElement>(root, '[data-share-open]').addEventListener('click', () => {
-    openShareModal();
-  });
-  element<HTMLButtonElement>(root, '[data-share-close]').addEventListener('click', () => {
-    shareModal.hidden = true;
-  });
-  shareModal.addEventListener('click', (event) => {
-    if (event.target === shareModal) shareModal.hidden = true;
-  });
-  element<HTMLButtonElement>(root, '[data-share-copy]').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(shareOut.value);
-      showShareMsg('編成コードをコピーしました。このまま共有できます。', true);
-    } catch {
-      shareOut.select();
-      showShareMsg('自動コピーが使えないためコードを選択しておきました。Ctrl+C でコピーしてください。');
-    }
-  });
-  // 링크째 붙여넣어도 되게, #deck= 뒤의 코드만 뽑아 쓴다.
-  const shareCodeFrom = (text: string): string => {
-    const hit = text.match(/#deck=([^&\s]+)/);
-    return hit ? decodeURIComponent(hit[1]!) : text;
-  };
-  /**
-   * 받은 코드를 덱에 얹는다.
-   *
-   * `scope`를 안 주면 모달의 범위 고르개를 따른다. 공유 링크와 계산 기록은 «그때 그
-   * 판을 통째로»라는 뜻이므로 `'all'`을 못 박아 넘긴다 — 링크를 연 사람이 덱 하나만
-   * 받으면 판을 잃는다.
-   */
-  const applyShareText = (text: string, scope: ShareScope = shareScope) => {
-    try {
-      // 카탈로그 이름을 넘겨야 해시에서 캐릭터를 되찾는다(커스텀 니케도 카탈로그에 있다).
-      const payload = decodeShareCode(shareCodeFrom(text), catalog.map((char) => char.name));
-      const into = scope === 'all' ? 'all' : activeDeckIndex();
-      const landed = scope === 'all' ? 1 : activeDeckId;
-      // 스펙은 내 것을 쓴다 — CSV 로스터를 넣어 뒀으면 그대로 얹힌다.
-      const { applied, skipped } = applyShareToDecks(
-        payload, decks,
-        (name) => catalogByName.has(name),
-        (name) => (roster[name] ? cloneOverride(roster[name]!) : undefined),
-        into,
-      );
-      if (scope === 'all') {
-        fiveDeckMode = payload.fiveDeckMode || applied > 1;
-        element<HTMLInputElement>(root, '#squad-mode').checked = fiveDeckMode;
-        deckTabs.hidden = !fiveDeckMode;
-        deckMoves.hidden = !fiveDeckMode;
-        deckNote.hidden = !fiveDeckMode;
-        activeDeckId = 1;
-      }
-      saveState();
-      renderDeckTabs();
-      renderSquad();
-      showErrors([]);
-      const missing = skipped.length > 0
-        ? ` · 一覧にないニケ ${skipped.length}名を除外(${skipped.slice(0, 3).map(labelFor).join(', ')}${skipped.length > 3 ? '…' : ''})`
-        : '';
-      // 5덱짜리를 한 칸에 받았으면 나머지가 어디 갔는지 반드시 말해 준다.
-      const carried = payload.decks.filter((deck) => deck.squad.some((n) => n.trim() !== '')).length;
-      if (scope === 'all') {
-        showShareMsg(`デッキ ${applied}件を適用しました${missing}。`, skipped.length === 0);
-      } else if (carried > 1) {
-        showShareMsg(`コードにデッキが ${carried}件入っていたため、最初のデッキだけをデッキ ${landed} に入れました`
-          + `${missing}。盤面全体を受け取るには上で«5デッキすべて»を選んでください。`);
-      } else {
-        showShareMsg(`デッキ ${landed} に適用しました${missing}。他のデッキはそのままです。`,
-          skipped.length === 0);
-      }
-    } catch (error) {
-      showShareMsg(error instanceof Error ? error.message : String(error));
-    }
-  };
-  element<HTMLButtonElement>(root, '[data-share-apply]').addEventListener('click', () => {
-    applyShareText(shareIn.value);
-  });
-  const squadSharePanel: SharePanel | null = shareServer && mountSharePanel(
-    sharePanelHosts('share'),
-    {
-      kind: 'squad',
-      server: shareServer,
-      current: () => ({
-        code: shareScopeCode(),
-        auto: summarizeSquad(decksInScope(), shareScope === 'all' && fiveDeckMode),
-      }),
-      // applyShareText가 제외된 니케까지 세어 자기 말로 알린다 — 그대로 쓴다.
-      apply: (item) => {
-        applyShareText(item.code);
-        refreshShareFields();
-      },
-      notify: showShareMsg,
-      // 조합은 이름을 늘어놓는 것보다 초상화가 빠르다. 코드를 그 자리에서 풀어
-      // 덱마다 한 줄씩 세운다 — 못 풀면 설명 줄로 물러난다.
-      preview: (item) => {
-        try {
-          const payload = decodeShareCode(item.code, catalog.map((char) => char.name));
-          const decks = payload.decks
-            .map((deck) => deck.squad.filter((name) => name.trim() !== ''))
-            .filter((squad) => squad.length > 0);
-          if (decks.length === 0) return null;
-          return squadPreview(decks, (name) => {
-            const image = catalogByName.get(name)?.image;
-            return image ? `${import.meta.env.BASE_URL}${image}` : undefined;
-          });
-        } catch {
-          return null;
-        }
-      },
-    },
-  );
-  element<HTMLButtonElement>(root, '[data-share-url-copy]').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl.value);
-      showShareMsg('リンクをコピーしました。受け取った人は開くだけで編成が入ります。', true);
-    } catch {
-      shareUrl.select();
-      showShareMsg('自動コピーが使えないためリンクを選択しておきました。Ctrl+C でコピーしてください。');
-    }
-  });
-  // ── 보고서 이미지 ────────────────────────────────────────────────────────
-  let lastBatch: BatchResult | null = null;
-  let reportBlob: Blob | null = null;
-  const reportModal = element<HTMLElement>(root, '[data-report-modal]');
-  const reportPreview = element<HTMLElement>(root, '[data-report-preview]');
-  const reportMsg = element<HTMLElement>(root, '[data-report-msg]');
-
-  const showReportMsg = (message: string, ok = false) => {
-    reportMsg.hidden = message === '';
-    reportMsg.textContent = message;
-    reportMsg.classList.toggle('is-ok', ok);
-  };
-
-  /**
-   * 정밀 수치 CSV. **같은 계산을 0.1초 칸으로 한 번 더 받아** 표로 만든다.
-   *
-   * 결과에 늘 실어 두지 않는 이유는 무게다 — 칸이 열 배가 되면 저장되는 결과도
-   * 그만큼 무거워지는데, 정작 쓰는 사람은 드물다. 다시 받는 데 실패하면(옛 결과를
-   * 불러온 경우 등) 손에 있는 1초 표로 내보낸다 — 수치 자체는 어느 쪽이든 정확하다.
-   */
-  const exportDamageCsv = async (batch: BatchResult, button: HTMLButtonElement) => {
-    const label = button.textContent ?? '精密数値 CSV';
-    button.disabled = true;
-    button.textContent = '数値を集計中…';
-    try {
-      const parts: string[] = [];
-      let coarseOnly = false;
-      for (const entry of batch.decks) {
-        let result = entry.result;
-        try {
-          result = await client.simulate({ ...entry.request, fineTimeline: true });
-        } catch {
-          coarseOnly = true;   // 다시 못 받았으면 손에 있는 것으로 낸다
-        }
-        const timeline = result.fineTimeline ?? result.timeline;
-        if (!result.fineTimeline) coarseOnly = true;
-        const names = entry.request.squad.filter(Boolean);
-        const note = `${entry.request.duration}秒 · 敵防御力 ${entry.request.enemyDef}`;
-        if (batch.decks.length > 1) parts.push(csvText([[`デッキ ${entry.deckId}`]]));
-        parts.push(damageCsv({ ...result, timeline }, names, note));
-      }
-      downloadImage(csvBlob(parts.join('\r\n\r\n')),
-        csvFileName(batch.decks.length > 1 ? '5デッキ' : `デッキ ${batch.decks[0]?.deckId ?? 1}`));
-      status.textContent = coarseOnly
-        ? '精密数値 CSV をダウンロードしました (1秒単位 — 0.1秒の表は計算し直すと出ます)。'
-        : '精密数値 CSV をダウンロードしました (0.1秒単位)。';
-    } catch (error) {
-      status.textContent = `精密数値 CSV を作成できませんでした: ${(error as Error).message}`;
-    } finally {
-      button.disabled = false;
-      button.textContent = label;
-    }
-  };
-
-  const openReport = async () => {
-    if (!lastBatch) return;
-    const batch = lastBatch;
-    showReportMsg('');
-    reportPreview.replaceChildren(createText('p', 'レポートを描画中…', 'report-loading'));
-    reportModal.hidden = false;
-    try {
-      const names = batch.decks.flatMap((entry) => entry.request.squad);
-      const portraits = await loadPortraits(names, catalogByName, import.meta.env.BASE_URL);
-      const battle = readBattle();
-      const meta: ReportMeta = {
-        enemyDef: battle.enemyDef,
-        enemyCode: battle.enemyCode,
-        corePx: battle.coreEnabled ? battle.corePx : 0,
-        hasParts: battle.hasParts,
-        siteUrl: 'furu1018.github.io/shirisuko-squad',
-      };
-      const canvas = renderReport(batch, meta, portraits);
-      reportBlob = await canvasToBlob(canvas);
-      const image = document.createElement('img');
-      image.src = URL.createObjectURL(reportBlob);
-      image.alt = '戦闘結果レポート';
-      image.dataset.reportImage = '';
-      reportPreview.replaceChildren(image);
-    } catch (error) {
-      reportBlob = null;
-      reportPreview.replaceChildren();
-      showReportMsg(error instanceof Error ? error.message : 'レポートを作成できませんでした。');
-    }
-  };
-
-  const closeReport = () => { reportModal.hidden = true; };
-  element<HTMLButtonElement>(root, '[data-report-close]').addEventListener('click', closeReport);
-  reportModal.addEventListener('click', (event) => {
-    if (event.target === reportModal) closeReport();
-  });
-  element<HTMLButtonElement>(root, '[data-report-copy]').addEventListener('click', () => {
-    void (async () => {
-      if (!reportBlob) return;
-      // 이미지 클립보드 쓰기를 막는 브라우저가 있어 실패하면 저장으로 안내한다.
-      const outcome = await copyImage(reportBlob);
-      const message = {
-        copied: '画像をコピーしました。コミュニティの投稿に貼り付けてください。',
-        unsupported: 'このブラウザは画像のコピーに対応していません。PNG 保存を使ってください。',
-        blocked: 'コピーがブロックされました。このウィンドウを一度クリックしてからもう一度押してみてください。それでも駄目なら PNG 保存を使ってください。',
-      }[outcome];
-      showReportMsg(message, outcome === 'copied');
-    })();
-  });
-  element<HTMLButtonElement>(root, '[data-report-save]').addEventListener('click', () => {
-    if (!reportBlob || !lastBatch) return;
-    downloadImage(reportBlob, reportFilename(lastBatch));
-    showReportMsg('PNG で保存しました。', true);
-  });
-
   // ── 자세히 보기 ─────────────────────────────────────────────────────────
   // 켠 상태는 이 브라우저에 남는다 — 한 번 켜 둔 사람은 늘 그 눈으로 본다.
   const DETAIL_KEY = 'nikke-detail-damage-v1';
+  /** 直前に描いた結果。バースト順序の «実際の周回数» を読むのに使う。 */
+  let lastBatch: BatchResult | null = null;
   let detailDamage = false;
   try {
     detailDamage = resolveStorage()?.getItem(DETAIL_KEY) === '1';
@@ -2917,39 +2036,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     header.append(copy, summary);
     resultPanel.append(header);
 
-    // 보고서는 마지막으로 그려진 결과를 그대로 쓴다.
-    lastBatch = batch;
-    const reportTools = document.createElement('div');
-    reportTools.className = 'report-tools';
-    const reportButton = document.createElement('button');
-    reportButton.type = 'button';
-    reportButton.className = 'report-open';
-    reportButton.dataset.reportOpen = '';
-    reportButton.textContent = 'レポート画像を作成';
-    reportButton.title = '結果を1枚の PNG にしてコピーまたは保存します';
-    reportButton.addEventListener('click', () => { void openReport(); });
-    const historySave = document.createElement('button');
-    historySave.type = 'button';
-    historySave.className = 'report-open';
-    historySave.dataset.historySave = '';
-    historySave.textContent = '結果を保存';
-    historySave.title = 'このときの編成と数値をこのブラウザに残します';
-    historySave.addEventListener('click', () => saveHistory(batch));
-    const historyOpen = document.createElement('button');
-    historyOpen.type = 'button';
-    historyOpen.className = 'report-open';
-    historyOpen.dataset.historyOpen = '';
-    historyOpen.textContent = '結果を読み込む';
-    historyOpen.addEventListener('click', () => { renderHistory(); historyModal.hidden = false; });
-    // 정밀 수치 — 화면은 「1.24억」으로 줄여 적지만 엔진은 처음부터 정수로 정확히 센다.
-    // 1의 자리까지 놓고 따지려는 사람에게 그 정수를 표로 내준다.
-    const csvButton = document.createElement('button');
-    csvButton.type = 'button';
-    csvButton.className = 'report-open';
-    csvButton.dataset.csvExport = '';
-    csvButton.textContent = '精密数値 CSV';
-    csvButton.title = '区間ごと・最終ダメージを1の位まで収めた表をダウンロードします (0.1秒単位)';
-    csvButton.addEventListener('click', () => { void exportDamageCsv(batch, csvButton); });
     // 자세히 보기 — 「1.24억」 대신 1의 자리까지. 내려받지 않고 그 자리에서 본다.
     const detailLabel = document.createElement('label');
     detailLabel.className = 'inline-check detail-toggle';
@@ -2966,8 +2052,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderBatchResult(batch);
     });
     detailLabel.append(detailBox, createText('span', '詳細表示'));
-    reportTools.append(historySave, historyOpen, reportButton, csvButton, detailLabel);
-    resultPanel.append(reportTools);
+    const resultTools = document.createElement('div');
+    resultTools.className = 'report-tools';
+    resultTools.append(detailLabel);
+    resultPanel.append(resultTools);
 
     // 덱 순위 — 딜 내림차순으로 «등수»만 구한다. 세우는 순서는 끝까지 덱 번호 그대로다.
     const ordered = [...batch.decks].sort((a, b) => b.result.squadTotal - a.result.squadTotal);
@@ -3436,74 +2524,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const target = event.target as HTMLElement | null;
     if (target?.closest('.settings-panel')) { saveState(); refreshBattleSummary(); }
   });
-  // ── 전투 조건 공유 ──────────────────────────────────────────────────────
-  const battleShareModal = element<HTMLElement>(root, '[data-battle-share-modal]');
-  const battleShareOut = element<HTMLTextAreaElement>(root, '[data-battle-share-out]');
-  const battleShareIn = element<HTMLTextAreaElement>(root, '[data-battle-share-in]');
-  const battleShareMsg = element<HTMLElement>(root, '[data-battle-share-msg]');
-  const showBattleShareMsg = (message: string, ok = false) => {
-    battleShareMsg.hidden = message === '';
-    battleShareMsg.textContent = message;
-    battleShareMsg.classList.toggle('is-ok', ok);
-  };
-
-  /** 받은 전투 조건을 얹는다. 콘솔과 싱크로 레벨은 코드에 없으므로 내 값을 그대로 둔다. */
-  const applyBattleCode = (code: string): void => {
-    const applied = decodeBattleCode(code);
-    const mine = readBattle();
-    writeBattle({ ...applied, console: mine.console, synchroLevel: mine.synchroLevel });
-    corePxInput.disabled = !applied.coreEnabled;
-    saveState();
-    showErrors([]);
-  };
-  const battleSharePanel: SharePanel | null = shareServer && mountSharePanel(
-    sharePanelHosts('battle-share'),
-    {
-      kind: 'boss',
-      server: shareServer,
-      current: () => ({
-        code: encodeBattleCode(readBattle(), settings.normalHitCoeff ?? {}),
-        auto: summarizeBattle(readBattle()),
-      }),
-      apply: (item) => {
-        applyBattleCode(item.code);
-        showBattleShareMsg(`«${item.name}» を適用しました。コンソールは自分の値のままです。`, true);
-      },
-      notify: showBattleShareMsg,
-    },
-  );
-
-  element<HTMLButtonElement>(root, '[data-battle-share-open]').addEventListener('click', () => {
-    battleShareOut.value = encodeBattleCode(readBattle(), settings.normalHitCoeff ?? {});
-    battleShareIn.value = '';
-    showBattleShareMsg('');
-    battleShareModal.hidden = false;
-    battleSharePanel?.open();
-  });
-  element<HTMLButtonElement>(root, '[data-battle-share-close]').addEventListener('click', () => {
-    battleShareModal.hidden = true;
-  });
-  battleShareModal.addEventListener('click', (event) => {
-    if (event.target === battleShareModal) battleShareModal.hidden = true;
-  });
-  element<HTMLButtonElement>(root, '[data-battle-share-copy]').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(battleShareOut.value);
-      showBattleShareMsg('コードをコピーしました。', true);
-    } catch {
-      battleShareOut.select();
-      showBattleShareMsg('自動コピーが使えないためコードを選択しておきました。Ctrl+C でコピーしてください。');
-    }
-  });
-  element<HTMLButtonElement>(root, '[data-battle-share-apply]').addEventListener('click', () => {
-    try {
-      applyBattleCode(battleShareIn.value);
-      showBattleShareMsg('戦闘条件を適用しました。コンソールは自分の値のままです。', true);
-    } catch (error) {
-      showBattleShareMsg(error instanceof Error ? error.message : String(error));
-    }
-  });
-
   element<HTMLButtonElement>(root, '[data-reset-enemy]').addEventListener('click', () => {
     writeBattle(resetEnemy(readBattle()));
     saveState();
@@ -3566,11 +2586,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     powerLoading = true;
     try {
       await prepared;
-      const custom = customPayload();
       const got = await client.combatPower({
         names: catalog.map((meta) => meta.name),
         characters: roster,
-        ...(Object.keys(custom).length > 0 ? { customCharacters: custom } : {}),
       });
       combatPower = got;
       renderMyRoster();   // 戦闘力は後から届く — 届いたら一覧と並べ替えに反映する
@@ -3903,7 +2921,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   element<HTMLButtonElement>(root, '[data-reset-confirm]').addEventListener('click', () => {
     cache.clear();
     const store = resolveStorage();
-    for (const key of [STATE_KEY, ROSTER_KEY, CUSTOM_KEY, SYNC_META_KEY, ELEMENT_PLANS_KEY, BOARD_SKIP_KEY]) {
+    for (const key of [STATE_KEY, ROSTER_KEY, SYNC_META_KEY, ELEMENT_PLANS_KEY, BOARD_SKIP_KEY, RAID_BOARD_KEY]) {
       try {
         store?.removeItem(key);
       } catch {
@@ -4157,423 +3175,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     });
   }
 
-  // ── ENIKK 조합 가져오기 ─────────────────────────────────────────────────
-  // enikk.app 솔로레이드 랭킹 상위 300명(서버당 50명 × 6서버)의 1~5덱을 받아
-  // 같은 편성끼리 묶는다. 페이지를 넘길 필요가 없다 — GraphQL이 한 번에 다 준다.
-  // v1은 조합으로 묶어 저장했다(`players`가 숫자였다). 사람 단위로 바꾸면서 모양이
-  // 달라졌으므로 키를 올린다 — 안 올리면 예전 캐시를 새 코드가 읽다 터진다.
-  const ENIKK_KEY = 'nikke-enikk-v2';
-  const enikkStatus = element<HTMLElement>(root, '[data-enikk-status]');
-  const enikkSummary = element<HTMLElement>(root, '[data-enikk-summary]');
-  const enikkList = element<HTMLElement>(root, '[data-enikk-list]');
-  const enikkCompare = element<HTMLElement>(root, '[data-enikk-compare]');
-  const enikkLoad = element<HTMLButtonElement>(root, '[data-enikk-load]');
-  const enikkRefresh = element<HTMLButtonElement>(root, '[data-enikk-refresh]');
-  let enikkData: EnikkImport | null = null;
-  // 300명을 한 줄로 늘어놓으면 스크롤이 끝없다 — 열 명씩 끊어 쪽으로 넘긴다.
-  const ENIKK_PER_PAGE = 10;
-  let enikkPage = 0;
-  let currentView: 'board' | 'calc' | 'roster' | 'plans' | 'union' | 'enikk' | 'links' = 'calc';
-
-  const readEnikkCache = (): EnikkImport | null => {
-    try {
-      const raw = resolveStorage()?.getItem(ENIKK_KEY);
-      if (!raw) return null;
-      const data = JSON.parse(raw) as EnikkImport;
-      // 키를 올려도 남의 브라우저에는 무엇이 들어 있을지 모른다. 쓰기 전에 모양을 본다.
-      if (!Array.isArray(data?.players) || !data.season) return null;
-      return data;
-    } catch { return null; }
-  };
-  const writeEnikkCache = (data: EnikkImport) => {
-    try { resolveStorage()?.setItem(ENIKK_KEY, JSON.stringify(data)); } catch { /* 용량 초과면 그냥 안 남긴다 */ }
-  };
-
-  /** 초상화 다섯 장. 이름을 모르는 사람도 눈으로 알아보게. */
-  const enikkPortraits = (squad: string[]): HTMLElement => {
-    const box = document.createElement('div');
-    box.className = 'enikk-faces';
-    for (const name of squad) {
-      const char = catalogByName.get(name);
-      const cell = document.createElement('span');
-      cell.className = 'enikk-face';
-      cell.title = name;
-      if (char?.image) {
-        const img = document.createElement('img');
-        img.src = `${import.meta.env.BASE_URL}${char.image}`;
-        img.alt = name;
-        img.loading = 'lazy';
-        cell.append(img);
-      }
-      cell.append(createText('em', name));
-      box.append(cell);
-    }
-    return box;
-  };
-
-  /** 한 플레이어의 다섯 덱을 우리 5덱에 그대로 깐다. */
-  const applyPlayerToDecks = (player: EnikkPlayer) => {
-    const usable = player.decks.filter(enikkDeckUsable);
-    if (usable.length === 0) return;
-    for (const deck of decks) { deck.squad = ['', '', '', '', '']; deck.characters = {}; }
-    usable.slice(0, 5).forEach((source, index) => {
-      const deck = decks[index]!;
-      deck.squad = [...source.squad];
-      for (const name of source.squad) {
-        if (roster[name]) deck.characters[name] = cloneOverride(roster[name]!);
-      }
-    });
-    // 다섯 덱을 한 번에 받았으니 5덱 모드가 아니면 볼 수가 없다.
-    if (usable.length > 1 && !fiveDeckMode) {
-      const toggle = element<HTMLInputElement>(root, '#squad-mode');
-      toggle.checked = true;
-      toggle.dispatchEvent(new Event('change'));
-    }
-    activeDeckId = 1;
-    activeSlot = 0;
-    showErrors([]);
-    saveState();
-    renderDeckTabs();
-    renderSquad();
-    renderRosterGrid();
-    switchView('calc');
-    scrollTo(squadGrid);
-  };
-
-  // ── 제외 니케 ───────────────────────────────────────────────────────────
-  // 안 가진 니케가 낀 덱은 가져와도 못 쓴다. enikk 데이터 자체가 아니라 «내 사정»이라
-  // 계산 결과가 아닌 **화면 층**에서 거른다.
-  const EXCLUDE_KEY = 'nikke-enikk-excluded-v1';
-  let enikkExcluded: string[] = [];
-  try {
-    const raw = resolveStorage()?.getItem(EXCLUDE_KEY);
-    const parsed = raw ? JSON.parse(raw) as unknown : null;
-    if (Array.isArray(parsed)) {
-      enikkExcluded = parsed.filter((n): n is string =>
-        typeof n === 'string' && catalogByName.has(n));
-    }
-  } catch { /* 못 읽으면 빈 목록으로 시작한다 */ }
-
-  const saveExcluded = () => {
-    try {
-      resolveStorage()?.setItem(EXCLUDE_KEY, JSON.stringify(enikkExcluded));
-    } catch { /* 저장 실패 무시 */ }
-  };
-
-  /** 이 덱을 쓸 수 있나 — 계산기가 다룰 수 있고, 제외 니케가 안 껴 있어야 한다. */
-  const enikkDeckUsable = (deck: { squad: string[]; usable: boolean }): boolean =>
-    deck.usable && !deck.squad.some((name) => enikkExcluded.includes(name));
-
-  const renderExcludeChips = () => {
-    const box = element<HTMLElement>(root, '[data-enikk-exclude-chips]');
-    box.replaceChildren();
-    for (const name of enikkExcluded) {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'enikk-exclude-chip';
-      chip.dataset.enikkExcludeChip = name;
-      chip.title = `${name} 제외 해제`;
-      chip.append(createText('span', name));
-      chip.append(createText('b', '✕'));
-      chip.addEventListener('click', () => {
-        enikkExcluded = enikkExcluded.filter((n) => n !== name);
-        saveExcluded();
-        renderExcludeChips();
-        if (enikkData) renderEnikk(enikkData);
-      });
-      box.append(chip);
-    }
-  };
-
-  const addExcluded = () => {
-    const input = element<HTMLInputElement>(root, '[data-enikk-exclude-input]');
-    const name = input.value.trim();
-    if (!name) return;
-    if (!catalogByName.has(name)) {
-      setEnikkStatus(`«${name}»은(는) 목록에 없는 이름입니다.`);
-      return;
-    }
-    if (!enikkExcluded.includes(name)) {
-      enikkExcluded.push(name);
-      enikkExcluded.sort((a, b) => a.localeCompare(b, 'ko'));
-      saveExcluded();
-      renderExcludeChips();
-      if (enikkData) renderEnikk(enikkData);
-    }
-    input.value = '';
-  };
-
-  // 이름 자동완성 — 오타로 «목록에 없는 이름»을 만나는 일을 줄인다.
-  {
-    const options = element<HTMLElement>(root, '[data-enikk-exclude-options]');
-    for (const meta of catalog) {
-      const option = document.createElement('option');
-      option.value = meta.name;
-      options.append(option);
-    }
-    renderExcludeChips();
-  }
-
-  element<HTMLButtonElement>(root, '[data-enikk-exclude-add]').addEventListener('click', addExcluded);
-  element<HTMLInputElement>(root, '[data-enikk-exclude-input]').addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') { event.preventDefault(); addExcluded(); }
-  });
-
-  const renderEnikk = (data: EnikkImport) => {
-    enikkData = data;
-    enikkPage = 0;
-    const weakness = WEAKNESS_KO[data.season.weakness] ?? data.season.weakness;
-    enikkSummary.hidden = false;
-    enikkSummary.replaceChildren();
-    enikkSummary.append(createText('strong', `시즌 ${data.season.raid} · ${data.season.boss}`));
-    enikkSummary.append(createText('span',
-      `약점 ${weakness} · 플레이어 ${data.players.length}명 · 덱 ${data.decks.toLocaleString('ko-KR')}개`));
-    if (data.unknownNames.length > 0) {
-      enikkSummary.append(createText('span',
-        `계산기가 모르는 니케 ${data.unknownNames.length}종이 낀 덱은 가져올 수 없습니다 — ${data.unknownNames.slice(0, 5).join(', ')}`,
-        'enikk-note'));
-    }
-
-    enikkList.hidden = false;
-    enikkList.replaceChildren();
-    const head = document.createElement('div');
-    head.className = 'enikk-list-head';
-    head.append(createText('h3', `플레이어 ${data.players.length}명 · 총딜 순`));
-    const compareBtn = document.createElement('button');
-    compareBtn.type = 'button';
-    compareBtn.className = 'roster-import';
-    compareBtn.textContent = `상위 ${COMPARE_TOP}명 대조판 만들기`;
-    compareBtn.title = '상위 10명의 덱을 우리 계산기로 돌려 enikk 실측과 나란히 놓습니다 — 덱 50개라 몇 분 걸립니다';
-    compareBtn.addEventListener('click', () => {
-      compareBtn.disabled = true;
-      void renderCompare().finally(() => { compareBtn.disabled = false; });
-    });
-    head.append(compareBtn);
-    enikkList.append(head);
-
-    const pagerTop = document.createElement('div');
-    pagerTop.className = 'enikk-pager';
-    const cards = document.createElement('div');
-    const pagerBottom = document.createElement('div');
-    pagerBottom.className = 'enikk-pager';
-    enikkList.append(pagerTop, cards, pagerBottom);
-
-    const pages = Math.max(1, Math.ceil(data.players.length / ENIKK_PER_PAGE));
-    if (enikkPage >= pages) enikkPage = 0;
-
-    const drawCards = () => {
-      cards.replaceChildren();
-      const from = enikkPage * ENIKK_PER_PAGE;
-      for (const [offset, player] of data.players.slice(from, from + ENIKK_PER_PAGE).entries()) {
-        const index = from + offset;
-      const card = document.createElement('article');
-      card.className = 'enikk-player';
-
-      const top = document.createElement('div');
-      top.className = 'enikk-player-head';
-      top.append(createText('span', `${index + 1}`, 'enikk-rank'));
-      top.append(createText('b', player.server, 'enikk-server'));
-      top.append(createText('span', `총 ${formatEok(player.damage)}`, 'enikk-total'));
-      const take = document.createElement('button');
-      take.type = 'button';
-      take.className = 'enikk-use';
-      const usable = player.decks.filter(enikkDeckUsable).length;
-      take.textContent = `${usable}덱 가져오기`;
-      take.disabled = usable === 0;
-      take.title = usable < player.decks.length
-        ? '계산기가 못 다루거나 제외한 니케가 낀 덱은 빼고 가져옵니다'
-        : '이 사람의 덱을 우리 5덱에 그대로 깝니다';
-      take.addEventListener('click', () => applyPlayerToDecks(player));
-      top.append(take);
-      card.append(top);
-
-      for (const [n, deck] of player.decks.entries()) {
-        const row = document.createElement('div');
-        const blocked = !enikkDeckUsable(deck);
-        row.className = 'enikk-deck' + (blocked ? ' is-blocked' : '');
-        if (blocked && deck.usable) {
-          row.title = `제외한 니케가 껴 있습니다 — ${deck.squad.filter((n) => enikkExcluded.includes(n)).join(', ')}`;
-        }
-        row.append(createText('span', `${n + 1}`, 'enikk-deckno'));
-        row.append(enikkPortraits(deck.squad));
-        row.append(createText('span', formatEok(deck.damage), 'enikk-deckdmg'));
-        card.append(row);
-      }
-      cards.append(card);
-      }
-    };
-
-    /** 페이지 이동 줄. 위·아래 양쪽에 둔다 — 열 명을 훑고 나면 아래가 가깝다. */
-    const drawPager = (box: HTMLElement) => {
-      box.replaceChildren();
-      const jump = (page: number) => {
-        enikkPage = Math.max(0, Math.min(pages - 1, page));
-        drawCards();
-        drawPager(pagerTop);
-        drawPager(pagerBottom);
-        scrollTo(enikkList);
-      };
-      const step = (label: string, page: number, disabled: boolean) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'enikk-page-step';
-        b.textContent = label;
-        b.disabled = disabled;
-        b.addEventListener('click', () => jump(page));
-        box.append(b);
-      };
-      step('‹ 이전', enikkPage - 1, enikkPage === 0);
-
-      // 번호는 현재 쪽 둘레만 편다. 서른 개를 다 늘어놓으면 폰에서 줄이 넘친다.
-      const window_ = new Set<number>([0, pages - 1]);
-      for (let i = enikkPage - 1; i <= enikkPage + 1; i += 1) {
-        if (i >= 0 && i < pages) window_.add(i);
-      }
-      let previous = -1;
-      for (const page of [...window_].sort((a, b) => a - b)) {
-        if (previous >= 0 && page - previous > 1) box.append(createText('span', '…', 'enikk-page-gap'));
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'enikk-page' + (page === enikkPage ? ' is-on' : '');
-        b.textContent = String(page + 1);
-        b.setAttribute('aria-current', page === enikkPage ? 'page' : 'false');
-        b.addEventListener('click', () => jump(page));
-        box.append(b);
-        previous = page;
-      }
-      step('다음 ›', enikkPage + 1, enikkPage === pages - 1);
-      box.append(createText('span', `${pages}쪽 중 ${enikkPage + 1}쪽`, 'enikk-page-info'));
-    };
-
-    drawCards();
-    drawPager(pagerTop);
-    drawPager(pagerBottom);
-  };
-
-  const setEnikkStatus = (message: string) => { enikkStatus.textContent = message; };
-
-  // ── 상위 10 대조판 ──────────────────────────────────────────────────────
-  // 실사용 조합을 우리 시뮬로 돌려 enikk 실측 평균과 나란히 놓는다. 계산기가 어느
-  // 조합에서 얼마나 어긋나는지가 표본 열 개로 한눈에 보인다.
-  //
-  // **같은 잣대가 아니다.** enikk 평균은 사람마다 다른 육성·조작이 섞인 값이고 우리
-  // 시뮬은 지금 화면의 전투 조건과 스펙으로 돈다. 배율은 «얼마나 다른가»를 보는
-  // 눈금이지 정답과의 오차가 아니다 — 그 사실을 표에 적어 둔다.
-  const COMPARE_TOP = 10;
-
-  const renderCompare = async () => {
-    if (!enikkData) return;
-    const targets = enikkData.players.slice(0, COMPARE_TOP);
-    if (targets.length === 0) return;
-    const total = targets.reduce((sum, p) => sum + p.decks.filter((d) => d.usable).length, 0);
-
-    enikkCompare.hidden = false;
-    enikkCompare.replaceChildren();
-    enikkCompare.append(createText('h3', `상위 ${targets.length}명 대조판`));
-    enikkCompare.append(createText('p',
-      `덱 ${total}개를 지금 전투 조건과 내 스펙으로 돌려 그 사람의 실제 딜과 나란히 놓습니다. `
-      + '스펙이 다른 사람의 기록이므로 배율은 «얼마나 다른가»를 보는 눈금입니다. '
-      + '같은 편성은 저장된 결과를 다시 쓰므로 뒤로 갈수록 빨라집니다.',
-      'enikk-note'));
-
-    const table = document.createElement('div');
-    table.className = 'enikk-table';
-    enikkCompare.append(table);
-
-    const battle = readBattle();
-    const custom = customPayload();
-    await prepared;
-    let done = 0;
-    for (const [index, player] of targets.entries()) {
-      let simTotal = 0;
-      let realTotal = 0;
-      for (const source of player.decks) {
-        if (!enikkDeckUsable(source)) continue;
-        done += 1;
-        setEnikkStatus(`대조 계산 중 · 덱 ${done}/${total}`);
-        const deck: DeckState = { id: 1, squad: [...source.squad], characters: {} };
-        for (const name of source.squad) {
-          if (roster[name]) deck.characters[name] = cloneOverride(roster[name]!);
-        }
-        const request = requestForDeck(deck, battle, Object.keys(custom).length > 0 ? custom : undefined);
-        const key = cacheKey(request, version);
-        let result = cache.get(key);
-        if (!result) {
-          result = await client.simulate(request);
-          cache.set(key, result);
-        }
-        simTotal += result.squadTotal;
-        realTotal += source.damage;
-      }
-      const ratio = realTotal > 0 ? simTotal / realTotal : 0;
-
-      const row = document.createElement('div');
-      row.className = 'enikk-trow';
-      row.append(createText('span', `${index + 1}`, 'enikk-rank'));
-      const who = document.createElement('div');
-      who.className = 'enikk-who';
-      who.append(createText('b', player.server, 'enikk-server'));
-      who.append(createText('span', `${player.decks.filter((d) => d.usable).length}덱`));
-      row.append(who);
-      const nums = document.createElement('div');
-      nums.className = 'enikk-nums';
-      nums.append(createText('span', `실제 ${formatEok(realTotal)}`));
-      nums.append(createText('span', `시뮬 ${formatEok(simTotal)}`, 'enikk-sim'));
-      if (ratio > 0) {
-        const tag = createText('b', `${ratio.toFixed(2)}배`, 'enikk-ratio');
-        tag.classList.add(ratio > 1.15 || ratio < 0.85 ? 'is-off' : 'is-near');
-        nums.append(tag);
-      }
-      row.append(nums);
-      table.append(row);
-    }
-    setEnikkStatus(`상위 ${targets.length}명 대조 완료.`);
-  };
-
-  const loadEnikk = async (force: boolean) => {
-    if (!force) {
-      const cached = readEnikkCache();
-      if (cached) {
-        renderEnikk(cached);
-        setEnikkStatus('저장해 둔 결과입니다. 새로 받으려면 «다시 받기»를 누르세요.');
-        enikkLoad.hidden = true;
-        enikkRefresh.hidden = false;
-        return;
-      }
-    }
-    enikkLoad.disabled = true;
-    enikkRefresh.disabled = true;
-    try {
-      const supported = new Set(catalog.map((char) => char.name));
-      const data = await loadEnikkComps(catalog, supported, setEnikkStatus);
-      writeEnikkCache(data);
-      renderEnikk(data);
-      setEnikkStatus(`플레이어 ${data.players.length}명 · 덱 ${data.decks}개를 읽었습니다.`);
-      enikkLoad.hidden = true;
-      enikkRefresh.hidden = false;
-    } catch (error) {
-      setEnikkStatus(error instanceof Error ? error.message : String(error));
-    } finally {
-      enikkLoad.disabled = false;
-      enikkRefresh.disabled = false;
-    }
-  };
-
-  enikkLoad.addEventListener('click', () => { void loadEnikk(false); });
-  enikkRefresh.addEventListener('click', () => { void loadEnikk(true); });
-
-  // ── 지금 보는 사람 수 ───────────────────────────────────────────────────
-  // 공유 서버가 세 준다. 주소가 없으면 아예 띄우지 않는다 — 0명이라고 적어 두면
-  // «아무도 없다»로 읽히는데 사실은 «셀 곳이 없다»이기 때문이다.
-  if (SHARE_API) {
-    const onlineBox = element<HTMLElement>(root, '[data-online]');
-    const onlineText = element<HTMLElement>(root, '[data-online-text]');
-    startPresence(SHARE_API, (online) => {
-      onlineText.textContent = `現在 ${online.toLocaleString('ja-JP')}名`;
-      onlineBox.hidden = false;
-    });
-  }
-
   // ── 병렬 계산 ───────────────────────────────────────────────────────────
   // 계산은 이 기기에서 돈다. 워커를 여럿 띄우면 덱을 나눠 돌려 빨라지지만, 워커마다
   // 계산 런타임이 하나씩 떠서 메모리를 먹는다 — 그래서 끌 수 있고 개수도 고를 수 있다.
@@ -4710,7 +3311,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           (apply as HTMLButtonElement).type = 'button';
           apply.dataset.plansApply = plan.id;
           apply.addEventListener('click', () => {
-            applyShareText(encodeShareCode([{ id: 1, squad: plan.squad, characters: {} }], false), 'one');
+            applySquadToDeck(plan.squad);
             say(code, `案 ${index + 1} を計算機のデッキ ${activeDeckId} に入れました。`, true);
           });
           const drop = el('button', 'roster-import danger', '削除');
@@ -4759,8 +3360,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           .filter((name) => roster[name])
           .map((name) => [name, cloneOverride(roster[name]!)])),
       };
-      const custom = customPayload();
-      const request = requestForDeck(deck, battle, Object.keys(custom).length > 0 ? custom : undefined);
+      const request = requestForDeck(deck, battle);
       // 「計算」と同じ検証を通す — 通常計算が弾く値 (範囲外のオーバーロード等) を
       // 比較だけが素通りさせると、そこだけ違う結果が出て理由が分からなくなる
       const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
@@ -4858,7 +3458,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const saved = plansOf(plans, code);
       if (saved.length === 0) { say(code, '比較する案がありません。'); return; }
       const battle = baselineBattle(readBattle(), code);
-      const custom = customPayload();
       comparing = true;
       button.disabled = true;
       say(code, `計算中… 0/${saved.length}`);
@@ -4875,7 +3474,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
               .filter((name) => roster[name])
               .map((name) => [name, cloneOverride(roster[name]!)])),
           };
-          const request = requestForDeck(deck, battle, Object.keys(custom).length > 0 ? custom : undefined);
+          const request = requestForDeck(deck, battle);
           const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
           if (problems.length > 0) { say(code, `計算できません — ${problems[0]}`); return; }
           const key = cacheKey(request, version);
@@ -4953,9 +3552,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           .filter((name) => roster[name])
           .map((name) => [name, cloneOverride(roster[name]!)])),
       };
-      const custom = customPayload();
-      const request = requestForDeck(deck, boardBattle(readBattle(), boss),
-        Object.keys(custom).length > 0 ? custom : undefined);
+      const request = requestForDeck(deck, boardBattle(readBattle(), boss));
       return { deck, request, key: cacheKey(request, version) };
     };
 
@@ -5173,7 +3770,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const slot = board.slots[index]!;
       const boss = bossOf(index);
       if (!boss) return;
-      applyShareText(encodeShareCode([{ id: 1, squad: [...slot.squad], characters: {} }], false), 'one');
+      applySquadToDeck(slot.squad);
       writeBattle(bossBattle(boss, readBattle()));
       element<HTMLSelectElement>(root, '#enemy-code').dispatchEvent(new Event('change', { bubbles: true }));
       element<HTMLInputElement>(root, '#enemy-def').dispatchEvent(new Event('input', { bubbles: true }));
@@ -5648,48 +4245,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   }
 
-  // ── 유니온 레이드 (BETA) ────────────────────────────────────────────────
-  // 프록시가 있어야 유니온원 스펙을 받아 올 수 있다 — 없으면 탭 자체를 안 그렸다.
-  const unionPanel = root.querySelector<HTMLElement>('[data-view="union"]');
-  if (unionPanel) {
-    mountUnionRaid({ panel: unionPanel }, {
-      proxy: blablaProxy || '',
-      shareServer,
-      settings,
-      catalog: [...catalogByName.values()],
-      simulate: (request) => client.simulate(request),
-      imageOf: (name) => {
-        const image = catalogByName.get(name)?.image;
-        return image ? `${import.meta.env.BASE_URL}${image}` : undefined;
-      },
-      currentBattleCode: () => encodeBattleCode(readBattle(), settings.normalHitCoeff),
-      currentDeckCode: (index) => {
-        const deck = decks[index];
-        return deck ? encodeShareCode([deck], false) : '';
-      },
-      catalogNames: () => [...catalogByName.keys()],
-      concurrency: () => (parallelOn ? parallelCount : 1),
-      me: () => {
-        const battle = readBattle();
-        return {
-          name: '自分の設定',
-          synchro: battle.synchroLevel,
-          console: battle.console,
-          // 가져온 로스터(CSV·블라블라링크)가 내 스펙이다. 없으면 기본 스펙으로 돈다.
-          roster: Object.fromEntries(Object.entries(roster)
-            .filter(([name]) => catalogByName.has(name))),
-          owned: Object.keys(roster).length,
-        };
-      },
-    });
-  }
-
   // ── 화면 전환 ───────────────────────────────────────────────────────────
   /** 위쪽 탭이 고를 수 있는 화면. 「외부고리」는 우리 것이 아닌 곳으로 나가는 판이다. */
-  type ViewName = 'board' | 'calc' | 'roster' | 'plans' | 'union' | 'enikk' | 'links';
+  type ViewName = 'board' | 'calc' | 'roster' | 'plans';
 
   const shell = element<HTMLElement>(root, '.site-shell');
+  let currentView: ViewName = 'board';
   function switchView(view: ViewName) {
+    currentView = view;
     currentView = view;
     // 盤面はモックどおり 1000px 中央寄せ。計算機など他の画面は横に広い方が読みやすいので上流の幅のまま
     shell.classList.toggle('is-board', view === 'board');
@@ -5707,56 +4270,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     // 盤面の点数は戦闘条件・育成値に依るので、開くたびに今の条件で読み直す
     // (条件を変えた直後に古い数字を見せない — 合わない結果は「未計算」に戻る)
     if (view === 'board') renderBoard();
-    if (view === 'enikk' && !enikkData) {
-      const cached = readEnikkCache();
-      if (cached) {
-        renderEnikk(cached);
-        setEnikkStatus('저장해 둔 결과입니다. 새로 받으려면 «다시 받기»를 누르세요.');
-        enikkLoad.hidden = true;
-        enikkRefresh.hidden = false;
-      }
-    }
   }
   for (const tab of root.querySelectorAll<HTMLButtonElement>('[data-view-tab]')) {
     tab.addEventListener('click', () => switchView(tab.dataset.viewTab as ViewName));
   }
   // 入口は3凸ボード (自分の育成でどの凸に何を持っていくか)。計算機は「計算機」タブから
   switchView('board');
-
-  // ── 외부고리 ────────────────────────────────────────────────────────────
-  // 표(`external-links.ts`)를 그대로 편다. 주소를 HTML에 박지 않는 이유는 고칠 곳을
-  // 한 군데로 두기 위해서다 — 새 고리는 그 배열에 한 줄만 더하면 여기 나온다.
-  const linksGrid = element<HTMLElement>(root, '[data-links-grid]');
-  for (const link of EXTERNAL_LINKS) {
-    const card = document.createElement('a');
-    card.className = 'link-card';
-    card.href = link.url;
-    card.target = '_blank';
-    // 남의 페이지에 우리 창을 넘기지 않는다.
-    card.rel = 'noopener noreferrer';
-
-    const head = document.createElement('div');
-    head.className = 'link-head';
-    const name = document.createElement('h3');
-    name.className = 'link-name';
-    name.textContent = link.label;
-    const host = document.createElement('span');
-    host.className = 'link-host';
-    host.textContent = hostOf(link.url);
-    head.append(name, host);
-
-    const note = document.createElement('p');
-    note.className = 'link-note';
-    note.textContent = link.note;
-
-    const go = document.createElement('span');
-    go.className = 'link-go';
-    go.setAttribute('aria-hidden', 'true');
-    go.textContent = '新しいタブで開く ↗';
-
-    card.append(head, note, go);
-    linksGrid.append(card);
-  }
 
   // 렛츠도로 CSV 받는 법 안내. 스크린샷이 아직 없으면 이미지만 숨긴다 — 링크·설명은 남는다.
   const doroModal = element<HTMLElement>(root, '[data-doro-modal]');
@@ -5770,94 +4289,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   });
   doroModal.addEventListener('click', (event) => {
     if (event.target === doroModal) doroModal.hidden = true;
-  });
-
-  const customModal = element<HTMLElement>(root, '[data-custom-modal]');
-  const customJson = element<HTMLTextAreaElement>(root, '[data-custom-json]');
-  const customMsg = element<HTMLElement>(root, '[data-custom-msg]');
-  const customList = element<HTMLElement>(root, '[data-custom-list]');
-  const showCustomMsg = (text: string, ok = false) => {
-    customMsg.textContent = text;
-    customMsg.hidden = !text;
-    customMsg.classList.toggle('is-ok', ok);
-  };
-  const renderCustomList = () => {
-    customList.replaceChildren();
-    const names = Object.keys(customChars);
-    if (names.length === 0) return;
-    customList.append(createText('p', '追加したニケ', 'custom-list-title'));
-    for (const name of names) {
-      const meta = customToMeta(customChars[name]!);
-      const row = document.createElement('div');
-      row.className = 'custom-list-row';
-      row.append(createText('span', `${name} · B${meta.burstStage} · ${elementLabel(meta.elementCode)} · ${meta.weaponType}`, 'custom-list-name'));
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'custom-remove';
-      remove.textContent = '削除';
-      remove.addEventListener('click', () => {
-        delete customChars[name];
-        saveCustom();
-        const index = catalog.findIndex((char) => char.name === name);
-        if (index >= 0) catalog.splice(index, 1);
-        catalogByName.delete(name);
-        delete settings.characters[name];
-        for (const deck of decks) {
-          deck.squad = deck.squad.map((member) => (member === name ? '' : member));
-          delete deck.characters[name];
-        }
-        saveState();
-        renderCustomList();
-        renderDeckTabs();
-        renderSquad();
-      });
-      row.append(remove);
-      customList.append(row);
-    }
-  };
-  element<HTMLButtonElement>(root, '[data-add-nikke]').addEventListener('click', () => {
-    customModal.hidden = false;
-    showCustomMsg('');
-    renderCustomList();
-  });
-  element<HTMLButtonElement>(root, '[data-custom-close]').addEventListener('click', () => {
-    customModal.hidden = true;
-  });
-  customModal.addEventListener('click', (event) => {
-    if (event.target === customModal) customModal.hidden = true;
-  });
-  element<HTMLButtonElement>(root, '[data-copy-prompt]').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(buildAddPrompt());
-      showCustomMsg('プロンプトをコピーしました。他の LLM に貼り付け、続けてニケの説明を付けてください。', true);
-    } catch {
-      showCustomMsg('自動コピーに失敗しました。ブラウザの権限を確認するか、手動でコピーしてください。');
-    }
-  });
-  element<HTMLButtonElement>(root, '[data-custom-submit]').addEventListener('click', () => {
-    try {
-      const custom = parseCustomInput(customJson.value);
-      customChars[custom.name] = custom;
-      saveCustom();
-      registerCustom(custom.name);
-      renderCustomList();
-      renderDeckTabs();
-      renderSquad();
-      customJson.value = '';
-      const ignored = unsupportedEffects(custom.skills);
-      if (ignored.length > 0) {
-        showCustomMsg(
-          `'${custom.name}' を追加しました。ただし認識されない効果があり、反映されません: `
-          + `${ignored.join(', ')}。この効果がキャラクターの主力ダメージなら結果は実際よりかなり低く出ます`
-          + `(ゲージ・モード切り替え・条件付きスタック型のスキルはこの方式では再現しにくいです)。`
-          + `ヘルプの語彙と照らし合わせて stat·timing·target を直せば一部は反映されます。`,
-        );
-      } else {
-        showCustomMsg(`'${custom.name}' を追加しました · スカッドの枠から選べます。`, true);
-      }
-    } catch (error) {
-      showCustomMsg(error instanceof Error ? error.message : String(error));
-    }
   });
 
   saveState = () => {
@@ -5914,7 +4345,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     if (savedState.battle) writeBattle(savedState.battle);
   };
 
-  for (const name of Object.keys(customChars)) registerCustom(name);
   applySavedState();
   applyRosterToDecks();
   updateRosterNote();
@@ -5929,20 +4359,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   activeSlot = firstEmpty < 0 ? 0 : firstEmpty;
   renderSquad();
   renderRosterGrid();
-
-  // 공유 링크로 들어왔으면 저장 상태 위에 그 편성을 얹는다 — 순서가 반대면
-  // applySavedState가 링크로 넣은 편성을 도로 덮어쓴다. 주소는 정리해 두어
-  // 새로고침할 때마다 다시 덮어쓰지 않게 한다.
-  if (location.hash.startsWith('#deck=')) {
-    const linked = location.hash;
-    history.replaceState(null, '', location.pathname + location.search);
-    applyShareText(linked, 'all');
-    refreshShareFields();
-    renderPresets();
-    shareIn.value = linked;
-    switchView('calc');   // 共有リンクの結果は計算機タブにある — 既定ビュー (union) のままだと見えない
-    shareModal.hidden = false;
-  }
 
   const prepared = client.prepare()
     .then(() => {
@@ -5969,10 +4385,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       ...validateDecks(selectedDecks),
       ...selectedDecks.flatMap((deck) => validateCharacterValues(deck)),
     ];
-    const custom = customPayload();
     const requests = selectedDecks.map((deck) => ({
       deck,
-      request: requestForDeck(deck, battle, Object.keys(custom).length > 0 ? custom : undefined),
+      request: requestForDeck(deck, battle),
     }));
     for (const { deck, request } of requests) {
       validation.push(...validateRequest(request).map((message) => `デッキ ${deck.id}: ${message}`));

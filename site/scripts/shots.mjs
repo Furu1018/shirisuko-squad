@@ -15,7 +15,7 @@ import { chromium } from 'playwright-core';
 const outDir = resolve(process.argv[2] ?? 'shots');
 const url = process.argv[3] ?? 'http://localhost:4173/shirisuko-squad/';
 const WIDTHS = [390, 820, 1280];
-const TABS = ['board', 'calc', 'roster', 'plans', 'union', 'links'];
+const TABS = ['board', 'calc', 'roster', 'plans'];
 
 mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
