@@ -38,9 +38,55 @@ export const PERSONAL_SNIPPET = `await (async () => {
   })).json();
   const gap = (ms) => new Promise((done) => setTimeout(done, ms));
 
+  // 自分の openid を突き止める。
+  // **GetUserInfoNew の値を当てにしない** — 実機で試したら InvalidUid で全滅した
+  // (あの応答が返すのはサイト側の識別子で、ゲームの照会には使えない)。
+  // 候補を集めて、**実際に照会が通ったものを採用する**。当て推量を残さない。
+  const digitsOf = (raw) => {
+    if (!raw) return '';
+    let text = String(raw);
+    try {
+      const guess = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
+      if (/^[\\x20-\\x7e]+$/.test(guess)) text = guess;   // アドレスの openid は base64 で包まれている
+    } catch (e) { /* base64 でなければそのまま */ }
+    const hit = text.match(/(\\d{6,})\\s*$/);
+    return hit ? hit[1] : '';
+  };
+
+  const candidates = [];
+  const add = (value, where) => {
+    const id = digitsOf(value);
+    if (id && !candidates.some((c) => c.id === id)) candidates.push({ id: id, where: where });
+  };
+  // ① いま開いているページのアドレス (自分のプロフィールを開いていればこれが確実)
+  try { add(new URL(location.href).searchParams.get('openid'), 'アドレスバー'); } catch (e) {}
+  // ② 応答の中の «識別子らしきもの» を片っ端から
   const me = await call('User/GetUserInfoNew', {}, 'ugc/proxy/standalonesite/');
-  const openid = String(((me.data || {}).info || {}).intl_openid || '');
-  if (!openid) { console.error('ログイン状態を確認できません:', me.msg || me.code, '— blablalink.com にログインしてから、そのタブで実行してください。'); return; }
+  const info = (me.data || {}).info || me.data || {};
+  for (const key of Object.keys(info)) {
+    if (/(openid|open_id|uid|role_id|game_id)$/i.test(key)) add(info[key], 'GetUserInfoNew.' + key);
+  }
+  if (candidates.length === 0) {
+    console.error('自分の識別子が分かりませんでした。**自分のプロフィールページ**'
+      + ' (blablalink.com/user?openid=... ) を開いた状態で、そのタブで実行してください。');
+    return;
+  }
+
+  // 実際に照会して、通ったものだけを採る
+  let openid = '';
+  for (const cand of candidates) {
+    await gap(200);
+    const probe = await call('Game/GetUserCharacters', { intl_open_id: cand.id, nikke_area_id: 81 });
+    console.log('識別子の候補 ' + cand.id + ' (' + cand.where + ') → ' + (probe.code === 0 ? '使える' : (probe.msg || probe.code)));
+    if (probe.code === 0) { openid = cand.id; break; }
+  }
+  if (!openid) {
+    console.error('どの識別子でも照会できませんでした。**自分のプロフィールページ**'
+      + ' (blablalink.com/user?openid=... ) を開いた状態で実行してください。'
+      + ' 見つかった候補: ' + candidates.map((c) => c.id + '(' + c.where + ')').join(', '));
+    return;
+  }
+  console.log('自分の識別子: ' + openid);
 
   const PARTS = ['head', 'torso', 'arm', 'leg'];
   const KEEP = ['name_code', 'skill1_lv', 'skill2_lv', 'ulti_skill_lv', 'favorite_item_tid',

@@ -518,7 +518,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <details class="board-scan" data-board-scan${blablaProxy ? '' : ' open'}>
             <summary><b>自分のブラウザで取り込む</b><span>サーバー不要 · 公開設定も不要</span></summary>
             <ol class="board-scan-steps">
-              <li><a href="https://www.blablalink.com/user" target="_blank" rel="noreferrer noopener">blablalink.com</a> をログインした状態で開く</li>
+              <li><a href="https://www.blablalink.com/user" target="_blank" rel="noreferrer noopener">自分のプロフィールページ</a>を、ログインした状態で開く<br><small>アドレスに <code>?openid=…</code> が付いているページです。ここから自分の識別子を読み取ります。</small></li>
               <li>そのタブで <b>F12</b> → <b>Console</b> を開く</li>
               <li>下のコードをコピーして貼り、Enter (数十秒かかります)</li>
               <li>コピーされた文字列を、いちばん下の欄に貼って「取り込む」</li>
