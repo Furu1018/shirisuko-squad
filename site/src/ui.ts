@@ -545,7 +545,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
         <div class="board-main" data-board-main>
         <h2 id="board-heading" class="board-sec">3凸を組む · ${UNION_SEASON.label}</h2>
-        <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>と、そのボスに有利なコードの編成 (属性別編成タブの案) が入ります。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠と被った人は赤く出て、外す・譲るどちらが得かを計算します。</p>
+        <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した案があればそこから入れることもできます。</p>
         <p class="board-status" data-board-status hidden></p>
         <div class="board-slots" data-board-slots></div>
         <div class="board-total" data-board-total></div>
@@ -3521,6 +3521,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     let busy = false;
     /** 「編成を変える」を開いている枠。 */
     let chooserOpen: number | null = null;
+    /** 枠の中で編成を組んでいる最中の枠。null = 閉じている。 */
+    let pickerOpen: number | null = null;
+    let pickerQuery = '';
+    /** 選べるニケ。取り込んでいれば手持ちだけ、まだなら全員から選ばせる。 */
+    const pickableNikke = (): CharacterMeta[] => {
+      const owned = Object.keys(roster);
+      return owned.length > 0 ? catalog.filter((c) => roster[c.name]) : catalog;
+    };
     /**
      * この画面で出した点数。保存された結果 (cache) は容量で押し出されるので、別に持つ。
      * 鍵は**リクエストの cacheKey そのもの** — ロスターの育成値・戦闘条件・シンクロが変われば鍵も変わるので、
@@ -3683,7 +3691,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       commit(withSlot(board, index, { boss: name, squad }));
       if (options.length === 0) {
         say(code
-          ? `${name} に有利な ${elementLabel(code)} 編成の案がまだありません。属性別編成タブで「今の編成を保存」してください。`
+          ? `${name} は ${elementLabel(code)} が有利です。「この枠の編成を組む」から選んでください。`
           : 'このボスのコードに対応する編成がありません。');
         return;
       }
@@ -3717,7 +3725,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       for (const boss of UNION_SEASON.bosses) {
         for (const plan of boardCandidatesFor(boss, plans).plans) all.push({ boss, squad: plan.squad });
       }
-      if (all.length === 0) { say('案がまだありません。属性別編成タブで「今の編成を保存」してください。'); return; }
+      if (all.length === 0) { say('保存した案がありません。各枠の「この枠の編成を組む」から直接選べます。'); return; }
       await runJobs(dedupe(all.map((c) => jobFor(c.boss, c.squad))), '全候補を計算中');
       const scored: Candidate[] = all.flatMap(({ boss, squad }) => {
         const score = knownScore(boss, squad);
@@ -3854,6 +3862,86 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       return box;
     };
 
+    /**
+     * 枠の中で直接メンバーを組む。
+     *
+     * これが無かったころは «計算機で組む → 属性別編成で案として保存 → 盤面で選ぶ» と
+     * 3つのタブを行き来する必要があり、「編成の設定方法が不明瞭」と言われた。
+     * 3凸を決める画面なのだから、その場で組めるのが素直。
+     *
+     * **同じニケは3凸のうち1度だけ**なので、他の枠で使っている人はここで «使用中» と
+     * 出して選べなくする — 組んだ後に赤く怒られるより、選ぶ時点で分かる方がよい。
+     */
+    const renderPicker = (index: number) => {
+      const slot = board.slots[index]!;
+      const box = el('div', 'board-picker');
+      const used = usageOf(board);
+      const pickable = pickableNikke();
+
+      const line = el('div', 'board-picker-line');
+      for (let at = 0; at < 5; at += 1) {
+        const name = slot.squad[at] ?? '';
+        if (name) {
+          const chip = button(`${labelFor(name)} ✕`, 'board-picker-chip', () => {
+            const next = [...slot.squad];
+            next[at] = '';
+            commit(withSlot(board, index, { boss: slot.boss, squad: next }));
+          });
+          chip.title = '外す';
+          chip.dataset.boardPickerDrop = `${index}:${at}`;
+          line.append(chip);
+        } else {
+          line.append(createText('span', '空き', 'board-picker-chip is-empty'));
+        }
+      }
+      box.append(line);
+
+      const search = document.createElement('input');
+      search.type = 'search';
+      search.className = 'board-picker-search';
+      search.placeholder = ' 名前で探す (ラピ / 라피 / ㄹㅍ)';
+      search.value = pickerQuery;
+      search.dataset.boardPickerSearch = String(index);
+      box.append(search);
+
+      const grid = el('div', 'board-picker-grid');
+      const draw = () => {
+        grid.replaceChildren();
+        const full = slot.squad.filter(Boolean).length >= 5;
+        const hits = filterByQuery(pickable, pickerQuery, buildIndex);
+        for (const char of hits.slice(0, 60)) {
+          const here = slot.squad.includes(char.name);
+          const elsewhere = (used.get(char.name) ?? []).some((at) => at !== index);
+          const cell = button(labelFor(char.name), 'board-picker-cell', () => {
+            const next = [...slot.squad];
+            if (here) next[next.indexOf(char.name)] = '';
+            else {
+              const free = next.indexOf('');
+              if (free < 0) return;
+              next[free] = char.name;
+            }
+            commit(withSlot(board, index, { boss: slot.boss, squad: next }));
+          });
+          cell.dataset.boardPick = char.name;
+          if (here) cell.classList.add('is-on');
+          if (elsewhere) {
+            cell.disabled = true;
+            cell.classList.add('is-taken');
+            cell.title = `${(used.get(char.name) ?? []).map((at) => `${at + 1}凸目`).join('・')}で使っています`;
+          } else if (full && !here) {
+            cell.disabled = true;
+            cell.title = '5人そろっています。誰かを外してから選んでください';
+          }
+          grid.append(cell);
+        }
+        if (hits.length === 0) grid.append(createText('p', '一致するニケがいません。', 'board-picker-none'));
+      };
+      draw();
+      search.addEventListener('input', () => { pickerQuery = search.value; draw(); });
+      box.append(grid);
+      return box;
+    };
+
     const renderTotal = (slotScores: Array<number | null>) => {
       totalBox.replaceChildren();
       const clashes = clashesOf(board);
@@ -3979,7 +4067,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const members = slot.squad.filter(Boolean);
         if (members.length === 0) {
           team.append(createText('span',
-            boss ? '属性別編成に案がありません' : `残り ${Math.max(0, owned - usage.size)}名から選べます`,
+            boss ? 'まだ誰も入っていません — 下の «この枠の編成を組む» から選べます' : `残り ${Math.max(0, owned - usage.size)}名から選べます`,
             'board-who is-empty'));
         }
         for (const name of members) {
@@ -3997,8 +4085,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           find.dataset.boardSearchOpen = String(index);
           foot.append(find);
         } else {
-          const change = button(chooserOpen === index ? '閉じる' : '編成を変える', 'board-btn', () => {
+          const pick = button(pickerOpen === index ? '選び終わり' : 'この枠の編成を組む', 'board-btn lead', () => {
+            pickerOpen = pickerOpen === index ? null : index;
+            if (pickerOpen !== null) chooserOpen = null;
+            pickerQuery = '';
+            renderBoard();
+          });
+          pick.dataset.boardPickOpen = String(index);
+          foot.append(pick);
+          const change = button(chooserOpen === index ? '閉じる' : '保存した案から選ぶ', 'board-btn', () => {
             chooserOpen = chooserOpen === index ? null : index;
+            if (chooserOpen !== null) pickerOpen = null;
             renderBoard();
           });
           change.dataset.boardChange = String(index);
@@ -4011,6 +4108,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           foot.append(button('空にする', 'board-btn', () => { chooserOpen = null; commit(clearSlot(board, index)); }));
         }
         card.append(foot);
+        if (pickerOpen === index && boss) card.append(renderPicker(index));
         if (chooserOpen === index && boss) card.append(renderChooser(index, boss));
         slotsBox.append(card);
       });

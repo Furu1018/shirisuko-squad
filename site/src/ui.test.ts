@@ -999,6 +999,56 @@ describe('calculator UI', () => {
     expect(boardStart().hidden).toBe(false);
   });
 
+  it('枠の中で編成を組める (他のタブへ行かなくてよい)', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    pickBoss(0, 'レイタンス');
+
+    // 一度開けば、選んでも開いたまま — 5人を続けて選べる
+    root.querySelector<HTMLButtonElement>('[data-board-pick-open="0"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-board-pick="리타"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-board-pick="크라운"]')!.click();
+
+    expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);
+    // 表示名はテスト用カタログに displayName が無いので内部キーのまま出る (本番は日本語)
+    expect(boardSlot(0).textContent).toContain('리타');
+  });
+
+  it('他の凸で使っているニケは、選ぶ時点で押せない', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    pickBoss(0, 'レイタンス');
+    pickBoss(1, 'トゥームストーン');
+
+    root.querySelector<HTMLButtonElement>('[data-board-pick-open="0"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-board-pick="리타"]')!.click();
+
+    // 2凸目を開くと、1凸目で使ったリターは選べない
+    root.querySelector<HTMLButtonElement>('[data-board-pick-open="1"]')!.click();
+    const taken = root.querySelector<HTMLButtonElement>('[data-board-pick="리타"]')!;
+    expect(taken.disabled).toBe(true);
+    expect(taken.title).toContain('1凸目');
+    // 使っていない人は選べる
+    expect(root.querySelector<HTMLButtonElement>('[data-board-pick="크라운"]')!.disabled).toBe(false);
+  });
+
+  it('入れたニケは枠から外せる', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    pickBoss(0, 'レイタンス');
+    root.querySelector<HTMLButtonElement>('[data-board-pick-open="0"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-board-pick="리타"]')!.click();
+
+    root.querySelector<HTMLButtonElement>('[data-board-picker-drop="0:0"]')!.click();
+    expect(storedBoard().slots[0]!.squad.filter(Boolean)).toEqual([]);
+  });
+
   it('3凸ボードが入口で、3枠・合計・属性別の手持ちが出る', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
@@ -1040,7 +1090,8 @@ describe('calculator UI', () => {
     // 案が無いボスは入れられないことを伝える
     pickBoss(1, 'モダニア');
     await settle();
-    expect(root.querySelector('[data-board-status]')!.textContent).toContain('案がまだありません');
+    // 案が無くても «この枠の編成を組む» で直接選べるので、そちらへ案内する
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('この枠の編成を組む');
     expect(boardCalls(client)).toBe(1);
     expect(boardCalls(client, '풍압')).toBe(0);
   });
