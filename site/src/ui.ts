@@ -466,7 +466,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <button type="button" class="view-tab is-on" data-view-tab="board" aria-pressed="true">3凸ボード<b class="tab-beta">NEW</b></button>
         <button type="button" class="view-tab" data-view-tab="calc" aria-pressed="false">計算機</button>
         <button type="button" class="view-tab" data-view-tab="roster" aria-pressed="false">育成状況</button>
-        <button type="button" class="view-tab" data-view-tab="plans" aria-pressed="false">属性別編成</button>
+        <button type="button" class="view-tab" data-view-tab="plans" aria-pressed="false">保存候補・比較</button>
       </nav>
 
       <section class="panel board-panel" data-view="board" aria-labelledby="board-heading" hidden>
@@ -562,7 +562,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
         <div class="board-main" data-board-main>
         <h2 id="board-heading" class="board-sec">3凸を組む · ${UNION_SEASON.label}</h2>
-        <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した案があればそこから入れることもできます。</p>
+        <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した候補があればそこから入れることもできます。</p>
         <p class="board-status" data-board-status role="status" aria-live="polite" hidden></p>
         <div class="board-elements" data-board-elements>
           <b class="board-elements-label">属性を決めて最適化</b>
@@ -578,7 +578,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <div class="board-total" data-board-total></div>
         <div class="board-used" data-board-used></div>
         <h3 class="board-sub">属性別の手持ち · 参考</h3>
-        <p class="links-lede">被りを考えない場合の、属性ごとの最大値 (計算済みの案の中で)。<b>3凸に組むと分け合うので、これより下がります</b>。</p>
+        <p class="links-lede">被りを考えない場合の、属性ごとの最大値 (計算済みの候補の中で)。<b>3凸に組むと分け合うので、これより下がります</b>。</p>
         <div class="board-stock" data-board-stocks></div>
         <h3 class="board-sub">詳しく見る</h3>
         <div class="board-more">
@@ -590,7 +590,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
       <section class="panel plans-panel" data-view="plans" aria-labelledby="plans-heading" hidden>
         <div class="section-heading">
-          <div><p class="step">PLANS</p><h2 id="plans-heading">属性別編成</h2></div>
+          <div><p class="step">PLANS</p><h2 id="plans-heading">保存候補・比較</h2></div>
         </div>
         <p class="links-lede">コードごとに<b>本命の編成を3つまで</b>置いておく場所です。ここではボスの癖 (コア・パーツ・区間) を考えず、<b>有利コードだけ</b>を見ます。ボスに合わせた調整は計算機側で重ねてください。</p>
         <div class="plans-boss" data-plans-boss>
@@ -3388,7 +3388,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const save = el('button', 'roster-import', '今の編成を保存');
         (save as HTMLButtonElement).type = 'button';
         save.dataset.plansSave = code;
-        save.title = '計算機で今開いているデッキを、キューブなどの個別設定ごとこの属性の案として保存します';
+        save.title = '計算機で今開いているデッキを、キューブなどの個別設定ごとこの属性の候補として保存します';
         save.addEventListener('click', () => {
           const result = addPlan(plans, code, activeDeck().squad, { characters: snapshotOf(activeDeck()) });
           if (result.added) {
@@ -3398,14 +3398,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             return;
           }
           say(code, result.reason === 'full'
-            ? `この属性は既に ${MAX_PLANS_PER_ELEMENT} 案あります。どれかを消してから保存してください。`
-            : result.reason === 'duplicate' ? '同じ顔ぶれ・同じ個別設定の案が既にあります。'
+            ? `この属性は既に ${MAX_PLANS_PER_ELEMENT} 候補あります。どれかを消してから保存してください。`
+            : result.reason === 'duplicate' ? '同じ顔ぶれ・同じ個別設定の候補が既にあります。'
               : '計算機の編成が空です。先にニケを入れてください。');
         });
-        const compare = el('button', 'roster-import', '3案を比較');
+        const compare = el('button', 'roster-import', '3候補を比較');
         (compare as HTMLButtonElement).type = 'button';
         compare.dataset.plansCompare = code;
-        compare.title = 'ボスの癖を外した同じ条件で、この属性の案を順に計算します';
+        compare.title = 'ボスの癖を外した同じ条件で、この属性の候補を順に計算します';
         compare.addEventListener('click', () => { void comparePlans(code, compare as HTMLButtonElement); });
         head.append(title, against, save, compare);
         group.append(head);
@@ -3418,27 +3418,33 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const list = el('div', 'plans-list');
         const saved = plansOf(plans, code);
         if (saved.length === 0) {
-          list.append(createText('p', 'まだ案がありません。計算機で編成を組んで「今の編成を保存」を押してください。', 'plans-empty'));
+          list.append(createText('p', 'まだ候補がありません。3凸ボードの枠で「この枠の編成を組む」→「いまの編成を候補に加える」で増やせます。計算機で組んで「今の編成を保存」でも構いません。', 'plans-empty'));
         }
         saved.forEach((plan, index) => {
           const row = el('div', 'plans-row');
           row.dataset.plansRow = plan.id;
-          row.append(createText('b', `案 ${index + 1}`, 'plans-index'));
+          row.append(createText('b', `候補 ${index + 1}`, 'plans-index'));
           const members = el('span', 'plans-members');
           for (const name of plan.squad.filter(Boolean)) {
             members.append(createText('span', labelFor(name), 'plans-chip'));
           }
           if (plan.characters && Object.keys(plan.characters).length > 0) {
             const mark = createText('span', '個別設定つき', 'plans-chip is-snapshot');
-            mark.title = 'キューブなどの個別設定ごと保存された案です。計算にもこの設定を使います';
+            mark.title = 'キューブなどの個別設定ごと保存された候補です。計算にもこの設定を使います';
             members.append(mark);
           }
           row.append(members);
           const score = el('span', 'plans-score');
           score.dataset.plansScore = plan.id;
+          // 数値は**どの状態か**を必ず出す。空欄だと «計算していない» のか
+          // «計算したが0» なのか読めない (バックログ #4)。
           if (plan.registered) {
-            score.textContent = `${formatDamage(plan.registered.damage)} (登録 · ${plan.registered.duration}秒)`;
-            score.title = `「3案を比較」などで計算して登録した理論値です (${new Date(plan.registered.at).toLocaleString('ja-JP')})`;
+            score.textContent = `${formatDamage(plan.registered.damage)}`;
+            score.append(createText('small', `登録値 · ${plan.registered.duration}秒`, 'plans-score-state'));
+            score.title = `「3候補を比較」などで計算して登録した理論値です (${new Date(plan.registered.at).toLocaleString('ja-JP')})`;
+          } else {
+            score.append(createText('small', '未計算', 'plans-score-state is-none'));
+            score.title = '「3候補を比較」を押すと計算して登録します';
           }
           row.append(score);
           const apply = el('button', 'roster-import', '計算機に入れる');
@@ -3446,7 +3452,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           apply.dataset.plansApply = plan.id;
           apply.addEventListener('click', () => {
             applySquadToDeck(plan.squad, plan.characters);
-            say(code, `案 ${index + 1} を計算機のデッキ ${activeDeckId} に入れました。`, true);
+            say(code, `候補 ${index + 1} を計算機のデッキ ${activeDeckId} に入れました。`, true);
           });
           const drop = el('button', 'roster-import danger', '削除');
           (drop as HTMLButtonElement).type = 'button';
@@ -3513,7 +3519,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (!code) { sayBoss('このボスのコードに対応する編成がありません。'); return; }
       const saved = plansOf(plans, code);
       if (saved.length === 0) {
-        sayBoss(`${elementLabel(code)} の案がまだありません。先に「今の編成を保存」で登録してください。`);
+        sayBoss(`${elementLabel(code)} の候補がまだありません。先に「今の編成を保存」で登録してください。`);
         bossResult.replaceChildren();
         return;
       }
@@ -3547,14 +3553,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
         const table = el('table', 'plans-boss-table');
         const head = document.createElement('tr');
-        for (const label of ['案', '編成', '基準 (癖なし)', `${boss.name}`, '順位']) {
+        for (const label of ['候補', '編成', '基準 (癖なし)', `${boss.name}`, '順位']) {
           head.append(createText('th', label));
         }
         table.append(head);
         for (const row of rows) {
           const tr = document.createElement('tr');
           tr.dataset.plansBossRow = String(row.index);
-          tr.append(createText('td', `案 ${row.index}`));
+          tr.append(createText('td', `候補 ${row.index}`));
           tr.append(createText('td', row.squad.filter(Boolean).map(labelFor).join(' / '), 'plans-boss-members'));
           const plainRank = rankOf(row.plain, plainAll);
           const bossRank = rankOf(row.boss, bossAll);
@@ -3588,7 +3594,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const comparePlans = async (code: PlanElement, button: HTMLButtonElement) => {
       if (comparing) { say(code, '別の比較が走っています。終わるまで待ってください。'); return; }
       const saved = plansOf(plans, code);
-      if (saved.length === 0) { say(code, '比較する案がありません。'); return; }
+      if (saved.length === 0) { say(code, '比較する候補がありません。'); return; }
       const battle = baselineBattle(readBattle(), code);
       comparing = true;
       button.disabled = true;
@@ -3890,7 +3896,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       say(`${battleNote()} で計算しました。`, true);
     });
 
-    /** ボスを選ぶ → そのコードの案を入れる (点数が分かっている案があれば一番高いもの、無ければ案1)。 */
+    /** ボスを選ぶ → そのコードの候補を入れる (点数が分かっている候補があれば一番高いもの、無ければ候補1)。 */
     const chooseBoss = async (index: number, name: string) => {
       chooserOpen = null;
       if (!name) { commit(clearSlot(board, index)); return; }
@@ -3922,7 +3928,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const searchOpen = (index: number) => withBusy(async () => {
       const candidates = openSlotCandidates(board, index, UNION_SEASON.bosses, plans);
       if (candidates.length === 0) {
-        say('入れられる案がありません。属性別編成タブで案を保存してください (他の枠と全員被る案は除きます)。');
+        say('入れられる候補がありません。枠の「この枠の編成を組む」で組むか、「保存候補・比較」タブで保存してください (他の枠と全員被る候補は除きます)。');
         return;
       }
       await runJobs(dedupe(candidates.map((c) => jobFor(c.boss, c.squad, c.characters))), '残りで探索中');
@@ -3932,20 +3938,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const score = knownScore(candidate.boss, candidate.squad, candidate.characters);
         if (score !== null && score > bestScore) { bestScore = score; best = candidate; }
       }
-      if (!best) { say('計算できる案がありませんでした。'); return; }
+      if (!best) { say('計算できる候補がありませんでした。'); return; }
       commit(withSlot(board, index, { boss: best.boss.name, squad: best.squad, characters: best.characters }));
       say(best.removed.length > 0
-        ? `${best.boss.name} (案 ${best.planIndex + 1}) が最大でした。他の枠と被る ${best.removed.map(labelFor).join('・')} は外してあります。`
-        : `${best.boss.name} (案 ${best.planIndex + 1}) が最大でした。`, true);
+        ? `${best.boss.name} (候補 ${best.planIndex + 1}) が最大でした。他の枠と被る ${best.removed.map(labelFor).join('・')} は外してあります。`
+        : `${best.boss.name} (候補 ${best.planIndex + 1}) が最大でした。`, true);
     });
 
-    /** 全候補 (ボス × 案) を計算し、被りなしで合計最大の3つを枠に入れる。 */
+    /** 全候補 (ボス × 候補) を計算し、被りなしで合計最大の3つを枠に入れる。 */
     const searchBest = () => withBusy(async () => {
       const all: Array<{ boss: UnionBoss; plan: ElementPlan }> = [];
       for (const boss of UNION_SEASON.bosses) {
         for (const plan of boardCandidatesFor(boss, plans).plans) all.push({ boss, plan });
       }
-      if (all.length === 0) { say('保存した案がありません。各枠の「この枠の編成を組む」から直接選べます。'); return; }
+      if (all.length === 0) { say('保存した候補がありません。各枠の「この枠の編成を組む」から直接選べます。'); return; }
       await runJobs(dedupe(all.map((c) => jobFor(c.boss, c.plan.squad, c.plan.characters))), '全候補を計算中');
       const scored: Candidate[] = all.flatMap(({ boss, plan }) => {
         const score = knownScore(boss, plan.squad, plan.characters);
@@ -3955,7 +3961,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         }];
       });
       const picked = bestTriple(scored);
-      if (picked.length === 0) { say('計算できる案がありませんでした。'); return; }
+      if (picked.length === 0) { say('計算できる候補がありませんでした。'); return; }
       let next = emptyBoard();
       picked.forEach((candidate, index) => {
         next = withSlot(next, index, {
@@ -3966,7 +3972,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       commit(next);
       const total = formatDamage(picked.reduce((sum, candidate) => sum + candidate.score, 0));
       say(picked.length < BOARD_SLOTS
-        ? `被りなしで組めたのは ${picked.length} 凸ぶんでした (合計 ${total})。属性別編成の案を増やすと3凸まで埋まります。`
+        ? `被りなしで組めたのは ${picked.length} 凸ぶんでした (合計 ${total})。保存候補を増やすと3凸まで埋まります。`
         : `被りなしで最大の3凸を入れました (合計 ${total} · ${battleNote()})。`, true);
     });
 
@@ -4434,7 +4440,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         }
         card.append(num);
         card.append(createText('div',
-          `案 ${saved.length}/${MAX_PLANS_PER_ELEMENT}${saved.length > 0 && best === null ? ' · 未計算' : ''}`,
+          `候補 ${saved.length}/${MAX_PLANS_PER_ELEMENT}${saved.length > 0 && best === null ? ' · 未計算' : ''}`,
           'board-el-plans'));
         stockBox.append(card);
       }
@@ -4474,7 +4480,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         select.addEventListener('change', () => { void chooseBoss(index, select.value); });
         head.append(select);
         head.append(createText('span',
-          boss ? (code ? `${elementLabel(code)}で殴る` : '対応する案なし') : '未設定',
+          boss ? (code ? `${elementLabel(code)}で殴る` : '対応する候補なし') : '未設定',
           `board-pill${boss && code ? '' : ' is-plain'}`));
         card.append(head);
 
@@ -4527,7 +4533,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           });
           pick.dataset.boardPickOpen = String(index);
           foot.append(pick);
-          const change = button(chooserOpen === index ? '閉じる' : '保存した案から選ぶ', 'board-btn', () => {
+          const change = button(chooserOpen === index ? '閉じる' : '保存した候補から選ぶ', 'board-btn', () => {
             chooserOpen = chooserOpen === index ? null : index;
             if (chooserOpen !== null) pickerOpen = null;
             renderBoard();
@@ -4579,7 +4585,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const chosen = picks as PlanElement[];
       const missing = [...new Set(chosen)].filter((code) => plansOf(plans, code).length === 0);
       if (missing.length > 0) {
-        say(`${missing.map((code) => elementLabel(code)).join('・')} の候補がまだありません。枠で編成を組んで「いまの編成を候補に加える」か、属性別編成タブで保存してください。`);
+        say(`${missing.map((code) => elementLabel(code)).join('・')} の候補がまだありません。枠で編成を組んで「いまの編成を候補に加える」か、「保存候補・比較」タブで保存してください。`);
         return;
       }
       // 選んだ属性の候補を全部 (重複は1回) 計算してから、被りなしの割り当てを解く

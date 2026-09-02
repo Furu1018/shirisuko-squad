@@ -730,7 +730,7 @@ describe('calculator UI', () => {
     expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(3);
     chooseCharacter(root, 3, '나가');
     saveIn('전격');
-    expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('3 案あります');
+    expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('3 候補あります');
     expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(3);
 
     // 保存はこのブラウザに残る
@@ -1350,7 +1350,7 @@ describe('calculator UI', () => {
     // 空き枠に「残りで探す」: 全員使用済みなら入れる案が無いと伝える
     root.querySelector<HTMLButtonElement>('[data-board-search-open="2"]')!.click();
     await settle();
-    expect(root.querySelector('[data-board-status]')!.textContent).toContain('入れられる案がありません');
+    expect(root.querySelector('[data-board-status]')!.textContent).toContain('入れられる候補がありません');
     expect(storedBoard().slots[2]!.boss).toBeNull();
 
     // 風圧の案 (アニヒリオ向け) を足すと、使用済みの 나가 を外して残りで組む
