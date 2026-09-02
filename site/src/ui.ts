@@ -15,6 +15,7 @@ import { parseRosterCsv } from './csv-import';
 import { summarizeBattle } from './battle-summary';
 import { loadFavorites, saveFavorites, toggleFavorite } from './favorites';
 import { ALL_KEYS } from './storage-keys';
+import { TRANSFER_PREFIX, packTransfer, parseTransfer, type TransferBox } from './transfer';
 import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import { buildIndex, filterByQuery } from './nikke-search';
 import { UNION_SEASON, bossBattle } from './union-bosses';
@@ -532,11 +533,23 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             <div class="board-scan-row">
               <button type="button" class="roster-import" data-board-scan-copy>コードをコピー</button>
             </div>
-            <textarea class="board-scan-paste" data-board-scan-paste rows="3" placeholder="コンソールが出した文字列 (NKP1-… ) をここに貼り付け" spellcheck="false"></textarea>
+            <textarea class="board-scan-paste" data-board-scan-paste rows="3" placeholder="コンソールが出した文字列 (NKP1-…)、または別の端末で書き出した文字列 (NKX1-…) をここに貼り付け" spellcheck="false"></textarea>
             <div class="board-scan-row">
               <button type="button" class="roster-import board-start-go" data-board-scan-import>取り込む</button>
               <span class="board-scan-status" data-board-scan-status></span>
             </div>
+          </details>
+
+          <details class="board-move" data-board-move>
+            <summary><b>別の端末へ移す</b><span>スマホでも同じ育成で見る</span></summary>
+            <p class="board-move-lede">育成データは<b>この端末のこのブラウザにだけ</b>あります。
+              下の文字列をメモ等でスマホに送り、スマホの<b>この欄</b>に貼ると同じ状態になります。
+              スマホは F12 が使えずコンソールを開けないので、<b>取り込みは PC で一度だけ</b>で済みます。</p>
+            <div class="board-move-row">
+              <button type="button" class="roster-import" data-board-move-make>この端末のデータを書き出す</button>
+              <span class="board-move-status" data-board-move-status></span>
+            </div>
+            <textarea class="board-move-out" data-board-move-out rows="3" readonly hidden spellcheck="false"></textarea>
           </details>
 
           <div class="board-start-alt">
@@ -2964,6 +2977,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   let renderPlans: () => void = () => undefined;
   let renderBoard: () => void = () => undefined;
   let renderBoardSync: () => void = () => undefined;
+  // 盤面はボードのブロックの中で持っている。端末間の持ち運びで読み書きするための窓口。
+  let readBoard: () => unknown = () => null;
+  let writeBoardFrom: (raw: unknown) => void = () => undefined;
+  let readPlans: () => unknown = () => null;
+  let writePlansFrom: (raw: unknown) => void = () => undefined;
   // 盤面の STEP 1 (取り込み) を開く。育成状況の空状態からも呼ぶ。
   let openBoardImport: () => void = () => undefined;
 
@@ -3067,6 +3085,70 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   };
   rosterInput.addEventListener('change', () => { void importRosterCsv(rosterInput); });
+
+  /**
+   * この端末の持ち物を1本の文字列にする。**別の端末へ運ぶため**の書き出し。
+   *
+   * 育成は localStorage にしかないので、PC で取り込んでもスマホには来ない。
+   * スマホは F12 が使えずスニペットを実行できないので、貼るだけで移せる道が要る。
+   */
+  const buildTransfer = (): TransferBox => {
+    const battle = readBattle();
+    return {
+      schemaVersion: 1,
+      at: new Date().toISOString(),
+      roster,
+      ...(syncMeta ? { sync: syncMeta } : {}),
+      favorites: [...favorites],
+      plans: readPlans(),
+      board: readBoard(),
+      account: {
+        synchroLevel: battle.synchroLevel,
+        ...(battle.console ? { console: battle.console } : {}),
+      },
+    };
+  };
+
+  /**
+   * 運んできたものをこの端末に載せる。**上書きする** — 移す側が新しい前提。
+   * 何をどれだけ受け取ったかを一行で返す (黙って書き換えない)。
+   */
+  const applyTransfer = (moved: TransferBox): string => {
+    roster = moved.roster as Record<string, CharacterOverrides>;
+    saveRoster();
+    void loadCombatPower();
+    const refreshed = refreshDecksFromRoster(Object.keys(roster));
+
+    if (moved.account) {
+      const battle = readBattle();
+      writeBattle({
+        ...battle,
+        ...(typeof moved.account.synchroLevel === 'number'
+          ? { synchroLevel: moved.account.synchroLevel } : {}),
+        ...(moved.account.console ? { console: moved.account.console as typeof battle.console } : {}),
+      });
+    }
+    if (moved.favorites) {
+      favorites = new Set(moved.favorites);
+      saveFavorites(resolveStorage(), favorites);
+    }
+    if (moved.plans) writePlansFrom(moved.plans);
+    if (moved.board) writeBoardFrom(moved.board);
+    if (moved.sync) rememberSync(moved.sync as SyncMeta);
+
+    saveState();
+    renderDeckTabs();
+    renderSquad();
+    renderMyRoster();
+    renderPlans();
+    renderBoard();
+
+    const parts = [`育成 ${Object.keys(roster).length}名を受け取りました`];
+    if (refreshed > 0) parts.push(`編成中 ${refreshed}名を更新`);
+    if (moved.favorites?.length) parts.push(`お気に入り ${moved.favorites.length}名`);
+    parts.push(`書き出し ${syncAgoText(moved.at)}`);
+    return parts.join(' · ');
+  };
 
   /**
    * 取り込んだ1サーバー分を、ロスター・編成・戦闘条件に流し込む。
@@ -3251,6 +3333,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 「3案を比較」で出したダメージは案に**登録**され、再読込しても残る。
   // 案は3凸ボードも読むので、両方の外に置く
   let plans: ElementPlans = loadPlans(resolveStorage());
+  readPlans = () => plans;
+  writePlansFrom = (raw) => {
+    // 運んできたものは «その端末で保存されていた形» なので、読み手を通して形を検める
+    plans = loadPlans({ getItem: () => JSON.stringify(raw), setItem: () => undefined, removeItem: () => undefined });
+    savePlans(resolveStorage(), plans);
+  };
   /**
    * 編成の個別設定。**案 (キューブ込みで登録したスナップショット) が最優先**、
    * 無いニケはロスター (取込値)。「編成はキューブ込みで1つの案」を計算に反映する入口。
@@ -3570,6 +3658,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       작열: 'is-fire', 수냉: 'is-water', 풍압: 'is-wind', 전격: 'is-electric', 철갑: 'is-iron',
     };
     let board: RaidBoard = loadBoard(resolveStorage(), bossNames);
+    readBoard = () => board;
+    writeBoardFrom = (raw) => {
+      board = loadBoard({ getItem: () => JSON.stringify(raw), setItem: () => undefined, removeItem: () => undefined }, bossNames);
+      saveBoard(resolveStorage(), board);
+    };
     // 計算中はボタンごと作り直されるので、disabled ではなくここで二重起動を止める
     let busy = false;
     /** 「編成を変える」を開いている枠。 */
@@ -4537,6 +4630,37 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       // 貼るコードは読めるところに出す。読ませずに貼らせないための一手。
       codeBox.value = PERSONAL_SNIPPET;
 
+      // 別の端末へ移す。書き出した文字列はそのまま貼り付け欄で受けられる。
+      {
+        const makeButton = element<HTMLButtonElement>(root, '[data-board-move-make]');
+        const outBox = element<HTMLTextAreaElement>(root, '[data-board-move-out]');
+        const moveStatus = element<HTMLElement>(root, '[data-board-move-status]');
+        makeButton.addEventListener('click', () => {
+          void (async () => {
+            makeButton.disabled = true;
+            try {
+              if (Object.keys(roster).length === 0) {
+                moveStatus.textContent = 'まだ育成を取り込んでいません。先に取り込んでください。';
+                return;
+              }
+              const code = await packTransfer(buildTransfer());
+              outBox.hidden = false;
+              outBox.value = code;
+              outBox.focus();
+              outBox.select();
+              // クリップボードが塞がれていても、選択済みなら手で Ctrl+C できる
+              void navigator.clipboard?.writeText(code).catch(() => undefined);
+              moveStatus.textContent = `育成 ${Object.keys(roster).length}名ぶんを書き出しました`
+                + ` (${Math.round(code.length / 1024)}KB)。コピーしてスマホに送ってください。`;
+            } catch (error) {
+              moveStatus.textContent = error instanceof Error ? error.message : String(error);
+            } finally {
+              makeButton.disabled = false;
+            }
+          })();
+        });
+      }
+
       element<HTMLButtonElement>(root, '[data-board-scan-copy]').addEventListener('click', () => {
         codeBox.focus();
         codeBox.select();
@@ -4550,6 +4674,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           runButton.disabled = true;
           status.textContent = '取り込み中…';
           try {
+            // 他の端末から «書き出したもの» を貼られたら、そちらとして受ける。
+            // 人はどちらの文字列かを気にしないので、こちらで見分ける。
+            if (pasteBox.value.trim().startsWith(TRANSFER_PREFIX)) {
+              const moved = await parseTransfer(pasteBox.value);
+              const summary = applyTransfer(moved);
+              pasteBox.value = '';
+              status.textContent = summary;
+              return;
+            }
             const profile = await parsePersonalScan(pasteBox.value);
             const area = pickArea(profile);
             if (!area) throw new Error('所持ニケが入っていません。スニペットの実行結果を確認してください。');
