@@ -564,6 +564,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <h2 id="board-heading" class="board-sec">3凸を組む · ${UNION_SEASON.label}</h2>
         <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した候補があればそこから入れることもできます。</p>
         <p class="board-status" data-board-status role="status" aria-live="polite" hidden></p>
+        <div class="board-slots" data-board-slots></div>
         <div class="board-elements" data-board-elements>
           <b class="board-elements-label">属性を決めて最適化</b>
           <select data-board-element="0" aria-label="1凸目の属性"></select>
@@ -574,7 +575,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             同じニケを2度使わない組み合わせのうち、理論値の合計が最大のものを選びます。
             <b>3枠すべてを入れ替えます</b> — 同じ属性を2回選べます (例: 水冷・水冷・灼熱)。</p>
         </div>
-        <div class="board-slots" data-board-slots></div>
         <div class="board-total" data-board-total></div>
         <div class="board-used" data-board-used></div>
         <h3 class="board-sub">属性別の手持ち · 参考</h3>
@@ -4352,13 +4352,42 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       return box;
     };
 
+    /**
+     * ボス未設定の枠に出す一行。**残り人数だけを言わない** —
+     * 0名のとき «残り 0名から選べます» では «次に何をすればいいか» が無く、
+     * 壊れているように見える (実機で確認)。
+     */
+    const emptySlotHint = (left: number): string => {
+      if (left > 0) return `ボスを選ぶと、残り ${left}名から組めます`;
+      if (Object.keys(roster).length === 0) {
+        return '育成を取り込むと、自分の手持ちから組めます (取り込まないと既定の育成で計算します)';
+      }
+      return '手持ちは他の凸で使い切っています。どこかの枠を空けるか、育成を取り込み直してください';
+    };
+
     const renderTotal = (slotScores: Array<number | null>) => {
       totalBox.replaceChildren();
       const clashes = clashesOf(board);
       const set = board.slots.filter((slot) => slot.boss).length;
       const left = el('div');
       left.append(createText('div', '3凸の合計 (見込み)', 'board-total-label'));
-      left.append(createText('div', formatDamage(totalOf(slotScores)), 'board-total-val'));
+      // **全部そろうまで数字を出さない。** 途中で 0 と出すと «計算していない» のか
+      // «計算して 0» なのか読めない (候補の数値は «未計算» と出しているのに、
+      // ここだけ 0 のままだった)。
+      const ready = board.slots.every((slot, index) => !slot.boss
+        || isEmptySquad(slot.squad) || slotScores[index] !== null);
+      const anyScore = slotScores.some((score) => score !== null);
+      const total = el('div', 'board-total-val');
+      if (ready && anyScore) {
+        total.textContent = formatDamage(totalOf(slotScores));
+      } else {
+        total.textContent = '—';
+        total.classList.add('is-blank');
+        total.title = anyScore
+          ? '未計算の枠があるので合計は出せません'
+          : 'まだ計算していません';
+      }
+      left.append(total);
       const used = el('div', 'board-total-used');
       used.dataset.boardSummary = '';
       used.append(document.createTextNode(`使用 ${usedCount(board)}名 / 被り `));
@@ -4505,7 +4534,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const members = slot.squad.filter(Boolean);
         if (members.length === 0) {
           team.append(createText('span',
-            boss ? 'まだ誰も入っていません — 下の «この枠の編成を組む» から選べます' : `残り ${Math.max(0, owned - usage.size)}名から選べます`,
+            boss ? 'まだ誰も入っていません — 下の «この枠の編成を組む» から選べます' : emptySlotHint(owned - usage.size),
             'board-who is-empty'));
         }
         for (const name of members) {

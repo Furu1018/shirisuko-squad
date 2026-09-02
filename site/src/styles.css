@@ -1159,6 +1159,9 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .plans-score-state { display: block; font-size: 10px; font-weight: 400; color: var(--ink-2); }
 .plans-score-state.is-none { color: var(--ink-3); }
 
+/* 合計が未計算のときの — 。0 と出すと «計算していない» のか «0» なのか読めない */
+.board-total-val.is-blank { color: var(--ink-3); }
+
 /* 最適化ボタンの直下に «探索範囲と入れ替え対象» を出す。title だと押す前に読めない */
 .board-run-note { flex: 1 1 100%; margin: 6px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--ink-2); }
 .board-run-note b { color: var(--ink); }
