@@ -46,6 +46,9 @@ jobs:
       - name: Check color contrast
         working-directory: site
         run: npm run check-contrast
+      - name: Check scripts for absolute paths
+        working-directory: site
+        run: npm run check-paths
       - name: Build production site
         # 블라블라링크 프록시 주소는 `site/.env.production`에 있다(`worker/README.md`).
         # 리포지토리 변수로 덮고 싶으면 여기 env를 되살리면 되지만, 빈 변수가 파일을

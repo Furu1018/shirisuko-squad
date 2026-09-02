@@ -12,7 +12,8 @@
     "check-runtime": "node scripts/check-runtime.mjs",
     "check-pages": "node scripts/check-pages.mjs",
     "check-contrast": "node scripts/check-contrast.mjs",
-    "prebuild": "npm run sync-runtime && npm run check-runtime && npm run check-contrast",
+    "check-paths": "node scripts/check-paths.mjs",
+    "prebuild": "npm run sync-runtime && npm run check-runtime && npm run check-contrast && npm run check-paths",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },

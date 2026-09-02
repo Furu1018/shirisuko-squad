@@ -62,6 +62,9 @@ jobs:
       - name: Check color contrast
         working-directory: site
         run: npm run check-contrast
+      - name: Check scripts for absolute paths
+        working-directory: site
+        run: npm run check-paths
 
       - name: 딜 계산 회귀 (golden snapshot 29개)
         run: python -m context.snapshot

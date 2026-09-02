@@ -2,13 +2,23 @@
 //
 //   cd site && npm run build && npx vite preview --port 4173 &
 //   npm i --no-save playwright-core
-//   node scripts/e2e-picker.mjs [URL]
+//   node scripts/e2e-picker.mjs [URL] [撮影先]
 //
 // 単体テストでは «画面で本当に押せるか» が分からない (jsdom は hidden も disabled も
 // 素通りする)。ここは実際に押して並び替えと絞り込みを確かめる。
+//
+// **撮影先に絶対パスを書かないこと。** 一度ここに Windows の絶対パス
+// (`C:/Users/…`) を残したまま commit してしまい、Mac ではそれが相対パスとして扱われて
+// リポジトリの中に `site/C:/Users/…` が作られ、Windows 側は `:` を含むパスを
+// 取り出せず **git pull が毎回失敗する**状態になった。既定は site/ の下の shots/。
+import { mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { launchBrowser } from './launch-browser.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/shirisuko-squad/';
+const outDir = resolve(process.argv[3] ?? 'shots');
+mkdirSync(outDir, { recursive: true });
 const browser = await launchBrowser();
 const errors = [];
 let failed = false;
@@ -63,9 +73,7 @@ try {
     await page.waitForTimeout(300);
     console.log('候補の欄:', (await page.locator('[data-board-chooser="0"]').textContent())?.trim().slice(0, 80));
   }
-  await page.locator('[data-board-slot="0"]').screenshot({
-    path: 'C:/Users/gijyutsu/AppData/Local/Temp/claude/C--Users-gijyutsu/4c1de6f8-0aa3-4794-94d5-28eba1e79da9/scratchpad/fav.png',
-  });
+  await page.locator('[data-board-slot="0"]').screenshot({ path: resolve(outDir, 'picker.png') });
 } catch (error) {
   failed = true;
   console.log(`FAILED: ${error instanceof Error ? error.message : String(error)}`);
