@@ -16,6 +16,7 @@ import { summarizeBattle } from './battle-summary';
 import { loadFavorites, saveFavorites, toggleFavorite } from './favorites';
 import { ALL_KEYS } from './storage-keys';
 import { TRANSFER_PREFIX, packTransfer, parseTransfer, type TransferBox } from './transfer';
+import { runScores } from './score-runner';
 import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import { buildIndex, filterByQuery } from './nikke-search';
 import { UNION_SEASON, bossBattle } from './union-bosses';
@@ -3602,24 +3603,32 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const totals = new Map<string, number>();
       try {
         await prepared;
-        let done = 0;
-        for (const plan of saved) {
+        // 回すのは score-runner (盤面と同じ仕組み)。ここは «何を回すか» だけを決める。
+        const byKey = new Map<string, string>();   // 計算の鍵 → 候補の id
+        const jobs = saved.map((plan) => {
           const deck: DeckState = {
             id: 1,
             squad: [...plan.squad],
-            // 案のスナップショット (キューブ等) が最優先。無いニケはロスターの取込値
+            // 候補のスナップショット (キューブ等) が最優先。無いニケはロスターの取込値
             characters: charactersWith(plan.squad, plan.characters),
           };
           const request = requestForDeck(deck, battle);
-          const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
-          if (problems.length > 0) { say(code, `計算できません — ${problems[0]}`); return; }
           const key = cacheKey(request, version);
-          let result = cache.get(key);
-          if (!result) { result = await client.simulate(request); cache.set(key, result); }
-          totals.set(plan.id, result.squadTotal);
-          done += 1;
-          say(code, `計算中… ${done}/${saved.length}`);
-        }
+          byKey.set(key, plan.id);
+          return {
+            key,
+            request,
+            problems: [...validateRequest(request), ...validateCharacterValues(deck)],
+          };
+        });
+        const run = await runScores(jobs, {
+          simulate: (request) => client.simulate(request),
+          cache: { get: (key) => cache.get(key), set: (key, result) => { cache.set(key, result); } },
+          lanes: parallelOn ? parallelCount : 1,
+          onProgress: (done, total) => say(code, `計算中… ${done}/${total}`),
+        });
+        if (run.failures.size > 0) { say(code, `計算できません — ${[...run.failures.values()][0]}`); return; }
+        for (const [key, total] of run.scores) totals.set(byKey.get(key)!, total);
         const best = Math.max(...totals.values());
         // 出した理論値は案に**登録**する — 「編成とダメージを登録」。再読込しても残る。
         // 保存の成否を確かめる — 失敗を握って「登録しました」と言うと、再読込で消えて嘘になる
@@ -3795,36 +3804,24 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
     };
 
-    const computeScore = async (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot, base?: BattleSettings): Promise<number> => {
-      const { deck, request, key } = requestFor(boss, squad, snapshot, base);
-      // 「計算」と同じ検証を通す (属性別編成と同じ理由)
-      const problems = [...validateRequest(request), ...validateCharacterValues(deck)];
-      if (problems.length > 0) throw new Error(problems[0]!);
-      let result = cache.get(key);
-      if (!result) {
-        result = await client.simulate(request);
-        cache.set(key, result);
-      }
-      scores.set(key, result.squadTotal);
-      // 鍵はリクエスト全体の JSON なので、取込・条件変更を繰り返すと溜まる。古い順に落とす
-      // (Map は挿入順を保つ)。上限は「全ボス×全案 (15) + 被りの代案」を余裕で超える程度
-      while (scores.size > SCORE_MEMORY) scores.delete(scores.keys().next().value as string);
-      return result.squadTotal;
-    };
-
-    interface Job { key: string; run: () => Promise<void> }
+    /** 1件ぶんの仕事。回すのは score-runner (DOM を知らない側)。 */
+    interface Job { key: string; request: SimulationRequest; problems: string[] }
     const jobFor = (boss: UnionBoss | undefined, squad: readonly string[], snapshot?: Snapshot, base?: BattleSettings): Job | null => {
       if (!boss || isEmptySquad(squad)) return null;
-      let key: string;
       try {
-        key = requestFor(boss, squad, snapshot, base).key;
-      } catch {
-        // 組み立てられない編成は computeScore が同じ理由で失敗して伝える
-        key = `${boss.name}/${squad.join('/')}`;
+        const { deck, request, key } = requestFor(boss, squad, snapshot, base);
+        // 「計算」と同じ検証を通す (画面ごとに通る値が変わらないように)
+        return { key, request, problems: [...validateRequest(request), ...validateCharacterValues(deck)] };
+      } catch (error) {
+        // 組み立てられない編成も «失敗として» 数える。黙って落とすと件数が合わない
+        return {
+          key: `${boss.name}/${squad.join('/')}`,
+          request: { squad: [...squad] } as SimulationRequest,
+          problems: [error instanceof Error ? error.message : String(error)],
+        };
       }
-      return { key, run: async () => { await computeScore(boss, squad, snapshot, base); } };
     };
-    /** 同じ候補を2度回さない。 */
+    /** 同じ候補を2度回さない (中身は score-runner と同じ規則)。 */
     const dedupe = (jobs: Array<Job | null>): Job[] => {
       const seen = new Set<string>();
       const out: Job[] = [];
@@ -3835,23 +3832,31 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       return out;
     };
-    /** 計算機の並列設定に従って回す。進み具合は状態行に出す。 */
+    /**
+     * 計算機の並列設定に従って回す。進み具合は状態行に出す。
+     * 回す仕組みそのものは `score-runner.ts` — DOM を知らない側に置いてある。
+     */
     const runJobs = async (jobs: Job[], what: string) => {
       if (jobs.length === 0) return;
-      let done = 0;
-      let next = 0;
-      say(`${what} 0/${jobs.length}…`);
-      const lane = async () => {
-        while (next < jobs.length) {
-          const job = jobs[next]!;
-          next += 1;
-          await job.run();
-          done += 1;
-          say(`${what} ${done}/${jobs.length}…`);
-        }
-      };
-      const lanes = Math.max(1, Math.min(jobs.length, parallelOn ? parallelCount : 1));
-      await Promise.all(Array.from({ length: lanes }, lane));
+      const { scores: scoresFromRun, failures } = await runScores(
+        jobs.map((job) => ({ key: job.key, request: job.request, problems: job.problems })),
+        {
+          simulate: async (request) => {
+            const result = await client.simulate(request);
+            return result;
+          },
+          cache: { get: (key) => cache.get(key), set: (key, result) => { cache.set(key, result); } },
+          lanes: parallelOn ? parallelCount : 1,
+          onProgress: (done, total) => say(`${what} ${done}/${total}…`),
+        },
+      );
+      // 覚えた点数を盤面の記憶へ。鍵はリクエスト全体の JSON なので、
+      // 取込や条件変更を繰り返すと溜まる — 古い順に捨てる (Map は挿入順を保つ)。
+      for (const [key, total] of scoresFromRun) {
+        scores.set(key, total);
+        while (scores.size > SCORE_MEMORY) scores.delete(scores.keys().next().value as string);
+      }
+      if (failures.size > 0) throw new Error([...failures.values()][0]!);
     };
     const withBusy = async (work: () => Promise<void>) => {
       if (busy) { say('別の計算が走っています。終わるまで待ってください。'); return; }
