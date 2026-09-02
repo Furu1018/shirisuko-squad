@@ -270,7 +270,8 @@ UI 全ファイル。**内部キー (韓国語のキャラ名・属性・保存�
 ## 🖥 PC ごとの注意
 
 - **職場PC (Windows) で再開するとき**: `git pull` 後に `cd site && npm ci`。見た目の確認・実機E2E
-  (`scripts/shots.mjs` / `e2e-board.mjs` / `e2e-loop.mjs`) を使うなら `npm i --no-save playwright-core`。
+  (`scripts/shots.mjs` / `e2e-board.mjs` / `e2e-loop.mjs` / `e2e-import.mjs` / `e2e-picker.mjs`) を
+  使うなら `npm i --no-save playwright-core`。
   ブラウザは `scripts/launch-browser.mjs` が **Chrome → Edge の順で探す** (Windows は Edge で動く。
   明示するなら `BROWSER_CHANNEL=msedge`)。どのスクリプトも失敗すれば非ゼロで落ちる
 - **職場PC (Windows)**: 全ファイル CRLF (autocrlf)。スクリプトで一括置換するときは
@@ -315,13 +316,13 @@ git clone https://github.com/Furu1018/shirisuko-squad.git   # 初回
 cd shirisuko-squad/site && npm ci
 
 npm run dev        # 開発サーバ (/shirisuko-squad/ を開く)
-npm test -- --run  # vitest (458件)
+npm test -- --run  # vitest (476件)
 npm run build      # tsc --noEmit + vite build (prebuild で Python が要る)
 ```
 
 配色を変えたら `npm run check-contrast` — styles.css を読んで文字色と背景の組み合わせを検算し、
 小文字の基準 (4.5:1) を下回るものがあれば**落とす**。**build の前と CI で自動的に走る**ので、
-基準割れのまま気づかず出すことはない (現在 342規則 / 658通りの組み合わせ。背景を指定した規則は
+基準割れのまま気づかず出すことはない (現在 348規則 / 668通りの組み合わせ。背景を指定した規則は
 下地3面それぞれで試すので、規則の数と組み合わせの数はずれる)。
 
 **`opacity` で文字を薄めるのは禁止**にしてある。要素を薄めると、その中の文字がどこまで下地に

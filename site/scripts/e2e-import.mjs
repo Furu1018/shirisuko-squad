@@ -7,7 +7,7 @@
 //   cd site && npm run build && npx vite preview --port 4173 &   # 先にプレビューを立てる
 //   npm i --no-save playwright-core                               # 初回だけ
 //   node scripts/e2e-import.mjs [URL]
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './launch-browser.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/shirisuko-squad/';
 const errors = [];
@@ -41,7 +41,7 @@ const payload = {
   },
 };
 
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await launchBrowser();
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', (e) => errors.push(String(e)));

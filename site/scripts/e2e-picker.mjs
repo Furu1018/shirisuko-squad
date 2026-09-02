@@ -6,10 +6,10 @@
 //
 // 単体テストでは «画面で本当に押せるか» が分からない (jsdom は hidden も disabled も
 // 素通りする)。ここは実際に押して並び替えと絞り込みを確かめる。
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './launch-browser.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/shirisuko-squad/';
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await launchBrowser();
 const errors = [];
 let failed = false;
 try {
