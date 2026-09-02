@@ -1326,7 +1326,8 @@ describe('calculator UI', () => {
     expect(stored().registered!.damage).toBe(123_456);
     expect(stored().registered!.duration).toBe(180);
 
-    // 再読込 (再マウント) しても登録値が出る
+    // 再読込 (再マウント) しても登録値が出る。結果キャッシュを消し、登録値でしか出せない状態にする
+    localStorage.removeItem('nikke-calc-results');
     root.remove();
     root = document.createElement('main');
     document.body.append(root);
@@ -1336,6 +1337,10 @@ describe('calculator UI', () => {
     const cell = root.querySelector<HTMLElement>('[data-plans-score]')!;
     expect(cell.textContent).toContain('123,456');
     expect(cell.textContent).toContain('登録');
+    // 盤面の在庫にも出るが、今の条件の値ではないので「登録値」の印つき
+    const stock = root.querySelector<HTMLElement>('[data-board-stock="철갑"]')!;
+    expect(stock.textContent).toContain('123,456');
+    expect(stock.textContent).toContain('登録値');
   });
 
   it('枠に入れた案のスナップショット (キューブ) が盤面の計算リクエストに届く', async () => {
@@ -1361,6 +1366,14 @@ describe('calculator UI', () => {
     expect((JSON.parse(localStorage.getItem('nikke-raid-board-v1')!) as {
       slots: Array<{ characters?: Record<string, unknown> }>;
     }).slots[0]!.characters!['리타']).toBeTruthy();
+
+    // 「詳細計算へ」でデッキにもキューブが載る — 盤面と計算機で同じ設定から数字が出る
+    root.querySelector<HTMLButtonElement>('[data-board-open-calc="0"]')!.click();
+    const deckState = JSON.parse(localStorage.getItem('nikke-state-v1')!) as {
+      decks: Array<{ squad: string[]; characters: Record<string, { cube?: { name: string } }> }>;
+    };
+    expect(deckState.decks[0]!.squad.filter(Boolean)).toEqual(['리타']);
+    expect(deckState.decks[0]!.characters['리타']!.cube!.name).toBe('재장');
   });
 
   it('属性を3つ選ぶ (同属性2回可) と、被りなしで理論値合計が最大の3凸が入る', async () => {

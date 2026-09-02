@@ -88,6 +88,30 @@ export function sameSquad(left: readonly string[], right: readonly string[]): bo
   return key(left) === key(right);
 }
 
+/** 深いキー順を揃えた JSON。オブジェクトのキー順だけが違うスナップショットを同じとみなすため。 */
+const canonical = (value: unknown): string => JSON.stringify(value, (_, v) =>
+  (v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
+    : v));
+
+/**
+ * 同じ案か = 同じ顔ぶれ **かつ** 同じ個別設定。
+ * 「同じ顔ぶれでもキューブが違えば別の結果になる」ので、顔ぶれだけでは重複と言えない。
+ * スナップショット無し (ロスター任せ) とスナップショット有りも別の案として扱う。
+ */
+export function samePlanSetup(
+  plan: Pick<ElementPlan, 'squad' | 'characters'>,
+  squad: readonly string[],
+  characters?: Record<string, CharacterOverrides>,
+): boolean {
+  if (!sameSquad(plan.squad, squad)) return false;
+  const filtered = (snapshot: Record<string, CharacterOverrides> | undefined, members: readonly string[]) => {
+    const kept = Object.entries(snapshot ?? {}).filter(([name]) => members.includes(name));
+    return kept.length === 0 ? undefined : Object.fromEntries(kept.sort(([a], [b]) => (a < b ? -1 : 1)));
+  };
+  return canonical(filtered(plan.characters, plan.squad)) === canonical(filtered(characters, squad));
+}
+
 /** 誰も入っていない編成は保存しない。 */
 export const isEmptySquad = (squad: readonly string[]): boolean => squad.every((name) => !name);
 
@@ -177,7 +201,7 @@ export function addPlan(
   const normalized = normalizeSquad(squad);
   if (isEmptySquad(normalized)) return { plans, added: false, reason: 'empty' };
   const current = plansOf(plans, element);
-  if (current.some((plan) => sameSquad(plan.squad, normalized))) {
+  if (current.some((plan) => samePlanSetup(plan, normalized, extras?.characters))) {
     return { plans, added: false, reason: 'duplicate' };
   }
   if (current.length >= MAX_PLANS_PER_ELEMENT) return { plans, added: false, reason: 'full' };

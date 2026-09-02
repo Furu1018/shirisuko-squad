@@ -235,6 +235,13 @@ UI 全ファイル。**内部キー (韓国語のキャラ名・属性・保存�
 - **職場PC (Windows)**: 全ファイル CRLF (autocrlf)。スクリプトで一括置換するときは
   **CRLF を LF に正規化してから照合**する。生の NUL を書くと git がバイナリ扱いして差分が読めなくなる
   (`element-plans.ts` で一度やった)
+- **自宅PC (Mac) は Desktop が iCloud 同期**: リポジトリが `~/Desktop` にあるため、生成物
+  (`site/public/runtime` `site/public/characters` など数百ファイル) が iCloud に退避 (dataless 化)
+  されたり **「calculator 3」「characters 2」のような競合コピー**が湧いたりする。
+  2026-09-02 に実害が出た: sync-runtime が実体化待ちでハング → build (rolldown) がクラッシュ →
+  `rm -rf` も ENOTEMPTY。対処 = 競合コピーごと生成物ディレクトリを消して作り直す
+  (`rm -rf site/public/runtime "site/public/characters "*` → `npm run sync-runtime`)。
+  根本対応はリポジトリを iCloud 外 (例: `~/dev/`) に置くこと — ユーザーに提案済み・未決
 - **自宅PC (Mac)**: フォルダ名に日本語が入る場合、テストのパス解決に注意
   (本家PADで `fileURLToPath` に直した前例あり)
   jsdom の UI テストは負荷時に 5 秒を超える。**`vite.config.ts` に `testTimeout: 30_000` を置いた**ので

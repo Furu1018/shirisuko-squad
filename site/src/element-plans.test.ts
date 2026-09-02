@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { StorageLike } from './cache';
 import {
   BEATS, ELEMENT_PLANS_KEY, baselineBattle, bossConditionBattle, counterOf, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans,
-  isEmptySquad, loadPlans, plansOf, registerScore, removePlan, sameSquad, savePlans, type ElementPlans,
+  isEmptySquad, loadPlans, plansOf, registerScore, removePlan, samePlanSetup, sameSquad, savePlans, type ElementPlans,
 } from './element-plans';
 
 const memoryStorage = (seed: Record<string, string> = {}): StorageLike => {
@@ -323,5 +323,30 @@ describe('キューブ込みの登録', () => {
     const back = loadPlans(storage);
     expect(plansOf(back, '전격')).toHaveLength(1);
     expect(plansOf(back, '전격')[0]!.registered).toBeUndefined();
+  });
+});
+
+describe('重複判定は顔ぶれ + 個別設定で見る', () => {
+  const cubeA = { cube: { name: '렐릭 베어 큐브', level: 15 } } as never;
+  const cubeB = { cube: { name: '택티컬 베어 큐브', level: 15 } } as never;
+
+  it('同じ顔ぶれでもキューブが違えば別の案として保存できる', () => {
+    let { plans } = addPlan(emptyPlans(), '철갑', squad('리타'), { characters: { 리타: cubeA } });
+    const second = addPlan(plans, '철갑', squad('리타'), { characters: { 리타: cubeB } });
+    expect(second.added).toBe(true);
+    plans = second.plans;
+    // スナップショット無し (ロスター任せ) も、有りとは別の案
+    expect(addPlan(plans, '철갑', squad('리타')).added).toBe(true);
+  });
+
+  it('顔ぶれも個別設定も同じなら重複 (並び順・キー順は問わない)', () => {
+    const { plans } = addPlan(emptyPlans(), '철갑', squad('리타', '크라운'), { characters: { 리타: cubeA } });
+    const again = addPlan(plans, '철갑', squad('크라운', '리타'), { characters: { 리타: cubeA } });
+    expect(again.added).toBe(false);
+    expect(again.reason).toBe('duplicate');
+    expect(samePlanSetup(plansOf(plans, '철갑')[0]!, squad('크라운', '리타'), { 리타: cubeA })).toBe(true);
+    // 編成にいないニケのスナップショットは重複判定に効かない
+    expect(samePlanSetup(plansOf(plans, '철갑')[0]!, squad('크라운', '리타'),
+      { 리타: cubeA, 나가: cubeB })).toBe(true);
   });
 });

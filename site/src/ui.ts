@@ -943,13 +943,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   /**
    * 編成 (ニケ名の並び) を、いま見ているデッキに入れる。
-   * 育成値はロスターを正本にする — 取り込み直せばここも新しい値になる。
+   * スナップショット (案に登録したキューブ等) があればそのニケの個別設定を**差し替える** —
+   * 盤面が出した数字と「詳細計算」の数字が同じ設定から出るようにするため。
+   * スナップショットに無いニケの育成値はロスターを正本にする — 取り込み直せばここも新しい値になる。
    */
-  const applySquadToDeck = (squad: readonly string[]) => {
+  const applySquadToDeck = (
+    squad: readonly string[], snapshot?: Record<string, CharacterOverrides>,
+  ) => {
     const deck = activeDeck();
     deck.squad = Array.from({ length: 5 }, (_, i) => squad[i] ?? '');
     for (const name of deck.squad) {
-      if (name && !deck.characters[name] && roster[name]) {
+      if (!name) continue;
+      if (snapshot?.[name]) deck.characters[name] = cloneOverride(snapshot[name]!);
+      else if (!deck.characters[name] && roster[name]) {
         deck.characters[name] = cloneOverride(roster[name]!);
       }
     }
@@ -3300,7 +3306,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           }
           say(code, result.reason === 'full'
             ? `この属性は既に ${MAX_PLANS_PER_ELEMENT} 案あります。どれかを消してから保存してください。`
-            : result.reason === 'duplicate' ? '同じ顔ぶれの案が既にあります。'
+            : result.reason === 'duplicate' ? '同じ顔ぶれ・同じ個別設定の案が既にあります。'
               : '計算機の編成が空です。先にニケを入れてください。');
         });
         const compare = el('button', 'roster-import', '3案を比較');
@@ -3346,7 +3352,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           (apply as HTMLButtonElement).type = 'button';
           apply.dataset.plansApply = plan.id;
           apply.addEventListener('click', () => {
-            applySquadToDeck(plan.squad);
+            applySquadToDeck(plan.squad, plan.characters);
             say(code, `案 ${index + 1} を計算機のデッキ ${activeDeckId} に入れました。`, true);
           });
           const drop = el('button', 'roster-import danger', '削除');
@@ -3516,18 +3522,22 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           say(code, `計算中… ${done}/${saved.length}`);
         }
         const best = Math.max(...totals.values());
-        // 出した理論値は案に**登録**する — 「編成とダメージを登録」。再読込しても残る
+        // 出した理論値は案に**登録**する — 「編成とダメージを登録」。再読込しても残る。
+        // 保存の成否を確かめる — 失敗を握って「登録しました」と言うと、再読込で消えて嘘になる
         const registeredAt = new Date().toISOString();
         for (const [id, total] of totals) {
           plans = registerScore(plans, code, id, { damage: total, duration: battle.duration, at: registeredAt });
         }
-        savePlans(resolveStorage(), plans);
+        const persisted = savePlans(resolveStorage(), plans);
         for (const [id, total] of totals) {
           const cell = groupsBox.querySelector<HTMLElement>(`[data-plans-score="${id}"]`);
           if (!cell) continue;
           const share = best > 0 ? Math.round((total / best) * 1000) / 10 : 0;
-          cell.textContent = `${formatDamage(total)} (${share}% · 登録しました)`;
+          cell.textContent = `${formatDamage(total)} (${share}%${persisted ? ' · 登録しました' : ''})`;
           cell.classList.toggle('is-best', total === best);
+        }
+        if (!persisted) {
+          say(code, 'この画面では比べられますが、登録をブラウザに保存できませんでした (次に開くと消えます)。');
         }
         renderBoard();   // 盤面の在庫表示にも登録値が効く
         say(code, `${elementLabel(BEATS[code])}ボス相当 · 戦闘 ${battle.duration}秒 · コアとパーツ無しで比較しました。`, true);
@@ -3836,7 +3846,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const slot = board.slots[index]!;
       const boss = bossOf(index);
       if (!boss) return;
-      applySquadToDeck(slot.squad);
+      applySquadToDeck(slot.squad, slot.characters);
       writeBattle(bossBattle(boss, readBattle()));
       element<HTMLSelectElement>(root, '#enemy-code').dispatchEvent(new Event('change', { bubbles: true }));
       element<HTMLInputElement>(root, '#enemy-def').dispatchEvent(new Event('input', { bubbles: true }));
@@ -4183,10 +4193,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const code = counterOf(boss.elementCode);
         if (!code) continue;
         const saved = plansOf(plans, code);
+        // 今の条件での値が最優先。無ければ登録値だが、**登録値だと分かる印を付ける** —
+        // 登録は癖なしの基準戦闘で出した値で、今の条件の値と混ぜて見せると読み違える
         let best: number | null = null;
+        let bestIsRegistered = false;
+        let registeredDuration: number | null = null;
         for (const plan of saved) {
-          const known = knownScore(boss, plan.squad, plan.characters) ?? plan.registered?.damage ?? null;
-          if (known !== null && (best === null || known > best)) best = known;
+          const live = knownScore(boss, plan.squad, plan.characters);
+          const value = live ?? plan.registered?.damage ?? null;
+          if (value !== null && (best === null || value > best)) {
+            best = value;
+            bestIsRegistered = live === null;
+            registeredDuration = live === null ? plan.registered?.duration ?? null : null;
+          }
         }
         const card = el('div', `board-el ${ELEMENT_CLASS[code] ?? ''}`);
         card.dataset.boardStock = code;
@@ -4194,6 +4213,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         card.append(createText('div', `${boss.name}戦`, 'board-el-vs'));
         const num = el('div', 'board-el-num');
         num.append(best !== null ? createText('b', formatDamage(best)) : createText('b', '—', 'is-blank'));
+        if (best !== null && bestIsRegistered) {
+          const mark = createText('span', ' 登録値', 'board-el-reg');
+          mark.title = `「比べる」で計算して登録した理論値です${registeredDuration !== null ? ` (${registeredDuration}秒戦闘)` : ''}。今の条件で計算し直すと変わることがあります`;
+          num.append(mark);
+        }
         card.append(num);
         card.append(createText('div',
           `案 ${saved.length}/${MAX_PLANS_PER_ELEMENT}${saved.length > 0 && best === null ? ' · 未計算' : ''}`,
