@@ -5373,36 +5373,53 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         [next[a], next[b]] = [next[b] ?? '', next[a] ?? ''];
         onChange(next);
       };
+      // «いまの5人» も顔タイルで出す。棚も一覧も絵なのに、肝心のここだけ文字だと
+      // 編成が «ぱっと見» で読めない (利用者の指摘)。並び順は計算結果に影響するので
+      // ◀▶ はタイルの下に置いたまま残す。
       for (let at = 0; at < 5; at += 1) {
         const name = squad[at] ?? '';
+        const cell = el('span', `board-picker-here${name ? '' : ' is-empty'}`);
+        const face = el('span', 'board-picker-here-face');
         if (name) {
-          const cell = el('span', 'board-picker-slot');
-          if (at > 0) {
-            const left = button('◀', 'board-picker-move', () => swap(at, at - 1));
-            left.title = '左と入れ替える (並び順は計算結果に影響します)';
-            left.setAttribute('aria-label', `${labelFor(name)} を左へ`);
-            left.dataset.boardPickerMove = `${mark}:${at}:left`;
-            cell.append(left);
+          const meta = catalogByName.get(name);
+          if (meta?.image) {
+            const img = document.createElement('img');
+            img.src = `${import.meta.env.BASE_URL}${meta.image}`;
+            img.alt = '';
+            img.loading = 'lazy';
+            face.append(img);
           }
-          const chip = button(`${labelFor(name)} ✕`, 'board-picker-chip', () => {
+          if (meta?.burstStage) face.append(createText('span', `B${meta.burstStage}`, 'board-pick-burst'));
+          const off = button('✕', 'board-picker-off', () => {
             const next = [...squad];
             next[at] = '';
             onChange(next);
           });
-          chip.title = '外す';
-          chip.dataset.boardPickerDrop = `${mark}:${at}`;
-          cell.append(chip);
-          if (at < 4) {
-            const right = button('▶', 'board-picker-move', () => swap(at, at + 1));
-            right.title = '右と入れ替える (並び順は計算結果に影響します)';
-            right.setAttribute('aria-label', `${labelFor(name)} を右へ`);
-            right.dataset.boardPickerMove = `${mark}:${at}:right`;
-            cell.append(right);
-          }
-          line.append(cell);
-        } else {
-          line.append(createText('span', '空き', 'board-picker-chip is-empty'));
+          off.title = '外す';
+          off.setAttribute('aria-label', `${labelFor(name)} を外す`);
+          off.dataset.boardPickerDrop = `${mark}:${at}`;
+          face.append(off);
         }
+        cell.append(face);
+        cell.append(createText('span', name ? labelFor(name) : '空き', 'board-picker-here-name'));
+        if (name) {
+          const moves = el('span', 'board-picker-moves');
+          const left = button('◀', 'board-picker-move', () => swap(at, at - 1));
+          left.title = '左と入れ替える (並び順は計算結果に影響します)';
+          left.setAttribute('aria-label', `${labelFor(name)} を左へ`);
+          left.dataset.boardPickerMove = `${mark}:${at}:left`;
+          // 端の外へは押せない。ボタンごと消すと ◀▶ の位置が揺れるので、押せなくして残す
+          if (at === 0) left.disabled = true;
+          moves.append(left);
+          const right = button('▶', 'board-picker-move', () => swap(at, at + 1));
+          right.title = '右と入れ替える (並び順は計算結果に影響します)';
+          right.setAttribute('aria-label', `${labelFor(name)} を右へ`);
+          right.dataset.boardPickerMove = `${mark}:${at}:right`;
+          if (at === 4) right.disabled = true;
+          moves.append(right);
+          cell.append(moves);
+        }
+        line.append(cell);
       }
       box.append(burstNote, line);
 

@@ -814,8 +814,8 @@ describe('calculator UI', () => {
     tile(0).click();
     tile(1).click();
     // 選んだ2人 (内部キー)。テストカタログは対訳を持たないのでチップの文字 = 内部キー
-    const picked = [...modal.querySelectorAll('[data-board-picker-drop]')]
-      .map((chip) => (chip.textContent ?? '').replace(' ✕', ''));
+    const picked = [...modal.querySelectorAll('.board-picker-here:not(.is-empty) .board-picker-here-name')]
+      .map((cell) => cell.textContent ?? '');
     root.querySelector<HTMLButtonElement>('[data-plans-apply]')!.click();
 
     // モーダルが閉じ、詳細計算タブが開き、**選んだ2人がその順で**デッキに入っている
@@ -837,13 +837,14 @@ describe('calculator UI', () => {
       [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')][at]!;
     tile(0).click();
     tile(1).click();
-    const names = () => [...modal.querySelectorAll('[data-board-picker-drop]')]
-      .map((chip) => (chip.textContent ?? '').replace(' ✕', ''));
+    const names = () => [...modal.querySelectorAll('.board-picker-here:not(.is-empty) .board-picker-here-name')]
+      .map((cell) => cell.textContent ?? '');
     const before = names();
     expect(before).toHaveLength(2);
 
     // 1人目を右へ → 2人が入れ替わる。端の外へは押せない (1人目に◀は無い)
-    expect(modal.querySelector('[data-board-picker-move$=":0:left"]')).toBeNull();
+    // 端の外へは押せない (ボタンごと消すと ◀▶ の位置が揺れるので、押せなくして残す)
+    expect(modal.querySelector<HTMLButtonElement>('[data-board-picker-move="modal:0:left"]')!.disabled).toBe(true);
     modal.querySelector<HTMLButtonElement>('[data-board-picker-move="modal:0:right"]')!.click();
     expect(names()).toEqual([before[1], before[0]]);
 
