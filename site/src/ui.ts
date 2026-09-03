@@ -4660,182 +4660,188 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const elementsRun = element<HTMLButtonElement>(root, '[data-board-elements-run]');
     elementsRun.addEventListener('click', () => { void withProgress('data-board-elements-run', runElements); });
 
-    // ── 取込の帯 (最上部・常設)。計算機タブの取込を、入口からも押せるようにする ──
-    const syncMain = element<HTMLElement>(root, '[data-board-sync-main]');
-    const syncSub = element<HTMLElement>(root, '[data-board-sync-sub]');
-    const syncDot = element<HTMLElement>(root, '[data-board-sync-dot]');
-    const boardSyncAgain = element<HTMLButtonElement>(root, '[data-board-sync-again]');
-    const boardSync = element<HTMLElement>(root, '[data-board-sync]');
-    const boardStart = element<HTMLElement>(root, '[data-board-start]');
-    const boardMain = element<HTMLElement>(root, '[data-board-main]');
-    const boardReimport = element<HTMLButtonElement>(root, '[data-board-sync-import]');
-    // 「取り込まずに試す」を押したかどうか。押した人に毎回 STEP 1 を出すと邪魔なので覚える。
-    // 保存できない環境 (プライベートウィンドウ等) でも動くよう、失敗は握って既定 (出す) に倒す。
-    const readSkip = () => {
-      try { return resolveStorage()?.getItem(BOARD_SKIP_KEY) === '1'; } catch { return false; }
-    };
-    const writeSkip = (on: boolean) => {
-      try {
-        if (on) resolveStorage()?.setItem(BOARD_SKIP_KEY, '1');
-        else resolveStorage()?.removeItem(BOARD_SKIP_KEY);
-      } catch { /* 覚えられなくても導線は動く */ }
-    };
-    let skippedImport = readSkip();
-    // «取り込み直す» を押して STEP 1 を開いている最中か。出し分けは renderBoardSync に一本化し、
-    // ここ以外で hidden を直接いじらない (帯を隠し忘れて STEP 1 と二重に出ていた)。
-    let forceStart = false;
+  }
 
-    // «取り込み直す» で開いた STEP 1 は、新しい取込が着くまで開けておく。
-    // 描画のたびに閉じると、同期中の再描画で勝手に消える。
-    let lastSyncAt = syncMeta?.at ?? null;
-    renderBoardSync = () => {
-      const count = Object.keys(roster).length;
-      if ((syncMeta?.at ?? null) !== lastSyncAt) {
-        lastSyncAt = syncMeta?.at ?? null;
+  // ── 取り込み (STEP 1) と取込の帯 ──
+  // 盤面と同じ画面に出るが、関心事は別 — «自分の育成をこの端末に入れる» 側。
+  // 盤面ブロックの中に置いていたせいで、盤面だけを切り出せなくなっていた。
+  {
+      // ── 取込の帯 (最上部・常設)。計算機タブの取込を、入口からも押せるようにする ──
+      const syncMain = element<HTMLElement>(root, '[data-board-sync-main]');
+      const syncSub = element<HTMLElement>(root, '[data-board-sync-sub]');
+      const syncDot = element<HTMLElement>(root, '[data-board-sync-dot]');
+      const boardSyncAgain = element<HTMLButtonElement>(root, '[data-board-sync-again]');
+      const boardSync = element<HTMLElement>(root, '[data-board-sync]');
+      const boardStart = element<HTMLElement>(root, '[data-board-start]');
+      const boardMain = element<HTMLElement>(root, '[data-board-main]');
+      const boardReimport = element<HTMLButtonElement>(root, '[data-board-sync-import]');
+      // 「取り込まずに試す」を押したかどうか。押した人に毎回 STEP 1 を出すと邪魔なので覚える。
+      // 保存できない環境 (プライベートウィンドウ等) でも動くよう、失敗は握って既定 (出す) に倒す。
+      const readSkip = () => {
+        try { return resolveStorage()?.getItem(BOARD_SKIP_KEY) === '1'; } catch { return false; }
+      };
+      const writeSkip = (on: boolean) => {
+        try {
+          if (on) resolveStorage()?.setItem(BOARD_SKIP_KEY, '1');
+          else resolveStorage()?.removeItem(BOARD_SKIP_KEY);
+        } catch { /* 覚えられなくても導線は動く */ }
+      };
+      let skippedImport = readSkip();
+      // «取り込み直す» を押して STEP 1 を開いている最中か。出し分けは renderBoardSync に一本化し、
+      // ここ以外で hidden を直接いじらない (帯を隠し忘れて STEP 1 と二重に出ていた)。
+      let forceStart = false;
+
+      // «取り込み直す» で開いた STEP 1 は、新しい取込が着くまで開けておく。
+      // 描画のたびに閉じると、同期中の再描画で勝手に消える。
+      let lastSyncAt = syncMeta?.at ?? null;
+      renderBoardSync = () => {
+        const count = Object.keys(roster).length;
+        if ((syncMeta?.at ?? null) !== lastSyncAt) {
+          lastSyncAt = syncMeta?.at ?? null;
+          forceStart = false;
+        }
+        // 取り込む前は STEP 1 だけを見せ、盤面は出さない。«読み込み → 3凸» の順に進ませる。
+        const imported = Boolean(syncMeta) || count > 0;
+        boardStart.hidden = !forceStart && (imported || skippedImport);
+        boardMain.hidden = !boardStart.hidden;
+        // STEP 1 が出ている間は帯を出さない — 同じことを二度言うと «次に何をするか» がぼやける
+        boardSync.hidden = !boardStart.hidden;
+        boardReimport.hidden = !imported;
+        if (syncMeta) {
+          syncDot.classList.add('is-on');
+          syncMain.textContent = `${SOURCE_LABELS[syncMeta.source]} から取込済み · ${syncMeta.matched}名`;
+          syncSub.textContent = `最終取込 ${syncAgoText(syncMeta.at)} · シンクロ ${readBattle().synchroLevel}`;
+        } else {
+          syncDot.classList.remove('is-on');
+          syncMain.textContent = count > 0 ? `ロスター ${count}名を適用中` : 'まだ育成状況を取り込んでいません';
+          syncSub.textContent = count > 0 ? ''
+            : '取り込むと自分の育成で3凸の見込みが出ます。取り込まないうちは既定の育成 (最大) で計算します。';
+        }
+        boardSyncAgain.hidden = !(canReSync(syncMeta) && reSync);
+        boardSyncAgain.disabled = syncInFlight;
+        boardSyncAgain.textContent = syncInFlight ? '取り込み中…' : SYNC_AGAIN_LABEL;
+      };
+      boardSyncAgain.addEventListener('click', () => syncAgain.click());
+      // 取り込み済みでも入れ直せるように、STEP 1 を出し直すだけ (別タブへ飛ばさない)
+      openBoardImport = () => {
+        skippedImport = false;
+        writeSkip(false);
+        forceStart = true;
+        renderBoardSync();
+        scrollTo(boardStart);
+      };
+      boardReimport.addEventListener('click', () => openBoardImport());
+      element<HTMLButtonElement>(root, '[data-board-skip]').addEventListener('click', () => {
+        skippedImport = true;
+        writeSkip(true);
+        // 「取り込み直す」で開いた状態も畳む。畳まないと STEP 1 から出られなくなる
+        // (forceStart が立ったままだと skippedImport を見る前に «出す» が勝つ)。
         forceStart = false;
-      }
-      // 取り込む前は STEP 1 だけを見せ、盤面は出さない。«読み込み → 3凸» の順に進ませる。
-      const imported = Boolean(syncMeta) || count > 0;
-      boardStart.hidden = !forceStart && (imported || skippedImport);
-      boardMain.hidden = !boardStart.hidden;
-      // STEP 1 が出ている間は帯を出さない — 同じことを二度言うと «次に何をするか» がぼやける
-      boardSync.hidden = !boardStart.hidden;
-      boardReimport.hidden = !imported;
-      if (syncMeta) {
-        syncDot.classList.add('is-on');
-        syncMain.textContent = `${SOURCE_LABELS[syncMeta.source]} から取込済み · ${syncMeta.matched}名`;
-        syncSub.textContent = `最終取込 ${syncAgoText(syncMeta.at)} · シンクロ ${readBattle().synchroLevel}`;
-      } else {
-        syncDot.classList.remove('is-on');
-        syncMain.textContent = count > 0 ? `ロスター ${count}名を適用中` : 'まだ育成状況を取り込んでいません';
-        syncSub.textContent = count > 0 ? ''
-          : '取り込むと自分の育成で3凸の見込みが出ます。取り込まないうちは既定の育成 (最大) で計算します。';
-      }
-      boardSyncAgain.hidden = !(canReSync(syncMeta) && reSync);
-      boardSyncAgain.disabled = syncInFlight;
-      boardSyncAgain.textContent = syncInFlight ? '取り込み中…' : SYNC_AGAIN_LABEL;
-    };
-    boardSyncAgain.addEventListener('click', () => syncAgain.click());
-    // 取り込み済みでも入れ直せるように、STEP 1 を出し直すだけ (別タブへ飛ばさない)
-    openBoardImport = () => {
-      skippedImport = false;
-      writeSkip(false);
-      forceStart = true;
-      renderBoardSync();
-      scrollTo(boardStart);
-    };
-    boardReimport.addEventListener('click', () => openBoardImport());
-    element<HTMLButtonElement>(root, '[data-board-skip]').addEventListener('click', () => {
-      skippedImport = true;
-      writeSkip(true);
-      // 「取り込み直す」で開いた状態も畳む。畳まないと STEP 1 から出られなくなる
-      // (forceStart が立ったままだと skippedImport を見る前に «出す» が勝つ)。
-      forceStart = false;
-      renderBoardSync();
-      scrollTo(boardMain);
-    });
-    // ── 自分のブラウザで取り込む (プロキシ不要) ──
-    {
-      const codeBox = element<HTMLTextAreaElement>(root, '[data-board-scan-code]');
-      const pasteBox = element<HTMLTextAreaElement>(root, '[data-board-scan-paste]');
-      const status = element<HTMLElement>(root, '[data-board-scan-status]');
-      const runButton = element<HTMLButtonElement>(root, '[data-board-scan-import]');
-      // 貼るコードは読めるところに出す。読ませずに貼らせないための一手。
-      codeBox.value = PERSONAL_SNIPPET;
-
-      // 別の端末へ移す。書き出した文字列はそのまま貼り付け欄で受けられる。
+        renderBoardSync();
+        scrollTo(boardMain);
+      });
+      // ── 自分のブラウザで取り込む (プロキシ不要) ──
       {
-        const makeButton = element<HTMLButtonElement>(root, '[data-board-move-make]');
-        const outBox = element<HTMLTextAreaElement>(root, '[data-board-move-out]');
-        const moveStatus = element<HTMLElement>(root, '[data-board-move-status]');
-        makeButton.addEventListener('click', () => {
+        const codeBox = element<HTMLTextAreaElement>(root, '[data-board-scan-code]');
+        const pasteBox = element<HTMLTextAreaElement>(root, '[data-board-scan-paste]');
+        const status = element<HTMLElement>(root, '[data-board-scan-status]');
+        const runButton = element<HTMLButtonElement>(root, '[data-board-scan-import]');
+        // 貼るコードは読めるところに出す。読ませずに貼らせないための一手。
+        codeBox.value = PERSONAL_SNIPPET;
+
+        // 別の端末へ移す。書き出した文字列はそのまま貼り付け欄で受けられる。
+        {
+          const makeButton = element<HTMLButtonElement>(root, '[data-board-move-make]');
+          const outBox = element<HTMLTextAreaElement>(root, '[data-board-move-out]');
+          const moveStatus = element<HTMLElement>(root, '[data-board-move-status]');
+          makeButton.addEventListener('click', () => {
+            void (async () => {
+              makeButton.disabled = true;
+              try {
+                if (Object.keys(roster).length === 0) {
+                  moveStatus.textContent = 'まだ育成を取り込んでいません。先に取り込んでください。';
+                  return;
+                }
+                const code = await packTransfer(buildTransfer());
+                outBox.hidden = false;
+                outBox.value = code;
+                outBox.focus();
+                outBox.select();
+                // クリップボードが塞がれていても、選択済みなら手で Ctrl+C できる
+                void navigator.clipboard?.writeText(code).catch(() => undefined);
+                moveStatus.textContent = `育成 ${Object.keys(roster).length}名ぶんを書き出しました`
+                  + ` (${Math.round(code.length / 1024)}KB)。コピーしてスマホに送ってください。`;
+              } catch (error) {
+                moveStatus.textContent = error instanceof Error ? error.message : String(error);
+              } finally {
+                makeButton.disabled = false;
+              }
+            })();
+          });
+        }
+
+        element<HTMLButtonElement>(root, '[data-board-scan-copy]').addEventListener('click', () => {
+          codeBox.focus();
+          codeBox.select();
+          // クリップボード API が塞がれている環境でも、選択済みなら手で Ctrl+C できる
+          void navigator.clipboard?.writeText(PERSONAL_SNIPPET).catch(() => undefined);
+          status.textContent = 'コードを選択しました。コピーして Blablalink のコンソールに貼ってください。';
+        });
+
+        runButton.addEventListener('click', () => {
           void (async () => {
-            makeButton.disabled = true;
+            runButton.disabled = true;
+            status.textContent = '取り込み中…';
             try {
-              if (Object.keys(roster).length === 0) {
-                moveStatus.textContent = 'まだ育成を取り込んでいません。先に取り込んでください。';
+              // 他の端末から «書き出したもの» を貼られたら、そちらとして受ける。
+              // 人はどちらの文字列かを気にしないので、こちらで見分ける。
+              if (pasteBox.value.trim().startsWith(TRANSFER_PREFIX)) {
+                const moved = await parseTransfer(pasteBox.value);
+                const summary = applyTransfer(moved);
+                pasteBox.value = '';
+                status.textContent = summary;
                 return;
               }
-              const code = await packTransfer(buildTransfer());
-              outBox.hidden = false;
-              outBox.value = code;
-              outBox.focus();
-              outBox.select();
-              // クリップボードが塞がれていても、選択済みなら手で Ctrl+C できる
-              void navigator.clipboard?.writeText(code).catch(() => undefined);
-              moveStatus.textContent = `育成 ${Object.keys(roster).length}名ぶんを書き出しました`
-                + ` (${Math.round(code.length / 1024)}KB)。コピーしてスマホに送ってください。`;
+              const profile = await parsePersonalScan(pasteBox.value);
+              const area = pickArea(profile);
+              if (!area) throw new Error('所持ニケが入っていません。スニペットの実行結果を確認してください。');
+              const applied = applyProfileArea(area, { source: 'snippet' });
+              if (!applied) throw new Error('計算機が扱えるニケが見つかりませんでした。');
+
+              pasteBox.value = '';   // 個人データを画面に残さない
+              const parts = [`${blablaServerLabel(area.area)} ${applied.matched.length}名を適用`];
+              if (applied.refreshed > 0) parts.push(`編成中 ${applied.refreshed}名の育成値を更新`);
+              if (applied.carried > 0) parts.push(`今回に無かった ${applied.carried}名は前回の値のまま`);
+              if (applied.unmatched.length > 0) parts.push(`未対応 ${applied.unmatched.length}名を除外`);
+              if (applied.console) parts.push('コンソールレベルも適用');
+              updateRosterNote(parts.join(' · '));
+              status.textContent = [`${applied.matched.length}名を読み込みました。`, ...applied.notes].join(' ');
             } catch (error) {
-              moveStatus.textContent = error instanceof Error ? error.message : String(error);
+              status.textContent = error instanceof Error ? error.message : String(error);
             } finally {
-              makeButton.disabled = false;
+              runButton.disabled = false;
             }
           })();
         });
       }
 
-      element<HTMLButtonElement>(root, '[data-board-scan-copy]').addEventListener('click', () => {
-        codeBox.focus();
-        codeBox.select();
-        // クリップボード API が塞がれている環境でも、選択済みなら手で Ctrl+C できる
-        void navigator.clipboard?.writeText(PERSONAL_SNIPPET).catch(() => undefined);
-        status.textContent = 'コードを選択しました。コピーして Blablalink のコンソールに貼ってください。';
+      const boardCsv = element<HTMLInputElement>(root, '#board-csv');
+      boardCsv.addEventListener('change', () => { void importRosterCsv(boardCsv); });
+      // label + hidden な input はキーボードで到達できないので、押せるボタンから開く
+      element<HTMLButtonElement>(root, '[data-board-csv-open]').addEventListener('click', () => boardCsv.click());
+      element<HTMLButtonElement>(root, '[data-board-doro]').addEventListener('click', () => {
+        element<HTMLElement>(root, '[data-doro-modal]').hidden = false;
       });
-
-      runButton.addEventListener('click', () => {
-        void (async () => {
-          runButton.disabled = true;
-          status.textContent = '取り込み中…';
-          try {
-            // 他の端末から «書き出したもの» を貼られたら、そちらとして受ける。
-            // 人はどちらの文字列かを気にしないので、こちらで見分ける。
-            if (pasteBox.value.trim().startsWith(TRANSFER_PREFIX)) {
-              const moved = await parseTransfer(pasteBox.value);
-              const summary = applyTransfer(moved);
-              pasteBox.value = '';
-              status.textContent = summary;
-              return;
-            }
-            const profile = await parsePersonalScan(pasteBox.value);
-            const area = pickArea(profile);
-            if (!area) throw new Error('所持ニケが入っていません。スニペットの実行結果を確認してください。');
-            const applied = applyProfileArea(area, { source: 'snippet' });
-            if (!applied) throw new Error('計算機が扱えるニケが見つかりませんでした。');
-
-            pasteBox.value = '';   // 個人データを画面に残さない
-            const parts = [`${blablaServerLabel(area.area)} ${applied.matched.length}名を適用`];
-            if (applied.refreshed > 0) parts.push(`編成中 ${applied.refreshed}名の育成値を更新`);
-            if (applied.carried > 0) parts.push(`今回に無かった ${applied.carried}名は前回の値のまま`);
-            if (applied.unmatched.length > 0) parts.push(`未対応 ${applied.unmatched.length}名を除外`);
-            if (applied.console) parts.push('コンソールレベルも適用');
-            updateRosterNote(parts.join(' · '));
-            status.textContent = [`${applied.matched.length}名を読み込みました。`, ...applied.notes].join(' ');
-          } catch (error) {
-            status.textContent = error instanceof Error ? error.message : String(error);
-          } finally {
-            runButton.disabled = false;
-          }
-        })();
-      });
-    }
-
-    const boardCsv = element<HTMLInputElement>(root, '#board-csv');
-    boardCsv.addEventListener('change', () => { void importRosterCsv(boardCsv); });
-    // label + hidden な input はキーボードで到達できないので、押せるボタンから開く
-    element<HTMLButtonElement>(root, '[data-board-csv-open]').addEventListener('click', () => boardCsv.click());
-    element<HTMLButtonElement>(root, '[data-board-doro]').addEventListener('click', () => {
-      element<HTMLElement>(root, '[data-doro-modal]').hidden = false;
-    });
-    if (blablaProxy) {
-      // 既存のモーダルをそのまま開く。取込の処理も注意書きも1箇所に保つ。
-      element<HTMLButtonElement>(root, '[data-board-blabla]').addEventListener('click', () => {
-        element<HTMLButtonElement>(root, '[data-blabla-open]').click();
-      });
-    }
-    for (const go of root.querySelectorAll<HTMLButtonElement>('[data-board-goto]')) {
-      go.addEventListener('click', () => switchView(go.dataset.boardGoto as ViewName));
-    }
-    renderBoardSync();
+      if (blablaProxy) {
+        // 既存のモーダルをそのまま開く。取込の処理も注意書きも1箇所に保つ。
+        element<HTMLButtonElement>(root, '[data-board-blabla]').addEventListener('click', () => {
+          element<HTMLButtonElement>(root, '[data-blabla-open]').click();
+        });
+      }
+      for (const go of root.querySelectorAll<HTMLButtonElement>('[data-board-goto]')) {
+        go.addEventListener('click', () => switchView(go.dataset.boardGoto as ViewName));
+      }
+      renderBoardSync();
   }
 
   // ── 育成状況 (育成状況) ──
