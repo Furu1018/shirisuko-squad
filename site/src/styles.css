@@ -1059,6 +1059,9 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .plans-face-code { position: absolute; top: 2px; right: 2px; width: 12px; height: 14px; }
 .plans-face-name { font-size: 9.5px; line-height: 1.25; color: var(--ink-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 付けているキューブの略称。開かないと分からなかったのを、タイルで読めるようにする */
+.plans-face-cube { font: 800 8.5px/1.3 ui-monospace, monospace; color: var(--accent-deep);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plans-chip { font-size: 11.5px; padding: 2px 7px; border-radius: 999px;
   background: rgb(var(--line-rgb) / .18); white-space: nowrap; }
 .plans-score { font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 116px; text-align: right; }
@@ -1147,6 +1150,28 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .squad-pick, .squad-tune { min-width: 0; }
 .squad-tune { border-left: 1px solid rgb(var(--line-rgb) / .12); padding-left: 14px; }
 .squad-tune-lede { margin: 0 0 10px; font-size: 11.5px; line-height: 1.6; color: var(--ink-2); }
+/* バッファーのテンプレートの棚 — ピッカーの上。型から始めてアタッカーを足す */
+.squad-tpl { padding: 9px 10px; margin-bottom: 10px; border: 1px solid rgb(var(--line-rgb) / .18);
+  border-radius: 9px; background: var(--surface-2); }
+.squad-tpl-head { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; flex-wrap: wrap; }
+.squad-tpl-title { font: 800 10.5px ui-monospace, monospace; color: var(--ink-2); }
+.squad-tpl-head .roster-import { font-size: 11px; min-height: 28px; }
+.squad-tpl-empty { margin: 8px 0 0; font-size: 11px; line-height: 1.6; color: var(--ink-2); }
+.squad-tpl-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.squad-tpl-row { display: flex; align-items: center; gap: 6px; }
+.squad-tpl-use { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 4px;
+  padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); font-family: inherit; cursor: pointer; }
+.squad-tpl-use:hover { border-color: rgb(var(--accent-rgb) / .45); }
+.squad-tpl-face { flex: none; width: 26px; aspect-ratio: 1; border-radius: 5px; overflow: hidden;
+  background: rgb(var(--line-rgb) / .08); }
+.squad-tpl-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.squad-tpl-go { margin-left: auto; font: 800 10.5px ui-monospace, monospace; color: var(--accent-deep); white-space: nowrap; }
+.squad-tpl-drop { flex: none; width: 28px; height: 28px; border: 1px solid var(--line);
+  border-radius: 7px; background: var(--surface); color: var(--muted); cursor: pointer; }
+.squad-tpl-drop:hover { color: var(--danger); border-color: rgb(var(--danger-rgb) / .4); }
+
 /* キューブをまとめて付ける — 畳んでいても使える、詰める側のいちばん上 */
 .squad-cube-bulk { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding: 9px 10px; margin-bottom: 10px; border: 1px solid rgb(var(--line-rgb) / .18);

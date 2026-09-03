@@ -23,6 +23,9 @@ import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import { buildIndex, filterByQuery } from './nikke-search';
 import { UNION_SEASON, bossBattle } from './union-bosses';
 import { clearBosses, isCustomised, loadBosses, saveBosses, withBoss } from './boss-setup';
+import {
+  MAX_TEMPLATES, addTemplate, applyTemplate, loadTemplates, removeTemplate, saveTemplates,
+} from './squad-templates';
 import { applyImportedRoster, mergeImportedRoster } from './roster-merge';
 import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
 import {
@@ -392,6 +395,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
    * 保存が無ければ union-bosses.ts の出荷時の値。属性は編集させない (1属性1体が索引)。
    */
   let bosses = loadBosses(resolveStorage());
+  /**
+   * バッファーのテンプレート。B3 のアタッカーは属性ごとに変わるが、B1/B2 の
+   * サポーターは強いキャラで固定されがち — その定番を型として貯めておく。
+   */
+  let squadTemplates = loadTemplates(resolveStorage());
 
   // 編成・設定・戦闘条件を localStorage に保存し、開き直しても最後の状態に戻す。
   const STATE_KEY = 'nikke-state-v1';
@@ -3449,6 +3457,42 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       return base ? [[name, cloneOverride(base)]] : [];
     }));
   /** デッキの個別設定のスナップショット (登録用に切り離す)。 */
+  /**
+   * キューブの略称 (リロ速・弾チャ・貫通…)。
+   *
+   * 公式名 (レリックベアーキューブ等) では**どれが何のキューブか読めない**し、
+   * 顔タイルの下に入る幅もない。効果の言葉から、実際に呼ばれている略称に落とす。
+   * 知らない効果 (新キューブ) は効果の先頭4文字 — 名前よりは中身が伝わる。
+   */
+  const CUBE_NICKNAMES: ReadonlyArray<readonly [string, string]> = [
+    ['リロード速度', 'リロ速'],
+    ['弾丸チャージ', '弾チャ'],
+    ['チャージダメージ', 'チャダメ'],
+    ['チャージ速度', 'チャ速'],
+    ['バーストゲージ', 'バゲ速'],
+    ['最大装弾数', '装弾数'],
+    ['パーツダメージ', 'パーツ'],
+    ['貫通ダメージ', '貫通'],
+    ['防御力無視', '防無視'],
+    ['分配ダメージ', '分配'],
+    ['命中率', '命中'],
+    ['受けるダメージ', '被ダメ'],
+    ['与えるHP回復量', '回復'],
+    ['遮蔽物', '遮蔽'],
+    ['最大HP', 'HP'],
+    ['防御力', '防御'],
+  ];
+  const cubeNickname = (cubeName: string | undefined): string => {
+    if (!cubeName || cubeName === NO_CUBE) return '';
+    const meta = settings.cubes[cubeName];
+    if (!meta) return '';
+    const effect = cubeTemplate(meta.template);
+    for (const [keyword, nick] of CUBE_NICKNAMES) {
+      if (effect.includes(keyword)) return nick;
+    }
+    return effect.replace(/^[^\s「]*時\s*/, '').replace(/[「」▲▼{}\d％%]/g, '').trim().slice(0, 4);
+  };
+
   const snapshotOf = (deck: DeckState): Record<string, CharacterOverrides> =>
     Object.fromEntries(Object.entries(deck.characters).map(([name, value]) => [name, cloneOverride(value)]));
   {
@@ -3627,6 +3671,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             const icon = meta ? createElementIcon(meta.elementCode, 'plans-face-code') : null;
             if (icon) shot.append(icon);
             face.append(shot, createText('span', labelFor(who), 'plans-face-name'));
+            // どのキューブを付けた候補かは、開かないと分からなかった (実運用の指摘)。
+            // 候補のスナップショットが持つキューブだけを出す — ロスター任せのニケは
+            // 計算時にロスターの値になるので、ここで断定して出すと嘘になりうる
+            const wearing = cubeNickname(plan.characters?.[who]?.cube?.name);
+            if (wearing) {
+              const badge = createText('span', wearing, 'plans-face-cube');
+              badge.title = `${labelForCube(plan.characters![who]!.cube!.name)} Lv${plan.characters![who]!.cube!.level}`;
+              face.append(badge);
+            }
             face.title = labelFor(who);
             members.append(face);
           }
@@ -3982,8 +4035,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           tab.append(img);
         }
         tab.append(createText('span', labelFor(name), 'squad-tune-name'));
-        // 個別に触ってあるニケには印を付ける — どこを直したか分からなくなる
-        if (draft.characters[name]) tab.append(createText('b', '設定あり', 'squad-tune-mark'));
+        // どのキューブを付けているかをタブで見せる。無ければ «設定あり» の印だけ
+        const nick = cubeNickname(draft.characters[name]?.cube?.name);
+        if (nick) tab.append(createText('b', nick, 'squad-tune-mark'));
+        else if (draft.characters[name]) tab.append(createText('b', '設定あり', 'squad-tune-mark'));
         tabs.append(tab);
       }
       squadModalTune.append(tabs);
@@ -4009,11 +4064,116 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       );
     };
 
+    /**
+     * バッファーのテンプレートの棚。
+     *
+     * 型を当てるときは**空き枠にだけ**入れる (選んだアタッカーを潰さない)。
+     * 既に居るニケは二重に入れない。個別設定 (キューブ) は下書きに居ないニケの
+     * ぶんだけ型から運ぶ — 既に触った設定を型で上書きしない。
+     */
+    const renderTemplateShelf = (): HTMLElement => {
+      const shelf = el('div', 'squad-tpl');
+      const head = el('div', 'squad-tpl-head');
+      head.append(createText('b', 'バッファーのテンプレート', 'squad-tpl-title'));
+      const save = el('button', 'roster-import', 'いまの編成を型として保存');
+      (save as HTMLButtonElement).type = 'button';
+      save.dataset.squadTplSave = '';
+      save.disabled = !draft || draft.squad.every((name) => !name);
+      save.title = 'B1/B2 の定番など、よく使う組を型にしておくと、次からは型から始めてアタッカーを足すだけで済みます';
+      save.addEventListener('click', () => {
+        if (!draft) return;
+        const result = addTemplate(squadTemplates, draft.squad, draft.characters);
+        if (!result.added) {
+          sayModal(result.reason === 'duplicate' ? '同じ顔ぶれの型が既にあります。'
+            : result.reason === 'full' ? `型は ${MAX_TEMPLATES}件までです。使っていないものを ✕ で消してください。`
+              : 'ニケを1人も選んでいません。');
+          return;
+        }
+        squadTemplates = result.items;
+        const kept = saveTemplates(resolveStorage(), squadTemplates);
+        sayModal(kept ? `${draft.squad.filter(Boolean).length}人の型を保存しました。どの属性のモーダルからも使えます。`
+          : 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと消えます)。', kept);
+        renderSquadModal();
+      });
+      head.append(save);
+      shelf.append(head);
+
+      if (squadTemplates.length === 0) {
+        shelf.append(createText('p',
+          'まだ型がありません。定番の B1/B2 を選んで「いまの編成を型として保存」すると、ここに並びます。',
+          'squad-tpl-empty'));
+        return shelf;
+      }
+
+      const rowBox = el('div', 'squad-tpl-rows');
+      for (const template of squadTemplates) {
+        const row = el('div', 'squad-tpl-row');
+        row.dataset.squadTpl = template.id;
+
+        const use = el('button', 'squad-tpl-use');
+        (use as HTMLButtonElement).type = 'button';
+        use.dataset.squadTplUse = template.id;
+        use.title = '空き枠にこの型を入れます (選んだニケは潰しません)';
+        for (const name of template.squad.filter(Boolean)) {
+          const face = el('span', 'squad-tpl-face');
+          const meta = catalogByName.get(name);
+          if (meta?.image) {
+            const img = document.createElement('img');
+            img.src = `${import.meta.env.BASE_URL}${meta.image}`;
+            img.alt = '';
+            img.loading = 'lazy';
+            face.append(img);
+          }
+          face.title = labelFor(name);
+          use.append(face);
+        }
+        use.append(createText('span', 'この型から', 'squad-tpl-go'));
+        use.setAttribute('aria-label',
+          `${template.squad.filter(Boolean).map((name) => labelFor(name)).join('・')} の型を空き枠に入れる`);
+        use.addEventListener('click', () => {
+          if (!draft) return;
+          const result = applyTemplate(draft.squad, template);
+          draft.squad = result.squad;
+          // 型の個別設定は «まだ触っていないニケ» にだけ敷く。触った設定を型で潰さない
+          for (const [name, value] of Object.entries(template.characters ?? {})) {
+            if (result.applied.includes(name) && !draft.characters[name]) {
+              draft.characters[name] = cloneOverride(value);
+            }
+          }
+          seedFromRoster(draft.squad, draft.characters);
+          renderSquadModal();
+          const parts: string[] = [];
+          if (result.applied.length > 0) parts.push(`${result.applied.map(labelFor).join('・')} を入れました。`);
+          else parts.push('型のニケは全員もう入っています。');
+          if (result.overflow.length > 0) {
+            parts.push(`${result.overflow.map(labelFor).join('・')} は枠が足りず入りませんでした。`);
+          }
+          sayModal(parts.join(' '), result.applied.length > 0);
+        });
+        row.append(use);
+
+        const drop = el('button', 'squad-tpl-drop', '✕');
+        (drop as HTMLButtonElement).type = 'button';
+        drop.dataset.squadTplDrop = template.id;
+        drop.setAttribute('aria-label', 'この型を消す');
+        drop.title = 'この型を消す (候補には影響しません)';
+        drop.addEventListener('click', () => {
+          squadTemplates = removeTemplate(squadTemplates, template.id);
+          saveTemplates(resolveStorage(), squadTemplates);
+          renderSquadModal();
+        });
+        row.append(drop);
+        rowBox.append(row);
+      }
+      shelf.append(rowBox);
+      return shelf;
+    };
+
     const renderSquadModal = () => {
       if (!draft) return;
       squadModalTitle.textContent = draft.id ? '編成を直す' : '編成を追加';
       squadModalDesc.textContent = `${elementLabel(draft.code)}編成 — ${draft.boss.name} (${elementLabel(draft.boss.elementCode)}ボス) に当てます。`;
-      squadModalPick.replaceChildren(renderPicker({
+      squadModalPick.replaceChildren(renderTemplateShelf(), renderPicker({
         squad: draft.squad,
         wanted: draft.code,
         mark: 'modal',

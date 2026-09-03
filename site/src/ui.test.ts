@@ -873,6 +873,73 @@ describe('calculator UI', () => {
     expect(status.textContent).not.toContain('計算中');
   });
 
+  it('バッファーの型: 保存 → 別の属性のモーダルでも使える → 空き枠にだけ入る', () => {
+    // B3 のアタッカーは属性ごとに変わるが、B1/B2 の定番は固定されがち。
+    // 定番を型にして、編成は «型から始めてアタッカーを足すだけ» にする。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+    const pickByName = (name: string) => {
+      [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')]
+        .find((cell) => cell.dataset.boardPick === name)!.click();
+    };
+
+    // 철갑の行で定番2人を型として保存
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    pickByName('크라운');
+    pickByName('리타');
+    modal.querySelector<HTMLButtonElement>('[data-squad-tpl-save]')!.click();
+    expect(root.querySelector('[data-squad-modal-note]')!.textContent).toContain('型を保存しました');
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-cancel]')!.click();
+
+    // **別の属性**のモーダルにも同じ型が出る (型は属性を持たない)
+    root.querySelector<HTMLButtonElement>('[data-prep-make="수냉"]')!.click();
+    expect(modal.querySelectorAll('[data-squad-tpl]')).toHaveLength(1);
+
+    // 先にアタッカーを置いてから型を当てる → 空き枠にだけ入り、アタッカーは潰れない
+    pickByName('앨리스');
+    modal.querySelector<HTMLButtonElement>('[data-squad-tpl-use]')!.click();
+    const chips = [...modal.querySelectorAll('[data-board-picker-drop]')].length;
+    expect(chips).toBe(3);   // 앨리스 + 型の2人
+    expect(root.querySelector('[data-squad-modal-note]')!.textContent).toContain('を入れました');
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+
+    const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as
+      { byElement: Record<string, Array<{ squad: string[] }>> };
+    // data-prep-make の値は «有利編成のコード»。수냉 の行に保存したので 수냉 に入る
+    expect(stored.byElement['수냉']![0]!.squad.filter(Boolean).sort())
+      .toEqual(['크라운', '리타', '앨리스'].sort());
+
+    // 型は ✕ で消せる
+    root.querySelector<HTMLButtonElement>('[data-prep-make="수냉"]')!.click();
+    modal.querySelector<HTMLButtonElement>('[data-squad-tpl-drop]')!.click();
+    expect(modal.querySelectorAll('[data-squad-tpl]')).toHaveLength(0);
+    expect(localStorage.getItem('nikke-templates-v1')).toContain('"items":[]');
+  });
+
+  it('候補の顔タイルに、付けているキューブの略称が出る', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    modal.querySelector<HTMLButtonElement>('[data-board-pick]')!.click();
+    // まとめて付ける (最初のキューブ) → 保存
+    modal.querySelector<HTMLButtonElement>('[data-squad-cube-apply]')!.click();
+    const picked = modal.querySelector<HTMLSelectElement>('[data-squad-cube-name]')!.value;
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+
+    const badge = root.querySelector<HTMLElement>('[data-plans-group="철갑"] .plans-face-cube')!;
+    expect(badge).not.toBeNull();
+    expect(badge.textContent!.length).toBeGreaterThan(0);
+    // 略称の全文 (正式名 + Lv) は title で読める
+    expect(badge.title).toContain('Lv');
+    expect(badge.title.length).toBeGreaterThan(badge.textContent!.length);
+    void picked;
+  });
+
   it('キューブをまとめて付けられる — 全員に敷いてから、個別に変えたい人だけ直す', () => {
     // ふだんは全員リロ速/弾チャで、ボスによって数人だけ付け替える運用。
     // 1人ずつ個別設定を開くと5回の往復になる。
