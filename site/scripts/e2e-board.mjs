@@ -35,13 +35,19 @@ try {
   console.log(`[${lap()}] Pyodide ready`);
   // 既定の編成 (5人) を 철갑・수냉 の案として保存 → 2枠で全員被る
   await page.locator('[data-view-tab="plans"]').click();
-  await page.locator('[data-plans-save="철갑"]').click();
-  await page.locator('[data-plans-save="수냉"]').click();
+  await page.locator('[data-prep-make="철갑"]').click();
+  await page.locator('[data-squad-modal-load]').click();
+  await page.locator('[data-squad-modal-save]').click();
+  await page.locator('[data-prep-make="수냉"]').click();
+  await page.locator('[data-squad-modal-load]').click();
+  await page.locator('[data-squad-modal-save]').click();
   // 1人外した編成を 풍압 の案に
   await page.locator('[data-view-tab="calc"]').click();
   await page.locator('[data-slot-card="4"] .slot-clear').click();
   await page.locator('[data-view-tab="plans"]').click();
-  await page.locator('[data-plans-save="풍압"]').click();
+  await page.locator('[data-prep-make="풍압"]').click();
+  await page.locator('[data-squad-modal-load]').click();
+  await page.locator('[data-squad-modal-save]').click();
   console.log(`[${lap()}] plans saved:`, await page.locator('[data-plans-row]').count());
 
   await page.locator('[data-view-tab="board"]').click();

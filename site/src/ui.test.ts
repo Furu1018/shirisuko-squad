@@ -128,6 +128,16 @@ const noDefer = () => () => {};
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+/**
+ * 詳細計算タブで開いているデッキを、モーダル経由でその属性の候補として保存する。
+ * 行の «即保存» 釦は消した (入口が二筋になっていた) ので、テストも本物の導線を通る。
+ */
+const saveDeckAsPlan = (root: HTMLElement, code: string) => {
+  root.querySelector<HTMLButtonElement>(`[data-prep-make="${code}"]`)!.click();
+  root.querySelector<HTMLButtonElement>('[data-squad-modal-load]')!.click();
+  root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+};
+
 /** 판의 검색칸에 친다. 슬롯마다 있던 검색은 없어지고 덱에 하나만 남았다. */
 function searchRoster(root: HTMLElement, query: string): void {
   const search = root.querySelector<HTMLInputElement>('[data-roster-search]')!;
@@ -741,14 +751,18 @@ describe('calculator UI', () => {
     const save = root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!;
     expect(save.disabled).toBe(true);
 
-    // ニケを2人選ぶ → 育成・キューブの切り替えタブが出る。
-    // 選ぶたびにピッカーは描き直されるので、タイルは**押す直前に取り直す**
+    // ニケを2人選ぶ。選ぶたびにピッカーは描き直されるので、タイルは**押す直前に取り直す**
     const tile = (at: number) =>
       [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')][at]!;
     tile(0).click();
     tile(1).click();
-    expect(modal.querySelectorAll('[data-squad-tune]')).toHaveLength(2);
     expect(save.disabled).toBe(false);
+
+    // 育成・キューブは**畳まれている** — «選んで保存» が最短で済むように。
+    // 押した人にだけ切り替えタブが出る (Codex と検討した案2)
+    expect(modal.querySelectorAll('[data-squad-tune]')).toHaveLength(0);
+    modal.querySelector<HTMLButtonElement>('[data-squad-tune-open]')!.click();
+    expect(modal.querySelectorAll('[data-squad-tune]')).toHaveLength(2);
 
     save.click();
     expect(modal.hidden).toBe(true);
@@ -766,7 +780,7 @@ describe('calculator UI', () => {
 
     for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
     chooseCharacter(root, 0, '리타');
-    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+    saveDeckAsPlan(root, '철갑');
     root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
     await settle();
     await settle();
@@ -788,6 +802,76 @@ describe('calculator UI', () => {
       .toContain('理論値まだ');
   });
 
+  it('「コピー」は写しを新規として開き、そのままでは保存できない', () => {
+    // 「ちょっとだけ編成をかえる」の入口。写しをどこか変えて保存すると別候補になる。
+    // 何も変えずに保存しようとすると重複で弾かれる — それが «どこか変えて» の合図
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    chooseCharacter(root, 0, '리타');
+    saveDeckAsPlan(root, '철갑');
+
+    root.querySelector<HTMLButtonElement>('[data-plans-copy]')!.click();
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+    expect(modal.hidden).toBe(false);
+    // 写しは**新規** — 見出しは «追加» で、保存しても元を上書きしない
+    expect(root.querySelector('[data-squad-modal-title]')!.textContent).toBe('編成を追加');
+
+    // 何も変えずに保存 → 重複で断られ、モーダルは開いたまま
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+    expect(modal.hidden).toBe(false);
+    expect(root.querySelector('[data-squad-modal-note]')!.textContent).toContain('同じ顔ぶれ');
+
+    // 1人足して保存 → 2件になり、元の候補はそのまま
+    const tile = [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')]
+      .find((cell) => !cell.classList.contains('is-on') && !cell.disabled)!;
+    tile.click();
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+    expect(modal.hidden).toBe(true);
+    const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as
+      { byElement: Record<string, Array<{ squad: string[] }>> };
+    expect(stored.byElement['철갑']).toHaveLength(2);
+    expect(stored.byElement['철갑']![0]!.squad.filter(Boolean)).toEqual(['리타']);
+  });
+
+  it('「理論値をぜんぶ出す」は、出してある候補を飛ばす', async () => {
+    // キューブを1件だけ変えて押し直したとき、残り全部を回し直すと 7秒 × 件数 待つことになる。
+    // 値は条件と編成で決まるので、同じ条件で出し直しても同じ数字にしかならない。
+    const client = new FakeClient();
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    chooseCharacter(root, 0, '리타');
+    saveDeckAsPlan(root, '철갑');
+    root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
+    await settle();
+    await settle();
+    const ran = client.simulateCalls;
+    expect(ran).toBeGreaterThan(0);
+
+    // もう一度押しても回さない — «すべて出ています» と言うだけ
+    root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
+    await settle();
+    await settle();
+    expect(client.simulateCalls).toBe(ran);
+    expect(root.querySelector('[data-plans-batch-note]')!.textContent)
+      .toContain('すべて、今回のボス条件の理論値が出ています');
+
+    // 1件だけ増やして押すと、その1件ぶんだけ回る
+    chooseCharacter(root, 1, '크라운');
+    saveDeckAsPlan(root, '철갑');
+    root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
+    await settle();
+    await settle();
+    expect(client.simulateCalls).toBe(ran + 1);
+    expect(root.querySelector('[data-plans-batch-note]')!.textContent)
+      .toContain('出してあった1件は飛ばしました');
+  });
+
   it('候補の顔ぶれは立ち絵で並ぶ (名前も残す)', () => {
     // 文字だけだと5人の編成が «ぱっと見» で読めない。立ち絵だけだと似た絵のニケや
     // 持っていないニケを見分けられないので、名前も下に残す。
@@ -798,7 +882,7 @@ describe('calculator UI', () => {
     for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
     chooseCharacter(root, 0, '리타');
     chooseCharacter(root, 1, '크라운');
-    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+    saveDeckAsPlan(root, '철갑');
 
     const faces = [...root.querySelectorAll<HTMLElement>('[data-plans-group="철갑"] .plans-face')];
     expect(faces).toHaveLength(2);
@@ -823,7 +907,7 @@ describe('calculator UI', () => {
     const savePlan = (code: string, names: string[]) => {
       for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
       names.forEach((name, index) => chooseCharacter(root, index, name));
-      root.querySelector<HTMLButtonElement>(`[data-plans-save="${code}"]`)!.click();
+      saveDeckAsPlan(root, code);
     };
     savePlan('철갑', ['리타', '크라운']);
     savePlan('수냉', ['앨리스', '나가']);
@@ -862,7 +946,7 @@ describe('calculator UI', () => {
 
     for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
     chooseCharacter(root, 0, '리타');
-    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+    saveDeckAsPlan(root, '철갑');
     root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
     await settle();
     await settle();
@@ -948,28 +1032,35 @@ describe('calculator UI', () => {
 
     const groupOf = (code: string) =>
       root.querySelector<HTMLElement>(`[data-plans-group="${code}"]`)!;
-    const saveIn = (code: string) =>
-      groupOf(code).querySelector<HTMLButtonElement>(`[data-plans-save="${code}"]`)!.click();
+    const modalNote = () => root.querySelector<HTMLElement>('[data-squad-modal-note]')!;
 
-    // 空の編成は保存しない (既定の編成が入っているので、まず全部外す)
+    // 空のデッキは読み込めない (既定の編成が入っているので、まず全部外す)
     for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
-    saveIn('전격');
-    expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('空です');
+    root.querySelector<HTMLButtonElement>('[data-prep-make="전격"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-load]')!.click();
+    expect(modalNote().textContent).toContain('空です');
+    // 誰も居ないので保存も押せない
+    expect(root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.disabled).toBe(true);
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-cancel]')!.click();
 
     chooseCharacter(root, 0, '리타');
-    saveIn('전격');
+    saveDeckAsPlan(root, '전격');
     expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(1);
 
-    // 同じ顔ぶれは足さない
-    saveIn('전격');
-    expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('同じ顔ぶれ');
+    // 同じ顔ぶれ・同じ設定は足さない — モーダルが開いたまま理由を言う
+    root.querySelector<HTMLButtonElement>('[data-prep-make="전격"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-load]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+    expect(root.querySelector<HTMLElement>('[data-squad-modal]')!.hidden).toBe(false);
+    expect(modalNote().textContent).toContain('同じ顔ぶれ');
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-cancel]')!.click();
     expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(1);
 
     // 顔ぶれが違えば別の候補として貯まる
     chooseCharacter(root, 1, '크라운');
-    saveIn('전격');
+    saveDeckAsPlan(root, '전격');
     chooseCharacter(root, 2, '앨리스');
-    saveIn('전격');
+    saveDeckAsPlan(root, '전격');
     expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(3);
 
     // 保存はこのブラウザに残る
@@ -991,11 +1082,13 @@ describe('calculator UI', () => {
     for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
     chooseCharacter(root, 0, '리타');
     chooseCharacter(root, 1, '크라운');
-    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+    saveDeckAsPlan(root, '철갑');
 
-    // 計算機側を別の編成にしてから戻す
+    // 計算機側を別の編成にしてから戻す。«詳細計算で開く» はモーダルの中へ移した
+    // (候補の行に釦が4つ並ぶと、スマホで折り返して読めない — Codex と検討した整理)
     for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
     chooseCharacter(root, 0, '앨리스');
+    root.querySelector<HTMLButtonElement>('[data-plans-edit]')!.click();
     root.querySelector<HTMLButtonElement>('[data-plans-apply]')!.click();
 
     const saved = JSON.parse(localStorage.getItem('nikke-state-v1')!) as
@@ -1014,7 +1107,7 @@ describe('calculator UI', () => {
   const savePlan = (code: string, names: string[]) => {
     for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
     names.forEach((name, index) => chooseCharacter(root, index, name));
-    root.querySelector<HTMLButtonElement>(`[data-plans-save="${code}"]`)!.click();
+    saveDeckAsPlan(root, code);
   };
   const boardSummary = () => root.querySelector('[data-board-summary]')!.textContent ?? '';
   const storedBoard = () => JSON.parse(localStorage.getItem('nikke-raid-board-v1')!) as
@@ -1736,7 +1829,7 @@ describe('calculator UI', () => {
     const skillOne = root.querySelector<HTMLSelectElement>('[data-slot-card="0"] [data-skill-level="1"]')!;
     skillOne.value = '4';
     skillOne.dispatchEvent(new Event('change'));
-    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+    saveDeckAsPlan(root, '철갑');
 
     const stored = () => (JSON.parse(localStorage.getItem('nikke-plans-v1')!) as {
       byElement: Record<string, Array<{ id: string; characters?: Record<string, { skillLevels?: Record<string, number> }>;
@@ -1827,7 +1920,8 @@ describe('calculator UI', () => {
     skillOne.value = '4';
     skillOne.dispatchEvent(new Event('change'));
 
-    root.querySelector<HTMLButtonElement>('[data-plans-apply="p1"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-plans-edit="p1"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-plans-apply]')!.click();
     const state = JSON.parse(localStorage.getItem('nikke-state-v1')!) as {
       decks: Array<{ characters: Record<string, { cube?: { name: string }; skillLevels?: Record<string, number> }> }>;
     };

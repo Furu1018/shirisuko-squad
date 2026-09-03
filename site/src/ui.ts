@@ -900,8 +900,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           </div>
           <p class="plans-note" data-squad-modal-note hidden></p>
           <div class="squad-foot">
-            <button type="button" class="roster-import" data-squad-modal-cancel>やめる</button>
-            <button type="button" class="roster-import lead" data-squad-modal-save>この編成を保存</button>
+            <span class="squad-foot-side">
+              <button type="button" class="roster-import" data-squad-modal-load>詳細計算のデッキを読み込む</button>
+              <button type="button" class="roster-import" data-plans-apply>詳細計算で開く</button>
+            </span>
+            <span class="squad-foot-main">
+              <button type="button" class="roster-import" data-squad-modal-cancel>やめる</button>
+              <button type="button" class="roster-import lead" data-squad-modal-save>この編成を保存</button>
+            </span>
           </div>
         </div>
       </div>
@@ -3583,7 +3589,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           const empty = el('p', 'plans-empty');
           empty.append(document.createTextNode('この行に候補がありません。'));
           empty.append(createText('b', `${code ? elementLabel(code) : ''}の編成`));
-          empty.append(document.createTextNode('を組んで足すと、このボスも3凸の選択肢に入ります。'));
+          empty.append(document.createTextNode('を「＋ 編成を追加」で組むと、このボスも3凸の選択肢に入ります。'));
           list.append(empty);
         }
         saved.forEach((plan, planIndex) => {
@@ -3638,20 +3644,24 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           }
           planRow.append(score);
 
+          // 「ちょっとだけ変えた別の候補」を作る入口。写しをモーダルで開き、
+          // どこか変えて保存すると別候補になる (そのまま保存すると重複で弾かれる —
+          // それが «どこか変えてから» の合図になる)。
+          const rowFull = saved.length >= MAX_PLANS_PER_ELEMENT;
+          const copy = el('button', 'roster-import', 'コピー');
+          (copy as HTMLButtonElement).type = 'button';
+          copy.dataset.plansCopy = plan.id;
+          copy.disabled = rowFull;
+          copy.title = rowFull
+            ? `この行は既に ${MAX_PLANS_PER_ELEMENT}件あります。どれかを消してからコピーしてください`
+            : 'この候補を写して、少し変えた別の候補を作ります';
+          copy.addEventListener('click', () => { if (code) openSquadModal(code, boss, plan, { copy: true }); });
+
           const edit = el('button', 'roster-import', '直す');
           (edit as HTMLButtonElement).type = 'button';
           edit.dataset.plansEdit = plan.id;
           edit.title = '顔ぶれ・育成・ハーモニーキューブを直します';
           edit.addEventListener('click', () => { if (code) openSquadModal(code, boss, plan); });
-
-          const apply = el('button', 'roster-import', '詳細計算で開く');
-          (apply as HTMLButtonElement).type = 'button';
-          apply.dataset.plansApply = plan.id;
-          apply.title = 'バースト順やタイムラインまで詰めたいときに使います';
-          apply.addEventListener('click', () => {
-            applySquadToDeck(plan.squad, plan.characters);
-            if (code) say(code, `候補 ${planIndex + 1} を詳細計算のデッキ ${activeDeckId} に入れました。`, true);
-          });
           const drop = el('button', 'roster-import danger', '削除');
           (drop as HTMLButtonElement).type = 'button';
           drop.dataset.plansRemove = plan.id;
@@ -3660,39 +3670,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             const kept = commit(removePlan(plans, code, plan.id));
             if (!kept) say(code, 'この画面では消えましたが、ブラウザに保存できませんでした (次に開くと戻ります)。');
           });
-          planRow.append(edit, apply, drop);
+          planRow.append(copy, edit, drop);
           list.append(planRow);
         });
         main.append(list);
 
         const add = el('div', 'prep-add');
         if (code) {
-          // **その場で組む**。以前は «詳細計算タブで組む → ここへ戻る → 足す» で、
-          // どこで編成を作るのかが画面から読めなかった
-          const make = el('button', 'roster-import lead', '編成を組む');
+          // 主釦はこれ1つ。「編成を組む」「足す」「保存」と動詞が散っていて、
+          // どれが入口か読めなかった (利用者の指摘)。
+          const make = el('button', 'roster-import lead', '＋ 編成を追加');
           (make as HTMLButtonElement).type = 'button';
           make.dataset.prepMake = code;
           make.addEventListener('click', () => openSquadModal(code, boss));
           add.append(make);
-
-          const save = el('button', 'roster-import', '詳細計算の編成を足す');
-          (save as HTMLButtonElement).type = 'button';
-          save.dataset.plansSave = code;
-          save.title = '「編成を作る・詳細計算」タブで今開いているデッキを、そのままこの行の候補として足します';
-          save.addEventListener('click', () => {
-            const result = addPlan(plans, code, activeDeck().squad, { characters: snapshotOf(activeDeck()) });
-            if (result.added) {
-              const kept = commit(result.plans);
-              say(code, kept ? '足しました。'
-                : 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと消えます)。', kept);
-              return;
-            }
-            say(code, result.reason === 'full'
-              ? `この行は既に ${MAX_PLANS_PER_ELEMENT} 候補あります。どれかを消してから足してください。`
-              : result.reason === 'duplicate' ? '同じ顔ぶれ・同じ個別設定の候補が既にあります。'
-                : '詳細計算タブの編成が空です。先にニケを入れてください。');
-          });
-          add.append(save);
 
           // 1行足しただけで全部を回し直すのは無駄。この行だけ回せるようにする
           const runRow = el('button', 'roster-import', 'この行の理論値を出す');
@@ -3724,7 +3715,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       cell(stale, '条件が変わった', true);
       cell(left, 'まだ出していない');
       nextNote.textContent = total === 0
-        ? '編成がまだありません。上の行の「編成を組む」から作ってください。'
+        ? '編成がまだありません。上の行の「＋ 編成を追加」から作ってください。'
         : fresh === 0
           ? `${total}件の編成はまだ理論値を出していません。先に「理論値をぜんぶ出す」を押してください。`
           : `計算済みの${fresh}件から、同じニケを二度使わない合計最大の3つ組を選びます。`
@@ -3801,6 +3792,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       squad: string[];
       characters: Record<string, CharacterOverrides>;
       tuning: string | null;   // いま育成・キューブを見ているニケ
+      tuneOpen: boolean;       // 育成・キューブの面を開いているか (登録だけなら閉じたまま)
     } | null = null;
 
     /** 押せるだけの小さなボタン。盤面の `button` は «計算中は押せない» を持つので借りない。 */
@@ -3853,6 +3845,25 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       // どのニケの設定を見ているか。選んでいなければ先頭
       if (!draft.tuning || !members.includes(draft.tuning)) draft.tuning = members[0]!;
+
+      if (!draft.tuneOpen) {
+        // «選んで保存» を最短にする。詰めたい人だけ開く (Codex と検討した案2)。
+        // 押さなくても、**いまの育成値がこの候補に固定保存される**ことは言っておく —
+        // 後からロスターを取り込み直しても、この候補は保存時の値のまま
+        const openTune = el('button', 'roster-import', '育成・キューブを詰める (任意)');
+        (openTune as HTMLButtonElement).type = 'button';
+        openTune.dataset.squadTuneOpen = '';
+        openTune.addEventListener('click', () => {
+          if (!draft) return;
+          draft.tuneOpen = true;
+          renderTune();
+        });
+        squadModalTune.append(openTune);
+        squadModalTune.append(createText('p',
+          'そのまま保存すると、いまの育成値でこの候補が固定されます。',
+          'squad-tune-lede'));
+        return;
+      }
 
       const imported = Object.keys(roster).length > 0;
       squadModalTune.append(createText('p',
@@ -3909,7 +3920,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
     const renderSquadModal = () => {
       if (!draft) return;
-      squadModalTitle.textContent = draft.id ? '編成を直す' : '編成を組む';
+      squadModalTitle.textContent = draft.id ? '編成を直す' : '編成を追加';
       squadModalDesc.textContent = `${elementLabel(draft.code)}編成 — ${draft.boss.name} (${elementLabel(draft.boss.elementCode)}ボス) に当てます。`;
       squadModalPick.replaceChildren(renderPicker({
         squad: draft.squad,
@@ -3931,22 +3942,62 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       squadModalSave.disabled = draft.squad.every((name) => !name);
     };
 
-    /** モーダルを開く。`plan` を渡すとその候補を直す。 */
-    const openSquadModal = (code: PlanElement, boss: UnionBoss, plan?: ElementPlan) => {
+    /**
+     * モーダルを開く。`plan` を渡すとその候補を直す。`copy: true` なら**写しを新規として**開く —
+     * 中身は同じでも id を持たないので、保存すると別の候補になる。
+     */
+    const openSquadModal = (
+      code: PlanElement, boss: UnionBoss, plan?: ElementPlan, opts?: { copy?: boolean },
+    ) => {
+      // 個別設定は**深く写す**。浅い写しだと、コピー側でキューブを変えたときに
+      // 元の候補のスナップショットまで書き換わることがある
+      const cloned = Object.fromEntries(Object.entries(plan?.characters ?? {})
+        .map(([name, value]) => [name, cloneOverride(value)]));
       draft = {
         code,
         boss,
-        id: plan?.id ?? null,
+        id: opts?.copy ? null : plan?.id ?? null,
         squad: plan ? [...plan.squad] : ['', '', '', '', ''],
         // 取り込んだロスターを土台にする。何も入れずに保存すると既定値 (最大) で計算され、
         // «自分の育成の数字» のつもりで見てしまう
-        characters: seedFromRoster(plan?.squad ?? [], plan?.characters ? { ...plan.characters } : {}),
+        characters: seedFromRoster(plan?.squad ?? [], cloned),
         tuning: null,
+        // «選ぶ → 保存» を最短にする。育成・キューブは畳んでおき、押した人にだけ出す。
+        // 「直す」で開いたときは**詰めるのが目的**なので開いておく
+        tuneOpen: Boolean(plan) && !opts?.copy,
       };
       sayModal('');
       squadModal.hidden = false;
       renderSquadModal();
     };
+
+    // 「編成を作る・詳細計算」タブで組んであるデッキを下書きへ写す。
+    // 以前は行に «即保存» の釦があり、どこから登録するのかが二筋になっていた —
+    // モーダルの中の副操作に格下げして、保存は必ず利用者が押す形にする
+    element<HTMLButtonElement>(root, '[data-squad-modal-load]').addEventListener('click', () => {
+      if (!draft) return;
+      const deck = activeDeck();
+      if (deck.squad.every((name) => !name)) {
+        sayModal('詳細計算タブの編成が空です。先にあちらでニケを入れてあると、ここに写せます。');
+        return;
+      }
+      draft.squad = [...deck.squad];
+      draft.characters = seedFromRoster(draft.squad, Object.fromEntries(
+        Object.entries(snapshotOf(deck)).map(([name, value]) => [name, cloneOverride(value)])));
+      draft.tuning = null;
+      renderSquadModal();
+      sayModal('詳細計算のデッキを写しました。保存を押すまで候補には入りません。', true);
+    });
+
+    // バースト順やタイムラインまで詰めたいときの出口。モーダルは閉じる
+    element<HTMLButtonElement>(root, '[data-plans-apply]').addEventListener('click', () => {
+      if (!draft) return;
+      if (draft.squad.every((name) => !name)) { sayModal('ニケを1人も選んでいません。'); return; }
+      const { code, squad, characters } = draft;
+      applySquadToDeck(squad, characters);
+      closeSquadModal();
+      say(code, `この編成を詳細計算のデッキ ${activeDeckId} に入れました。`, true);
+    });
 
     squadModalSave.addEventListener('click', () => {
       if (!draft) return;
@@ -4109,6 +4160,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       // 何を回すか。候補は «その属性のボス» にだけ当てる (有利属性でしか凸らないため)
       const jobs: Array<{ key: string; request: SimulationRequest; problems: string[] }> = [];
       const owner = new Map<string, { code: PlanElement; id: string; cond: string }>();
+      let skipped = 0;
       for (const code of PLAN_ELEMENTS) {
         const boss = bossForElement(code, bosses);
         if (!boss) continue;
@@ -4116,6 +4168,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const battle = boardBattle(base, boss);
         const cond = condSignature(boss, battle);
         for (const plan of plansOf(plans, code)) {
+          // **今回の条件の値が既にある候補は飛ばす**。キューブを1件だけ変えて押し直したとき、
+          // 残り49件を回し直すと7秒 × 49 待つことになる — 変えた1件だけが回ればよい
+          // (値は条件と編成で決まるので、同じ条件で出し直しても同じ数字になる)
+          if (plan.registered?.cond === cond) {
+            skipped += 1;
+            continue;
+          }
           const deck: DeckState = {
             id: 1,
             squad: [...plan.squad],
@@ -4134,7 +4193,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         }
       }
       if (jobs.length === 0) {
-        sayBatch('編成がまだありません。下の行の「編成を組む」から作ってください。');
+        if (skipped > 0) {
+          // 全部出してあるなら、それは失敗ではない
+          sayBatch(`${skipped}件すべて、今回のボス条件の理論値が出ています。`, true);
+        } else {
+          sayBatch('編成がまだありません。下の行の「＋ 編成を追加」から作ってください。');
+        }
         return;
       }
       comparing = true;
@@ -4171,6 +4235,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const failed = run.failures.size;
         const done = run.scores.size;
         const parts = [`${jobs.length}件中 ${done}件の理論値を出しました。`];
+        if (skipped > 0) parts.push(`出してあった${skipped}件は飛ばしました。`);
         if (failed > 0) parts.push(`${failed}件は計算できませんでした (${[...run.failures.values()][0]})。`);
         if (!persisted) parts.push('ブラウザに保存できなかったので、開き直すと消えます。');
         else parts.push('下の「最適3凸を探す」がこの値を使います。');

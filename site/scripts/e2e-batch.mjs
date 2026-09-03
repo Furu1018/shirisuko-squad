@@ -38,8 +38,12 @@ try {
 
   // 既定の編成をそのまま2属性の候補にする (顔ぶれは同じでよい — 見たいのは計算の段)
   await page.locator('[data-view-tab="plans"]').click();
-  await page.locator('[data-plans-save="철갑"]').click();
-  await page.locator('[data-plans-save="수냉"]').click();
+  await page.locator('[data-prep-make="철갑"]').click();
+  await page.locator('[data-squad-modal-load]').click();
+  await page.locator('[data-squad-modal-save]').click();
+  await page.locator('[data-prep-make="수냉"]').click();
+  await page.locator('[data-squad-modal-load]').click();
+  await page.locator('[data-squad-modal-save]').click();
   const saved = await page.locator('[data-plans-row]').count();
   console.log(`[${lap()}] 候補 ${saved}件`);
   check(saved === 2, `候補が2件にならない (${saved}件)`);
