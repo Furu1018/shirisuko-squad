@@ -802,6 +802,67 @@ describe('calculator UI', () => {
       .toContain('理論値まだ');
   });
 
+  it('モーダルの「詳細計算で開く」はデッキに載せて実際に詳細計算タブへ移る', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+    const tile = (at: number) =>
+      [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')][at]!;
+    tile(0).click();
+    tile(1).click();
+    root.querySelector<HTMLButtonElement>('[data-plans-apply]')!.click();
+
+    // モーダルが閉じ、詳細計算タブが開き、デッキに2人入っている — «押しても何も起きない» に見えない
+    expect(modal.hidden).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('[data-view-tab="calc"]')!.classList.contains('is-on')).toBe(true);
+    const state = JSON.parse(localStorage.getItem('nikke-state-v1')!) as
+      { decks: Array<{ squad: string[] }> };
+    expect(state.decks[0]!.squad.filter(Boolean)).toHaveLength(2);
+  });
+
+  it('選んだニケを◀▶で入れ替えられる — 並び順は計算結果に影響する', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+    const tile = (at: number) =>
+      [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')][at]!;
+    tile(0).click();
+    tile(1).click();
+    const names = () => [...modal.querySelectorAll('[data-board-picker-drop]')]
+      .map((chip) => (chip.textContent ?? '').replace(' ✕', ''));
+    const before = names();
+    expect(before).toHaveLength(2);
+
+    // 1人目を右へ → 2人が入れ替わる。端の外へは押せない (1人目に◀は無い)
+    expect(modal.querySelector('[data-board-picker-move$=":0:left"]')).toBeNull();
+    modal.querySelector<HTMLButtonElement>('[data-board-picker-move="modal:0:right"]')!.click();
+    expect(names()).toEqual([before[1], before[0]]);
+
+    // 保存すると入れ替えた順で候補に入る
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+    const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as
+      { byElement: Record<string, Array<{ squad: string[] }>> };
+    expect(stored.byElement['철갑']![0]!.squad.filter(Boolean)).toEqual([before[1], before[0]]);
+  });
+
+  it('「属性を決めて最適化 →」は最適3凸タブの属性指定へ連れて行く', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    root.querySelector<HTMLButtonElement>('[data-prep-go-elements]')!.click();
+    expect(root.querySelector<HTMLButtonElement>('[data-view-tab="board"]')!.classList.contains('is-on')).toBe(true);
+    expect(root.querySelector('[data-board-elements]')).not.toBeNull();
+    // 自動では回さない (属性を選ぶのは本人)。探索が走っていないことを状態行で確かめる
+    expect(root.querySelector<HTMLElement>('[data-board-status]')!.hidden).toBe(true);
+  });
+
   it('キューブをまとめて付けられる — 全員に敷いてから、個別に変えたい人だけ直す', () => {
     // ふだんは全員リロ速/弾チャで、ボスによって数人だけ付け替える運用。
     // 1人ずつ個別設定を開くと5回の往復になる。

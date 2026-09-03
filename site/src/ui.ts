@@ -626,7 +626,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             <b>最適3凸を探す</b>
             <span data-prep-next-note></span>
           </div>
-          <button type="button" class="roster-import lead" data-prep-go>最適3凸を探す →</button>
+          <button type="button" class="roster-import lead" data-prep-go>全ボスから自動で探す →</button>
+          <button type="button" class="roster-import" data-prep-go-elements title="凸する属性を自分で決めて (同じ属性を2回でも可)、その中で被りなし・合計最大の3つ組を選びます">属性を決めて最適化 →</button>
         </div>
 
         <details class="plans-advanced">
@@ -4087,6 +4088,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       applySquadToDeck(squad, characters);
       closeSquadModal();
       say(code, `この編成を詳細計算のデッキ ${activeDeckId} に入れました。`, true);
+      // 「開く」と言っているのだから**実際に詳細計算へ移る** — デッキだけ差し替えて
+      // 同じ画面に留まると、押しても何も起きていないように見える (実際そう報告された)
+      switchView('calc');
+      scrollTo(squadGrid);
     });
 
     squadModalSave.addEventListener('click', () => {
@@ -4348,6 +4353,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       // 盤面が描かれてから押す。同じフレームで押すと、まだ古い盤面のボタンを掴む
       requestAnimationFrame(() => {
         root.querySelector<HTMLButtonElement>('[data-board-search-best]')?.click();
+      });
+    });
+    // 凸する属性を自分で決めたい人の道。最適3凸タブの「属性を決めて最適化」へ連れて行き、
+    // どこを触ればよいかが分かるように一瞬だけ光らせる (自動では回さない — 属性を選ぶのは本人)
+    element<HTMLButtonElement>(root, '[data-prep-go-elements]').addEventListener('click', () => {
+      switchView('board');
+      requestAnimationFrame(() => {
+        const row = root.querySelector<HTMLElement>('[data-board-elements]');
+        if (!row) return;
+        scrollTo(row);
+        row.classList.remove('is-spotlit');
+        void row.offsetWidth;   // クラスを付け直してアニメーションを確実に再生する
+        row.classList.add('is-spotlit');
       });
     });
 
@@ -5176,10 +5194,27 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         burstNote.append(createText('b', ` — B${need.join('・B')} がいません`, 'is-warn'));
       }
 
+      // 並び順は**計算結果に影響する** (バーストの回し方や攻撃対象の決まり方が変わる —
+      // 同じ5人でも並びだけで2割以上変わる実測あり)。だから外す✕だけでなく、
+      // その場で隣と入れ替えられる◀▶を置く (ドラッグでなくボタン = キーボードでも押せる)
+      burstNote.append(createText('span', ' · 並び順も結果に影響します', 'board-picker-order-hint'));
       const line = el('div', 'board-picker-line');
+      const swap = (a: number, b: number) => {
+        const next = [...squad];
+        [next[a], next[b]] = [next[b] ?? '', next[a] ?? ''];
+        onChange(next);
+      };
       for (let at = 0; at < 5; at += 1) {
         const name = squad[at] ?? '';
         if (name) {
+          const cell = el('span', 'board-picker-slot');
+          if (at > 0) {
+            const left = button('◀', 'board-picker-move', () => swap(at, at - 1));
+            left.title = '左と入れ替える (並び順は計算結果に影響します)';
+            left.setAttribute('aria-label', `${labelFor(name)} を左へ`);
+            left.dataset.boardPickerMove = `${mark}:${at}:left`;
+            cell.append(left);
+          }
           const chip = button(`${labelFor(name)} ✕`, 'board-picker-chip', () => {
             const next = [...squad];
             next[at] = '';
@@ -5187,7 +5222,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           });
           chip.title = '外す';
           chip.dataset.boardPickerDrop = `${mark}:${at}`;
-          line.append(chip);
+          cell.append(chip);
+          if (at < 4) {
+            const right = button('▶', 'board-picker-move', () => swap(at, at + 1));
+            right.title = '右と入れ替える (並び順は計算結果に影響します)';
+            right.setAttribute('aria-label', `${labelFor(name)} を右へ`);
+            right.dataset.boardPickerMove = `${mark}:${at}:right`;
+            cell.append(right);
+          }
+          line.append(cell);
         } else {
           line.append(createText('span', '空き', 'board-picker-chip is-empty'));
         }
