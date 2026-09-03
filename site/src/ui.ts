@@ -3801,8 +3801,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
      * 計算機の並列設定に従って回す。進み具合は状態行に出す。
      * 回す仕組みそのものは `score-runner.ts` — DOM を知らない側に置いてある。
      */
-    const runJobs = async (jobs: Job[], what: string) => {
-      if (jobs.length === 0) return;
+    const runJobs = async (jobs: Job[], what: string): Promise<Map<string, string>> => {
+      if (jobs.length === 0) return new Map();
       const { scores: scoresFromRun, failures } = await runScores(
         jobs.map((job) => ({ key: job.key, request: job.request, problems: job.problems })),
         {
@@ -3821,8 +3821,18 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         scores.set(key, total);
         while (scores.size > SCORE_MEMORY) scores.delete(scores.keys().next().value as string);
       }
-      if (failures.size > 0) throw new Error([...failures.values()][0]!);
+      // 失敗は**投げない**。20件中1件が組めないだけで «全候補を計算» が丸ごと止まり、
+      // 計算できた19件も盤面に入らなかった。呼び出し側が «何件だめだったか» を添えて進める。
+      return failures;
     };
+    // 計算できなかったぶんを一言で添える。理由は先頭の1件だけ — 原因はたいてい同じ
+    // (育成値が範囲外) で、全部並べても読まれない。
+    const failNote = (failures: Map<string, string>) => (failures.size === 0 ? ''
+      : ` 計算できなかった候補が${failures.size}件あります (${[...failures.values()][0]})。`);
+    // 空の編成は «0点» が正しい。計算できなかったのは «不明» — これを 0点として比べると、
+    // 失敗した側が黙って負ける。両者を区別して返す。
+    const scoreOrZero = (boss: UnionBoss, squad: readonly string[], snapshot?: Snapshot): number | null =>
+      (isEmptySquad(squad) ? 0 : knownScore(boss, squad, snapshot));
     const withBusy = async (work: () => Promise<void>) => {
       if (busy) { say('別の計算が走っています。終わるまで待ってください。'); return; }
       busy = true;
@@ -3862,8 +3872,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const computeSlots = (indexes: number[]) => withBusy(async () => {
       const jobs = dedupe(indexes.flatMap(slotJobs));
       if (jobs.length === 0) { say('計算する枠がありません。ボスを選んでください。'); return; }
-      await runJobs(jobs, '計算中');
-      say(`${battleNote()} で計算しました。`, true);
+      const failures = await runJobs(jobs, '計算中');
+      if (failures.size >= jobs.length) { say(`計算できませんでした — ${[...failures.values()][0]}`); return; }
+      say(`${battleNote()} で計算しました。${failNote(failures)}`, failures.size === 0);
     });
 
     /** ボスを選ぶ → そのコードの候補を入れる (点数が分かっている候補があれば一番高いもの、無ければ候補1)。 */
@@ -3901,18 +3912,18 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         say('入れられる候補がありません。枠の「この枠の編成を組む」で組むか、「保存候補・比較」タブで保存してください (他の枠と全員被る候補は除きます)。');
         return;
       }
-      await runJobs(dedupe(candidates.map((c) => jobFor(c.boss, c.squad, c.characters))), '残りで探索中');
+      const failures = await runJobs(dedupe(candidates.map((c) => jobFor(c.boss, c.squad, c.characters))), '残りで探索中');
       let best: OpenCandidate | null = null;
       let bestScore = -Infinity;
       for (const candidate of candidates) {
         const score = knownScore(candidate.boss, candidate.squad, candidate.characters);
         if (score !== null && score > bestScore) { bestScore = score; best = candidate; }
       }
-      if (!best) { say('計算できる候補がありませんでした。'); return; }
+      if (!best) { say(`計算できる候補がありませんでした。${failNote(failures)}`); return; }
       commit(withSlot(board, index, { boss: best.boss.name, squad: best.squad, characters: best.characters }));
       say(best.removed.length > 0
-        ? `${best.boss.name} (候補 ${best.planIndex + 1}) が最大でした。他の枠と被る ${best.removed.map(labelFor).join('・')} は外してあります。`
-        : `${best.boss.name} (候補 ${best.planIndex + 1}) が最大でした。`, true);
+        ? `${best.boss.name} (候補 ${best.planIndex + 1}) が最大でした。他の枠と被る ${best.removed.map(labelFor).join('・')} は外してあります。${failNote(failures)}`
+        : `${best.boss.name} (候補 ${best.planIndex + 1}) が最大でした。${failNote(failures)}`, failures.size === 0);
     });
 
     /** 全候補 (ボス × 候補) を計算し、被りなしで合計最大の3つを枠に入れる。 */
@@ -3922,7 +3933,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         for (const plan of boardCandidatesFor(boss, plans).plans) all.push({ boss, plan });
       }
       if (all.length === 0) { say('保存した候補がありません。各枠の「この枠の編成を組む」から直接選べます。'); return; }
-      await runJobs(dedupe(all.map((c) => jobFor(c.boss, c.plan.squad, c.plan.characters))), '全候補を計算中');
+      const failures = await runJobs(dedupe(all.map((c) => jobFor(c.boss, c.plan.squad, c.plan.characters))), '全候補を計算中');
       const scored: Candidate[] = all.flatMap(({ boss, plan }) => {
         const score = knownScore(boss, plan.squad, plan.characters);
         return score === null ? [] : [{
@@ -3931,7 +3942,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         }];
       });
       const picked = bestTriple(scored);
-      if (picked.length === 0) { say('計算できる候補がありませんでした。'); return; }
+      if (picked.length === 0) { say(`計算できる候補がありませんでした。${failNote(failures)}`); return; }
       let next = emptyBoard();
       picked.forEach((candidate, index) => {
         next = withSlot(next, index, {
@@ -3942,8 +3953,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       commit(next);
       const total = formatDamage(picked.reduce((sum, candidate) => sum + candidate.score, 0));
       say(picked.length < BOARD_SLOTS
-        ? `被りなしで組めたのは ${picked.length} 凸ぶんでした (合計 ${total})。保存候補を増やすと3凸まで埋まります。`
-        : `被りなしで最大の3凸を入れました (合計 ${total} · ${battleNote()})。`, true);
+        ? `被りなしで組めたのは ${picked.length} 凸ぶんでした (合計 ${total})。保存候補を増やすと3凸まで埋まります。${failNote(failures)}`
+        : `被りなしで最大の3凸を入れました (合計 ${total} · ${battleNote()})。${failNote(failures)}`, failures.size === 0);
     });
 
     /** 被りを解く: 「こちらから外す」「相手から譲る」の両方を計算し、合計が大きい側にする。 */
@@ -3957,10 +3968,21 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         jobFor(boss, slot.squad, slot.characters), jobFor(boss, option.here, slot.characters),
         jobFor(otherBoss, other.squad, other.characters), jobFor(otherBoss, option.there, other.characters),
       ]), '代案を計算中');
-      const hereTotal = (knownScore(boss, option.here, slot.characters) ?? 0)
-        + (knownScore(otherBoss, other.squad, other.characters) ?? 0);
-      const thereTotal = (knownScore(boss, slot.squad, slot.characters) ?? 0)
-        + (knownScore(otherBoss, option.there, other.characters) ?? 0);
+      // 4つの値が揃わないと «どちらが得か» は決められない。1つでも計算できていないまま
+      // 0点として足すと、失敗した側が黙って負ける。揃わなければ何もせずに止める。
+      const four = [
+        scoreOrZero(boss, option.here, slot.characters),
+        scoreOrZero(otherBoss, other.squad, other.characters),
+        scoreOrZero(boss, slot.squad, slot.characters),
+        scoreOrZero(otherBoss, option.there, other.characters),
+      ];
+      if (four.some((score) => score === null)) {
+        say('代案を計算できなかったので、どちらが得かを決められませんでした。編成の育成値を確かめてください。');
+        return;
+      }
+      const [hereA, hereB, thereA, thereB] = four as number[];
+      const hereTotal = hereA! + hereB!;
+      const thereTotal = thereA! + thereB!;
       const names = option.names.map(labelFor).join('・');
       // 外した結果だれも残らない枠は、ボスごと空に戻す — 「残りで一番出るボスを探す」が使える状態にする
       if (hereTotal >= thereTotal) {
@@ -4588,7 +4610,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         return;
       }
       // 選んだ属性の候補を全部 (重複は1回) 計算してから、被りなしの割り当てを解く
-      await runJobs(dedupe(chosen.flatMap((code) => {
+      const failures = await runJobs(dedupe(chosen.flatMap((code) => {
         const boss = bossForElement(code, UNION_SEASON.bosses) ?? undefined;
         return plansOf(plans, code).map((plan) => jobFor(boss, plan.squad, plan.characters));
       })), '候補を計算中');
@@ -4619,8 +4641,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const holes = picked.map((candidate, index) => (candidate ? null : index + 1))
         .filter((value): value is number => value !== null);
       say(holes.length === 0
-        ? `${chosen.map((code) => elementLabel(code)).join('・')} で被りなしの3凸を組みました — 理論値の合計 ${formatDamage(total)} (${battleNote()})。`
-        : `${holes.join('・')}凸目には被りなしで入れられる候補がありませんでした (合計 ${formatDamage(total)})。候補を増やすか、枠で直接組んでください。`, holes.length === 0);
+        ? `${chosen.map((code) => elementLabel(code)).join('・')} で被りなしの3凸を組みました — 理論値の合計 ${formatDamage(total)} (${battleNote()})。${failNote(failures)}`
+        : `${holes.join('・')}凸目には被りなしで入れられる候補がありませんでした (合計 ${formatDamage(total)})。候補を増やすか、枠で直接組んでください。${failNote(failures)}`,
+        holes.length === 0 && failures.size === 0);
     });
     const elementsRun = element<HTMLButtonElement>(root, '[data-board-elements-run]');
     elementsRun.addEventListener('click', () => { void withProgress('data-board-elements-run', runElements); });

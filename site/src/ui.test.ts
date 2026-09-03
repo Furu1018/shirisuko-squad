@@ -1363,6 +1363,66 @@ describe('calculator UI', () => {
     expect(root.querySelector('[data-board-clash]')).toBeNull();
   });
 
+  it('候補の1件が計算できなくても、残りで組む (1件の失敗で全部を止めない)', async () => {
+    // 育成値がおかしい候補は本当に出る。それ1件で «全候補を計算» が丸ごと止まっていた。
+    class OneBadClient extends FakeClient {
+      override async simulate(request: SimulationRequest): Promise<SimulationResult> {
+        await super.simulate(request);
+        if (request.squad.includes('나가')) throw new Error('スキルレベルが範囲外です');
+        return calculated;
+      }
+    }
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new OneBadClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('수냉', ['앨리스', '나가']);       // これだけ計算できない
+    savePlan('수냉', ['앨리스', '프리바티']);
+    root.querySelector<HTMLButtonElement>('[data-board-search-best]')!.click();
+    await settle();
+
+    const slots = storedBoard().slots;
+    expect(slots.filter((slot) => slot.boss)).toHaveLength(2);
+    expect(slots[0]!.squad.filter(Boolean)).toEqual(['리타', '크라운']);
+    // 計算できた側が選ばれる (先に保存した 나가 の案は点が無いので候補から落ちる)
+    expect(slots[1]!.squad.filter(Boolean)).toEqual(['앨리스', '프리바티']);
+    const status = root.querySelector('[data-board-status]')!.textContent ?? '';
+    expect(status).toContain('計算できなかった候補が1件あります');
+    expect(status).toContain('スキルレベルが範囲外です');
+  });
+
+  it('代案の片方が計算できなければ、どちらが得かを決めない (0点として負かさない)', async () => {
+    // 計算できなかったぶんを 0点として足すと、失敗した側が黙って負けて枠から消える。
+    class BadBossClient extends FakeClient {
+      override async simulate(request: SimulationRequest): Promise<SimulationResult> {
+        await super.simulate(request);
+        if (request.enemyCode === '작열') throw new Error('計算できませんでした');
+        return calculated;
+      }
+    }
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new BadBossClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('수냉', ['리타', '크라운']);
+    pickBoss(0, 'レイタンス');
+    await settle();
+    pickBoss(1, 'トゥームストーン');   // 灼熱 — こちらが計算できない
+    await settle();
+
+    const clash = root.querySelector<HTMLElement>('[data-board-clash="1:0"]')!;
+    clash.querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+
+    // どちらの枠も触らない
+    expect(storedBoard().slots[0]!.boss).toBe('レイタンス');
+    expect(storedBoard().slots[1]!.boss).toBe('トゥームストーン');
+    expect(root.querySelector('[data-board-status]')!.textContent)
+      .toContain('どちらが得かを決められませんでした');
+  });
+
   it('「今の編成を保存」は個別設定 (スキル等) ごと案に入り、「3案を比較」のダメージが登録として残る', async () => {
     const client = new FakeClient();
     mountCalculator(root, {
