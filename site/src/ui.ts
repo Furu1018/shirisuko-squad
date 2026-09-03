@@ -1,6 +1,6 @@
-import { elementLabel, growthLabel, labelFor, labelForClass, labelForMaker } from './display-name';
+import { cubeTemplate, elementLabel, growthLabel, labelFor, labelForClass, labelForCube, labelForMaker } from './display-name';
 import { ResultCache, type StorageLike, type StorageSource } from './cache';
-import { NO_CUBE, renderCharacterSettings, type CharPanelKind } from './character-settings';
+import { NO_CUBE, defaultCharacterOverrides, renderCharacterSettings, type CharPanelKind } from './character-settings';
 import {
   BLABLA_SERVERS,
   areaToOverrides,
@@ -3793,6 +3793,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       characters: Record<string, CharacterOverrides>;
       tuning: string | null;   // いま育成・キューブを見ているニケ
       tuneOpen: boolean;       // 育成・キューブの面を開いているか (登録だけなら閉じたまま)
+      /** まとめて付けたキューブ。開いている間だけ覚えて、選び直しの手間を省く */
+      bulkCube?: string;
+      bulkCubeLevel?: number;
     } | null = null;
 
     /** 押せるだけの小さなボタン。盤面の `button` は «計算中は押せない» を持つので借りない。 */
@@ -3845,6 +3848,81 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       // どのニケの設定を見ているか。選んでいなければ先頭
       if (!draft.tuning || !members.includes(draft.tuning)) draft.tuning = members[0]!;
+
+      // ── キューブをまとめて付ける ──
+      // ふだんは全員リロ速/弾チャで、ボスによって数人をパーツ/貫通/分配に付け替える運用。
+      // 1人ずつ «個別設定 → キューブ» を開くと5回の往復になるので、まず全員に敷いてから
+      // 変えたい人だけ下で直せるようにする。畳んでいても使えるようにこの位置に置く。
+      {
+        const bulk = el('div', 'squad-cube-bulk');
+        bulk.append(createText('span', 'キューブをまとめて付ける', 'squad-cube-label'));
+        const cubePick = el('select') as HTMLSelectElement;
+        cubePick.dataset.squadCubeName = '';
+        cubePick.setAttribute('aria-label', '全員に付けるキューブ');
+        for (const [cubeName, meta] of Object.entries(settings.cubes)) {
+          const option = document.createElement('option');
+          option.value = cubeName;
+          // 名前だけだと «どれがリロ速か» が分からない。効果の中身を添える
+          // (「戦闘開始時 リロード速度…」の主要部だけ。数値はレベルで変わるので出さない)
+          const effect = cubeTemplate(meta.template)
+            .replace(/\{\d\}/g, '')           // 数値はレベルで変わるので出さない (複数あるものもある)
+            .replace(/[「」▲▼]/g, '')
+            .replace(/^[^\s「]*時\s*/, '')     // 「戦闘開始時」「10発射撃した時」などの前置き
+            .replace(/％(?=\d)/g, ' ')         // 数値を抜いた後、次の数字と癒着した単位
+            .replace(/[％%発、]\s*$/, '')      // 末尾に残る単位・読点
+            .replace(/^[、\s]+/, '')
+            .trim();
+          option.textContent = effect ? `${labelForCube(cubeName)} — ${effect}` : labelForCube(cubeName);
+          cubePick.append(option);
+        }
+        if (draft.bulkCube && settings.cubes[draft.bulkCube]) cubePick.value = draft.bulkCube;
+        const levelPick = el('select') as HTMLSelectElement;
+        levelPick.dataset.squadCubeLevel = '';
+        levelPick.setAttribute('aria-label', '付けるキューブのレベル');
+        const fillLevels = () => {
+          levelPick.replaceChildren();
+          const meta = settings.cubes[cubePick.value];
+          const levels = Object.keys(meta?.levels ?? {}).map(Number).sort((a, b) => a - b);
+          for (const level of levels) {
+            const option = document.createElement('option');
+            option.value = String(level);
+            option.textContent = `Lv${level}`;
+            levelPick.append(option);
+          }
+          // 手持ちのキューブは上げてあることが多いので、既定は最大
+          const wanted = draft?.bulkCubeLevel;
+          levelPick.value = wanted && levels.includes(wanted) ? String(wanted) : String(levels[levels.length - 1] ?? 15);
+        };
+        fillLevels();
+        cubePick.addEventListener('change', () => {
+          if (draft) draft.bulkCube = cubePick.value;
+          fillLevels();
+        });
+        levelPick.addEventListener('change', () => {
+          if (draft) draft.bulkCubeLevel = Number(levelPick.value);
+        });
+        const applyAll = el('button', 'roster-import', '全員に付ける');
+        (applyAll as HTMLButtonElement).type = 'button';
+        applyAll.dataset.squadCubeApply = '';
+        applyAll.addEventListener('click', () => {
+          if (!draft) return;
+          const cubeName = cubePick.value;
+          const level = Number(levelPick.value);
+          draft.bulkCube = cubeName;
+          draft.bulkCubeLevel = level;
+          for (const name of draft.squad.filter(Boolean)) {
+            // 設定が無いニケは既定 (取り込んだ値が敷いてあればそれ) から起こす。
+            // キューブだけの部分的な設定は作れない — 個別設定は1塊で持つ約束
+            const base = draft.characters[name] ?? defaultCharacterOverrides(name, settings);
+            base.cube = { name: cubeName as never, level };
+            draft.characters[name] = base;
+          }
+          renderTune();
+          sayModal(`${draft.squad.filter(Boolean).length}人全員に ${labelForCube(cubeName)} Lv${level} を付けました。個別に変えたい人は下で直せます。`, true);
+        });
+        bulk.append(cubePick, levelPick, applyAll);
+        squadModalTune.append(bulk);
+      }
 
       if (!draft.tuneOpen) {
         // «選んで保存» を最短にする。詰めたい人だけ開く (Codex と検討した案2)。

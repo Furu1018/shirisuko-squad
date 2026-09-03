@@ -802,6 +802,38 @@ describe('calculator UI', () => {
       .toContain('理論値まだ');
   });
 
+  it('キューブをまとめて付けられる — 全員に敷いてから、個別に変えたい人だけ直す', () => {
+    // ふだんは全員リロ速/弾チャで、ボスによって数人だけ付け替える運用。
+    // 1人ずつ個別設定を開くと5回の往復になる。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+    const tile = (at: number) =>
+      [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')][at]!;
+    tile(0).click();
+    tile(1).click();
+
+    // 畳んだままでも使える (開かないと見つからないのでは意味がない)
+    const cubePick = modal.querySelector<HTMLSelectElement>('[data-squad-cube-name]')!;
+    expect(cubePick).not.toBeNull();
+    const firstCube = cubePick.value;
+    modal.querySelector<HTMLButtonElement>('[data-squad-cube-apply]')!.click();
+    expect(root.querySelector('[data-squad-modal-note]')!.textContent).toContain('2人全員に');
+
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+    const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as {
+      byElement: Record<string, Array<{ squad: string[]; characters?: Record<string, { cube?: { name: string; level: number } }> }>>;
+    };
+    const plan = stored.byElement['철갑']![0]!;
+    for (const name of plan.squad.filter(Boolean)) {
+      expect(plan.characters?.[name]?.cube?.name, name).toBe(firstCube);
+      expect(plan.characters?.[name]?.cube?.level, name).toBeGreaterThan(0);
+    }
+  });
+
   it('「コピー」は写しを新規として開き、そのままでは保存できない', () => {
     // 「ちょっとだけ編成をかえる」の入口。写しをどこか変えて保存すると別候補になる。
     // 何も変えずに保存しようとすると重複で弾かれる — それが «どこか変えて» の合図
@@ -836,6 +868,15 @@ describe('calculator UI', () => {
     expect(stored.byElement['철갑']![0]!.squad.filter(Boolean)).toEqual(['리타']);
   });
 
+  /** 押した計算が終わるまで待つ (釦の文言が戻るまで)。遅い環境では settle 2回では足りない。 */
+  const settleBatch = async () => {
+    for (let i = 0; i < 40; i += 1) {
+      await settle();
+      const label = root.querySelector('[data-plans-batch-run]')?.textContent ?? '';
+      if (!/計算中/.test(label)) return;
+    }
+  };
+
   it('「理論値をぜんぶ出す」は、出してある候補を飛ばす', async () => {
     // キューブを1件だけ変えて押し直したとき、残り全部を回し直すと 7秒 × 件数 待つことになる。
     // 値は条件と編成で決まるので、同じ条件で出し直しても同じ数字にしかならない。
@@ -848,15 +889,13 @@ describe('calculator UI', () => {
     chooseCharacter(root, 0, '리타');
     saveDeckAsPlan(root, '철갑');
     root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
-    await settle();
-    await settle();
+    await settleBatch();
     const ran = client.simulateCalls;
     expect(ran).toBeGreaterThan(0);
 
     // もう一度押しても回さない — «すべて出ています» と言うだけ
     root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
-    await settle();
-    await settle();
+    await settleBatch();
     expect(client.simulateCalls).toBe(ran);
     expect(root.querySelector('[data-plans-batch-note]')!.textContent)
       .toContain('すべて、今回のボス条件の理論値が出ています');
@@ -865,8 +904,7 @@ describe('calculator UI', () => {
     chooseCharacter(root, 1, '크라운');
     saveDeckAsPlan(root, '철갑');
     root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
-    await settle();
-    await settle();
+    await settleBatch();
     expect(client.simulateCalls).toBe(ran + 1);
     expect(root.querySelector('[data-plans-batch-note]')!.textContent)
       .toContain('出してあった1件は飛ばしました');
