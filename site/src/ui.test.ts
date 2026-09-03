@@ -1371,6 +1371,39 @@ describe('calculator UI', () => {
     expect(root.querySelector('[data-board-clash]')).toBeNull();
   });
 
+  it('結果の一言は、押したボタンの隣にも出る (狭い画面で上の1行は見えない)', async () => {
+    // 盤面の状態表示は画面のいちばん上に1つだけ。幅390pxでは押した場所から594px 上にいて
+    // 見えず、«押しても何も起きない» ように見えていた (実測)。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const runButton = root.querySelector<HTMLButtonElement>('[data-board-elements-run]')!;
+    expect(root.querySelector('.board-said')).toBeNull();
+
+    // 属性を選ばずに押す — 即座に弾かれる案内
+    runButton.click();
+    await settle();
+    const near = root.querySelector<HTMLElement>('.board-said')!;
+    expect(near).not.toBeNull();
+    expect(near.textContent).toContain('属性を3つ選んでください');
+    // 押したボタンの**直後**に出る (離れた場所ではない)
+    expect(runButton.nextElementSibling).toBe(near);
+    // 読み上げは上の1行が担う — ここを live にすると二度言う
+    expect(near.getAttribute('aria-live')).toBeNull();
+
+    // 3属性を選んで押し直すと、前の一言は残らない
+    const picks = [...root.querySelectorAll<HTMLSelectElement>('[data-board-element]')];
+    for (const pick of picks) {
+      pick.value = '철갑';
+      pick.dispatchEvent(new Event('change'));
+    }
+    runButton.click();
+    await settle();
+    expect(root.querySelectorAll('.board-said')).toHaveLength(1);
+    expect(root.querySelector('.board-said')!.textContent).not.toContain('属性を3つ選んでください');
+  });
+
   it('候補の1件が計算できなくても、残りで組む (1件の失敗で全部を止めない)', async () => {
     // 育成値がおかしい候補は本当に出る。それ1件で «全候補を計算» が丸ごと止まっていた。
     class OneBadClient extends FakeClient {

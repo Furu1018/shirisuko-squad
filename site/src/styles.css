@@ -1210,6 +1210,11 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 }
 .board-status { margin: 0 0 10px; font-size: 12px; color: var(--ink-2); }
 .board-status.is-ok { color: var(--ink); }
+/* 押したボタンの隣に出す結果の一言。盤面の状態表示は画面のいちばん上に1つしかなく、
+   狭い画面では押した場所から 594px 上にいて見えない (実測) — 押した場所にも出す。 */
+.board-said { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--ink-2);
+  border-left: 2px solid var(--line); padding-left: 8px; }
+.board-said.is-ok { color: var(--ink); border-left-color: var(--accent-deep); }
 
 .board-slots { display: grid; gap: 12px; }
 @media (min-width: 900px) { .board-slots { grid-template-columns: repeat(3, 1fr); } }

@@ -3684,6 +3684,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       statusBox.textContent = message;
       statusBox.hidden = !message;
       statusBox.classList.toggle('is-ok', ok);
+      lastSaid = message ? { message, ok } : null;
       // 押したボタンにも同じ進捗を出す。上部の1行だけだと、押した場所から目を離すことになる
       // (計算は1件7秒台。3件なら20秒以上、押しっぱなしで待つことになる)。
       if (runningMark) {
@@ -3702,6 +3703,31 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
      */
     let runningMark: string | null = null;
     let runningText = '';
+    /**
+     * 直前に say() で言ったこと。押し終わったあとに**押したボタンの隣**へ出すために持つ。
+     *
+     * 状態表示は盤面のいちばん上に1つしかない。幅390pxの画面で属性の行まで下ろして
+     * ボタンを押すと、その1行は**594px 上** (実測) にいて見えない — 押しても何も
+     * 起きないように見えていた。進捗 (計算中 n/m) はボタンに出していたが、
+     * 「属性を3つ選んでください」のような**即座に弾かれる案内**と、
+     * 「被りなしで組めたのは1凸ぶん…」のような**次の行動を含む結果**は届いていなかった。
+     */
+    let lastSaid: { message: string; ok: boolean } | null = null;
+
+    /**
+     * 押したボタンの直後に、結果の一言を出す。
+     *
+     * 読み上げは**しない** — 上の状態表示が role="status" で読み上げるので、
+     * ここも live にすると同じことを二度言う。
+     */
+    const sayNear = (mark: string, said: { message: string; ok: boolean } | null) => {
+      for (const old of root.querySelectorAll('.board-said')) old.remove();
+      if (!said) return;
+      const target = root.querySelector<HTMLElement>(`[${mark}]`);
+      if (!target) return;
+      const note = createText('p', said.message, said.ok ? 'board-said is-ok' : 'board-said');
+      target.insertAdjacentElement('afterend', note);
+    };
 
     /** 描き直した直後に、走っているボタンへ進捗を貼り直す。 */
     const paintProgress = () => {
@@ -3724,6 +3750,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const label = target?.textContent ?? '';
       runningMark = mark;
       runningText = '計算中…';
+      // 前回の結果は消す。残すと «今押した結果» と見分けがつかない
+      sayNear(mark, null);
+      lastSaid = null;
       paintProgress();
       try {
         await work();
@@ -3737,6 +3766,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           still.textContent = label;
           still.disabled = false;
         }
+        // 描き直した**あと**に出す — 先に出すと renderBoard() に消される
+        sayNear(mark, lastSaid);
       }
     };
 
