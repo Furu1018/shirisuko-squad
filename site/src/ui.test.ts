@@ -1429,7 +1429,8 @@ describe('calculator UI', () => {
     // 計算できた側が選ばれる (先に保存した 나가 の案は点が無いので候補から落ちる)
     expect(slots[1]!.squad.filter(Boolean)).toEqual(['앨리스', '프리바티']);
     const status = root.querySelector('[data-board-status]')!.textContent ?? '';
-    expect(status).toContain('計算できなかった候補が1件あります');
+    // 「1件だめでした」だけだと 2件中なのか 20件中なのか分からない — 総数も出す
+    expect(status).toContain('3件中 1件は計算できませんでした');
     expect(status).toContain('スキルレベルが範囲外です');
   });
 
@@ -1460,8 +1461,12 @@ describe('calculator UI', () => {
     // どちらの枠も触らない
     expect(storedBoard().slots[0]!.boss).toBe('レイタンス');
     expect(storedBoard().slots[1]!.boss).toBe('トゥームストーン');
-    expect(root.querySelector('[data-board-status]')!.textContent)
-      .toContain('どちらが得かを決められませんでした');
+    const clashStatus = root.querySelector('[data-board-status]')!.textContent ?? '';
+    expect(clashStatus).toContain('どちらが得かを決められませんでした');
+    // **本当の理由**を出す。原因を «育成値» と決めつけると、育成値を直しても直らない
+    // 相手に育成値を直させることになる
+    expect(clashStatus).toContain('計算できませんでした');
+    expect(clashStatus).not.toContain('育成値を確かめてください');
   });
 
   it('「今の編成を保存」は個別設定 (スキル等) ごと案に入り、「3案を比較」のダメージが登録として残る', async () => {
@@ -1955,6 +1960,39 @@ describe('calculator UI', () => {
     const before = cancels;
     cleanup();
     expect(cancels).toBe(before + 1);   // 外したら予約も取り消す
+  });
+
+  it('走り出した先読みは、途中で画面を外したら結果を捨てる', async () => {
+    // 予約の取り消し (clearTimeout) では、700ms を過ぎて中に入ったものは止まらない。
+    // await の後で もう無い画面に描き・保存しにいっていた。
+    const withTargets: SimulationResult = {
+      ...calculated,
+      buffTargets: { 리타: [{ label: '크확 대상', buff: '웨이크업! 4', targets: ['크라운'], count: 3 }] },
+    };
+    let release!: (result: SimulationResult) => void;
+    class SlowClient extends FakeClient {
+      override async simulate(request: SimulationRequest): Promise<SimulationResult> {
+        await super.simulate(request);
+        return new Promise<SimulationResult>((resolve) => { release = resolve; });
+      }
+    }
+    let run!: () => void;
+    const cleanup = mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new SlowClient(), storage: localStorage,
+      defer: (fn) => { run = fn; return () => {}; },
+    });
+
+    run();                 // 先読みが動き出し、simulate の中で止まる
+    await flush();
+    cleanup();             // **計算が返る前に**外す
+    release(withTargets);  // ここで結果が返る
+    await flush();
+    await flush();
+
+    // 外したあとの結果は保存しない — 開き直したときに «見ていない計算» が残る
+    const saved = JSON.parse(localStorage.getItem('nikke-state-v1') ?? '{}') as
+      { buffTargets?: unknown[] };
+    expect(saved.buffTargets ?? []).toHaveLength(0);
   });
 
   const chip = (root: HTMLElement, key: string, value: string) =>
