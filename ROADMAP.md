@@ -189,7 +189,7 @@ UI 全ファイル。**内部キー (韓国語のキャラ名・属性・保存�
 6. ◐ **[構造/M] `mountRaidBoard(root, deps)` の切り出し** — **下ごしらえまでで止めた**。判断の根拠は下記
 7. ✅ **[UX/S] ピッカーの ★ を実ボタンに** — 今は span+click で**キーボードから押せない**。aria-label と押下状態、
    使用中タイルの可視表示、パネル開閉時のフォーカス移動
-8. 🔜 **[構造/M] prefetch を注入可能に** — 700ms のバフ先読みがテストを汚す問題を fake timer の個別回避でなく
+8. ✅ **[構造/M] prefetch を注入可能に** — 700ms のバフ先読みがテストを汚す問題を fake timer の個別回避でなく
    scheduler 注入で解く (これまでに2件のテストで個別回避済み)
 9. ✅ **[構造/M] localStorage の実装契約を一枚に** — 所有者・schemaVersion・移行・削除範囲。
    **完全初期化に漏れあり**: 削除済み機能のキー (`nikke-enikk-v1/v2` `nikke-custom-v1`) や
@@ -341,7 +341,7 @@ git clone https://github.com/Furu1018/shirisuko-squad.git   # 初回
 cd shirisuko-squad/site && npm ci
 
 npm run dev        # 開発サーバ (/shirisuko-squad/ を開く)
-npm test -- --run  # vitest (503件)
+npm test -- --run  # vitest (504件)
 npm run build      # tsc --noEmit + vite build (prebuild で Python が要る)
 ```
 

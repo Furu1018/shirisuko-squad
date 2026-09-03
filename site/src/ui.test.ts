@@ -118,6 +118,14 @@ class FakeClient implements CalculatorClientLike {
   dispose(): void {}
 }
 
+/**
+ * 何もしない «あとで» の時計。バフ対象の先読み (700ms) を丸ごと止める。
+ * 先読みは計算を1件増やすので、回数を数えるテストでは邪魔にしかならない。
+ * 以前はテストごとに fake timer を張って避けていた (時計を差し替えると
+ * 待ち合わせも道連れになるので、setImmediate に逃がす必要があった)。
+ */
+const noDefer = () => () => {};
+
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 /** 판의 검색칸에 친다. 슬롯마다 있던 검색은 없어지고 덱에 하나만 남았다. */
@@ -1878,6 +1886,44 @@ describe('calculator UI', () => {
     expect(shown()).toBe('크확 대상 : []');
   });
 
+  it('バフ対象の先読みは注入した時計で回り、画面を外すと取り消される', async () => {
+    // 先読みは 700ms 後に renderSquad() を呼ぶ。外した後に発火すると、
+    // もう無い画面を描きにいく。時計を注入できるようにして、そこも確かめられるようにした。
+    const withTargets: SimulationResult = {
+      ...calculated,
+      buffTargets: { 리타: [{ label: '크확 대상', buff: '웨이크업! 4', targets: ['크라운'], count: 3 }] },
+    };
+    class TargetClient extends FakeClient {
+      override async simulate(request: SimulationRequest): Promise<SimulationResult> {
+        await super.simulate(request);
+        return withTargets;
+      }
+    }
+    const booked: Array<{ run: () => void; ms: number }> = [];
+    let cancels = 0;
+    const client = new TargetClient();
+    const cleanup = mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage,
+      defer: (run, ms) => { booked.push({ run, ms }); return () => { cancels += 1; }; },
+    });
+
+    // 리타 (監視対象) が既定編成に居るので、先読みが**予約される**
+    expect(booked.length).toBeGreaterThan(0);
+    expect(booked[0]!.ms).toBe(700);
+    expect(client.simulateCalls).toBe(0);   // 予約しただけでは回らない
+
+    booked[booked.length - 1]!.run();
+    await flush();
+    await flush();
+    expect(client.simulateCalls).toBe(1);
+    expect(root.querySelector<HTMLElement>('[data-buff-target]')?.textContent)
+      .toBe('크확 대상 : [크라운]');
+
+    const before = cancels;
+    cleanup();
+    expect(cancels).toBe(before + 1);   // 外したら予約も取り消す
+  });
+
   const chip = (root: HTMLElement, key: string, value: string) =>
     root.querySelector<HTMLButtonElement>(`[data-filter-chip="${key}:${value}"]`)!;
 
@@ -2809,12 +2855,13 @@ describe('calculator UI', () => {
   });
 
   it('blocks released skill levels outside the integer 1-to-10 range', async () => {
-    // バフ対象の先読み (700ms の setTimeout) が遅い環境ではテスト中に発火して
-    // simulateCalls を汚す。先読みの時計だけ止め、待ち合わせは setImmediate で行う (afterEach が実時計に戻す)
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    // 先読み (700ms) が途中で発火すると simulateCalls が 1 増えて数が合わない。
+    // 何もしない時計を渡して先読みごと止める (時計そのものは本物のまま)。
     const tick = () => new Promise<void>((resolve) => { setImmediate(resolve); });
     const client = new FakeClient();
-    mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage, defer: noDefer,
+    });
     const toggle = root.querySelector<HTMLInputElement>('[data-slot-card="0"] [data-custom-toggle]')!;
     toggle.checked = true;
     toggle.dispatchEvent(new Event('change'));
@@ -2876,13 +2923,13 @@ describe('calculator UI', () => {
   });
 
   it('runs non-empty decks sequentially and allows cross-deck duplicates', async () => {
-    // 計算機のバフ対象の先読み (700ms の setTimeout) がこのテストの途中で発火すると、
-    // 遅い環境では要求が 1 件増えて数が合わなくなる。先読みの時計だけ止め、
-    // 待ち合わせは setImmediate で行う (afterEach が実時計に戻す)
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    // 先読み (700ms) が途中で発火すると要求が 1 件増えて数が合わない。
+    // 何もしない時計を渡して先読みごと止める (時計そのものは本物のまま)。
     const tick = () => new Promise<void>((resolve) => { setImmediate(resolve); });
     const client = new FakeClient();
-    mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client, storage: localStorage, defer: noDefer,
+    });
     root.querySelector<HTMLInputElement>('#duration')!.value = '10';
     let toggle = root.querySelector<HTMLInputElement>('[data-slot-card="0"] [data-custom-toggle]')!;
     toggle.checked = true;

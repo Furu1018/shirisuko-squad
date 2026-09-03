@@ -98,11 +98,18 @@ interface CalculatorDependencies {
   version: string;
   client: CalculatorClientLike;
   storage: StorageSource;
-  // 완전 초기화는 저장소를 비운 뒤 페이지를 다시 띄워 메모리 상태까지 확실히
-  // 되돌린다. 테스트에서는 이 자리에 가짜 함수를 넣는다.
+  // 完全初期化は保存を空にしてからページを開き直し、メモリ上の状態まで確実に戻す。
+  // テストではここに偽物を入れる。
   reload?: () => void;
-  /** 테스트·자체 호스팅에서 빌드 환경값 대신 쓸 BlablaLink 프록시 주소. */
+  /** テスト・自前ホスティングで、ビルド時の値の代わりに使う Blablalink プロキシの住所。 */
   blablaProxy?: string;
+  /**
+   * «あとで一度だけ» を頼む時計。既定は setTimeout。
+   * バフ対象の先読み (700ms) がテストの途中で発火して計算回数を汚すので、
+   * テストは何もしない時計を渡して先読みごと止める
+   * (fake timer をテストごとに張るのをやめるため)。戻り値は取り消し。
+   */
+  defer?: (run: () => void, ms: number) => () => void;
 }
 
 
@@ -314,6 +321,10 @@ const BLABLA_PROXY = (import.meta.env.VITE_BLABLA_PROXY ?? '').trim().replace(/\
 export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies): () => void {
   const { catalog, settings, version, client, storage, reload } = deps;
   const blablaProxy = (deps.blablaProxy ?? BLABLA_PROXY).trim().replace(/\/+$/, '');
+  const defer = deps.defer ?? ((run: () => void, ms: number) => {
+    const timer = setTimeout(run, ms);
+    return () => clearTimeout(timer);
+  });
   const cache = new ResultCache(storage, version, 30);
   const catalogByName = new Map(catalog.map((char) => [char.name, char]));
   const decks = Array.from({ length: 5 }, (_, index) => emptyDeck(index + 1));
@@ -1099,13 +1110,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const deckSignature = (deck: DeckState): string =>
     JSON.stringify([deck.squad, deck.characters]);
 
-  // ── 버프 대상 미리 계산 ──────────────────────────────────────────────────
-  // 수령자는 실제 발동 로그에서만 나온다(대상이 최종 공격력으로 갈리고 전투 중
-  // 바뀌기도 한다). 그래서 계산 버튼을 누르기 전에 **배경으로 한 번 돌려** 미리
-  // 채운다. 결과는 정식 계산과 같은 캐시를 쓰므로 이어서 «실행»을 눌러도 덤이 없다.
-  let prefetchTimer: ReturnType<typeof setTimeout> | undefined;
+  // ── バフ対象の先読み ──────────────────────────────────────────────────
+  // 誰が受けるかは実際の発動ログにしか出ない (対象は最終攻撃力で決まり、戦闘中に
+  // 入れ替わることもある)。なので「計算」を押す前に**背景で一度だけ回して**埋めておく。
+  // 結果は正式な計算と同じキャッシュに入るので、続けて «計算» を押しても余計に回らない。
+  let cancelPrefetch: (() => void) | undefined;
   let prefetching = false;
-  // 배경 계산이 도는 덱. 그 사이 화면에는 `[계산중]`으로 나온다.
+  // 背景計算が回っているデッキ。その間、画面には `[計算中]` と出る。
   let prefetchingDeckId: number | undefined;
 
   const needsPrefetch = (deck: DeckState): boolean => {
@@ -1114,8 +1125,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   };
 
   const prefetchBuffTargets = () => {
-    clearTimeout(prefetchTimer);
-    prefetchTimer = setTimeout(async () => {
+    cancelPrefetch?.();
+    cancelPrefetch = defer(() => { void (async () => {
       // 정식 계산이 도는 중이면 워커를 뺏지 않는다 — 끝나면 어차피 채워진다.
       if (prefetching || submit.disabled) return;
       const deck = activeDeck();
@@ -1142,13 +1153,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           renderSquad();
         }
       } catch {
-        /* 미리 계산은 편의 기능이다 — 실패해도 조용히 넘어간다 */
+        /* 先読みは «あると便利» なだけ — 失敗しても黙って通す */
       } finally {
         prefetching = false;
         prefetchingDeckId = undefined;
         renderSquad();
       }
-    }, 700);
+    })(); }, 700);
   };
 
 
@@ -5140,5 +5151,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   });
 
-  return () => client.dispose();
+  return () => {
+    // 先読みは 700ms 後に renderSquad() を呼ぶ。外した後に発火すると、
+    // 既に無い画面を描きにいく — 一緒に取り消す。
+    cancelPrefetch?.();
+    client.dispose();
+  };
 }
