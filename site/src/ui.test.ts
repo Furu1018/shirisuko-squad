@@ -813,14 +813,17 @@ describe('calculator UI', () => {
       [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')][at]!;
     tile(0).click();
     tile(1).click();
+    // 選んだ2人 (内部キー)。テストカタログは対訳を持たないのでチップの文字 = 内部キー
+    const picked = [...modal.querySelectorAll('[data-board-picker-drop]')]
+      .map((chip) => (chip.textContent ?? '').replace(' ✕', ''));
     root.querySelector<HTMLButtonElement>('[data-plans-apply]')!.click();
 
-    // モーダルが閉じ、詳細計算タブが開き、デッキに2人入っている — «押しても何も起きない» に見えない
+    // モーダルが閉じ、詳細計算タブが開き、**選んだ2人がその順で**デッキに入っている
     expect(modal.hidden).toBe(true);
     expect(root.querySelector<HTMLButtonElement>('[data-view-tab="calc"]')!.classList.contains('is-on')).toBe(true);
     const state = JSON.parse(localStorage.getItem('nikke-state-v1')!) as
       { decks: Array<{ squad: string[] }> };
-    expect(state.decks[0]!.squad.filter(Boolean)).toHaveLength(2);
+    expect(state.decks[0]!.squad.filter(Boolean)).toEqual(picked);
   });
 
   it('選んだニケを◀▶で入れ替えられる — 並び順は計算結果に影響する', () => {
@@ -856,11 +859,18 @@ describe('calculator UI', () => {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     } as Parameters<typeof mountCalculator>[1]);
 
+    // rAF を同期で流す — 光らせ・フォーカスまで確かめないと、コールバックを消しても通ってしまう
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { cb(0); return 0; });
     root.querySelector<HTMLButtonElement>('[data-prep-go-elements]')!.click();
     expect(root.querySelector<HTMLButtonElement>('[data-view-tab="board"]')!.classList.contains('is-on')).toBe(true);
-    expect(root.querySelector('[data-board-elements]')).not.toBeNull();
-    // 自動では回さない (属性を選ぶのは本人)。探索が走っていないことを状態行で確かめる
-    expect(root.querySelector<HTMLElement>('[data-board-status]')!.hidden).toBe(true);
+    const row = root.querySelector<HTMLElement>('[data-board-elements]')!;
+    expect(row.classList.contains('is-spotlit')).toBe(true);
+    expect(document.activeElement).toBe(row.querySelector('select'));
+    // 自動では回さない (属性を選ぶのは本人)。案内だけが状態行に出る
+    const status = root.querySelector<HTMLElement>('[data-board-status]')!;
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toContain('属性を決めて最適化');
+    expect(status.textContent).not.toContain('計算中');
   });
 
   it('キューブをまとめて付けられる — 全員に敷いてから、個別に変えたい人だけ直す', () => {

@@ -4366,6 +4366,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         row.classList.remove('is-spotlit');
         void row.offsetWidth;   // クラスを付け直してアニメーションを確実に再生する
         row.classList.add('is-spotlit');
+        // キーボードの人はタブ切替でフォーカスが行き場を失う — 最初の属性選択へ移し、
+        // 読み上げにも行き先を伝える (光るだけでは目の合図にしかならない)
+        row.querySelector<HTMLSelectElement>('select')?.focus();
+        const status = root.querySelector<HTMLElement>('[data-board-status]');
+        if (status) {
+          status.textContent = '「属性を決めて最適化」に移動しました。3つの属性を選んで「この3属性で最適化」を押してください。';
+          status.hidden = false;
+          status.classList.remove('is-ok');
+        }
       });
     });
 
