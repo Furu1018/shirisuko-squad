@@ -176,9 +176,6 @@ h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
   accent-color: var(--cyan); }
 .detail-toggle:has(input:checked) { border-color: rgb(var(--accent-rgb) / .32);
   background: rgb(var(--accent-rgb) / .1); color: var(--ink); }
-/* 보고서는 읽으라고 만드는 이미지다 — 모달을 화면의 90%까지 넓혀 크게 보여준다. */
-/* .custom-card가 뒤에 정의돼 있어 같은 명시도로는 진다 — 클래스 둘을 겹쳐 이긴다. */
-.custom-card.report-card { width: 90vw; max-width: 90vw; max-height: 92vh; }
 .deck-copy-actions .deck-copy-apply.danger { background: rgb(var(--danger-rgb) / .2); border-color: rgb(var(--danger-rgb) / .4); color: var(--danger-soft); }
 .roster-note { margin: 10px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
@@ -370,7 +367,6 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 [data-sort-group] .filter-chip { display: inline-flex; align-items: center; gap: 5px; }
 .sort-caret { font-size: 8px; line-height: 1; }
 [data-sort-group] .filter-chip.is-on { border-color: var(--amber-text); background: rgb(var(--amber-rgb) / .14); color: var(--amber-text); }
-.enikk-exclude .field-note { margin: 8px 0 0; }
 
 /* 덱 조작 한 줄 — 순서 바꾸기 · 비우기 · 복사.
    화살표를 `.deck-tabs`(5열 그리드) 안에 넣으면 7번째 칸으로 밀려 줄이 깨진다. */
@@ -771,7 +767,6 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .deck-regen-grid[hidden] { display: none; }
 .deck-regen-grid label { display: grid; gap: 4px; }
 .deck-regen-grid span { color: var(--muted); font: 700 10px ui-monospace, monospace; }
-.custom-card.notice-card { width: min(680px, 100%); }
 
 /* 캐릭터 설정 — 카드에서 창으로 여는 뭉치 */
 .char-panel-open { display: flex; align-items: center; justify-content: space-between; gap: 6px;
@@ -850,18 +845,6 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
   .view-tab { font-size: 11.5px; padding: 0 10px; }
 }
 
-/* 플레이어 카드 — 한 사람과 그 사람의 다섯 덱 */
-.enikk-player { margin-bottom: 8px; border: 1px solid var(--line); background: rgb(var(--surface-rgb) / .5); }
-
-.enikk-page, .enikk-page-step { min-width: 36px; min-height: 36px; padding: 0 9px; border: 1px solid var(--line); background: rgb(var(--surface-rgb) / .72); color: var(--muted); font: 700 12px ui-monospace, monospace; cursor: pointer; }
-.enikk-page:hover:not(:disabled), .enikk-page-step:hover:not(:disabled) { border-color: rgb(var(--accent-rgb) / .45); color: var(--ink); }
-.enikk-page.is-on { border-color: var(--amber-text); background: rgb(var(--amber-rgb) / .12); color: var(--amber-text); }
-.enikk-page:focus-visible, .enikk-page-step:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-.enikk-page-info { margin-left: auto; color: var(--muted); font: 700 11px ui-monospace, monospace; }
-
-@media (max-width: 700px) {
-  .enikk-page-info { margin-left: 0; width: 100%; }
-}
 .beta-tag, .tab-beta { margin-left: 6px; padding: 2px 6px; border: 1px solid rgb(var(--amber-rgb) / .45);
   background: rgb(var(--amber-rgb) / .1); color: var(--amber-text); font: 800 9px/1 ui-monospace, monospace;
   vertical-align: middle; letter-spacing: .06em; }
@@ -1326,7 +1309,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .brand-beta { font-size: 10px; font-weight: 900; letter-spacing: .06em; padding: 2px 7px; border-radius: 999px; color: var(--amber-text); background: rgb(var(--amber-rgb) / .12); }
 .brand-lede { font-size: 12px; color: var(--ink-2); }
 .brand-tools { gap: 6px; }
-.brand-tools > span, .brand-tools .notice-open, .brand-tools .credit-link { padding: 5px 9px; font-size: 11px; border-radius: 999px; }
+.brand-tools > span, .brand-tools .credit-link { padding: 5px 9px; font-size: 11px; border-radius: 999px; }
 
 /* 盤面は白いページに直接置く (モック)。パネルの囲いは外す */
 .board-panel { border: 0; background: transparent; box-shadow: none; padding: 0; }

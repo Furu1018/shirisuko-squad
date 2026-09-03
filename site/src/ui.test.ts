@@ -2442,44 +2442,6 @@ describe('calculator UI', () => {
     expect(root.querySelector<HTMLElement>('[data-deck-copy-panel]')!.hidden).toBe(false);
   });
 
-  // しりすこスクワッド β: enikk (ソロレイド順位取込) はタブを出していないので保留 — 上流同期時に復活させるなら it に戻す
-  it.skip('breaks the enikk player list into pages of ten', () => {
-    const players = Array.from({ length: 25 }, (_, i) => ({
-      rank: i + 1, playerid: `p${i}`, server: 'KR', damage: 1000 - i, cp: 0,
-      decks: [{ squad: names.slice(0, 5), damage: 100, cp: 0, usable: true }],
-    }));
-    localStorage.setItem('nikke-enikk-v2', JSON.stringify({
-      season: { raid: 40, boss: 'Test', weakness: 'Fire' },
-      players, decks: 25, unknownNames: [], unsupported: 0,
-    }));
-
-    mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-    root.querySelector<HTMLButtonElement>('[data-view-tab="enikk"]')!.click();
-
-    // 25명이면 3쪽, 첫 쪽은 열 명.
-    expect(root.querySelectorAll('.enikk-player')).toHaveLength(10);
-    expect(root.querySelector('.enikk-page-info')!.textContent).toBe('3쪽 중 1쪽');
-
-    // 마지막 쪽은 다섯 명만 남는다.
-    const last = [...root.querySelectorAll<HTMLButtonElement>('.enikk-page')]
-      .find((b) => b.textContent === '3')!;
-    last.click();
-    expect(root.querySelectorAll('.enikk-player')).toHaveLength(5);
-    expect(root.querySelector('.enikk-page-info')!.textContent).toBe('3쪽 중 3쪽');
-  });
-
-  it.skip('ignores an enikk cache left by an older shape instead of crashing', () => {
-    // v1은 `players`가 숫자였다. 그 값을 새 코드가 배열로 읽으면 터진다.
-    localStorage.setItem('nikke-enikk-v1', JSON.stringify({ players: 300, comps: [] }));
-    localStorage.setItem('nikke-enikk-v2', JSON.stringify({ players: 300, comps: [] }));
-
-    mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-    root.querySelector<HTMLButtonElement>('[data-view-tab="enikk"]')!.click();
-
-    // 낡은 캐시를 무시하고 «가져오기» 버튼이 그대로 남는다.
-    expect(root.querySelector<HTMLButtonElement>('[data-enikk-load]')!.hidden).toBe(false);
-    expect(root.querySelectorAll('.enikk-player')).toHaveLength(0);
-  });
 
   it('drops the AI/no-server badges and states the supported count plainly', () => {
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });

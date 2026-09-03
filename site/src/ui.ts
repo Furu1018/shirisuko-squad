@@ -83,9 +83,9 @@ const DEFAULT_SQUAD = ['리타', '크라운', '라피 : 레드 후드', '앨리�
 export interface CalculatorClientLike {
   prepare(): Promise<void>;
   simulate(request: SimulationRequest): Promise<SimulationResult>;
-  /** 목록 정렬용 전투력. 없는 구현(테스트 대역)도 있어 선택으로 둔다. */
+  /** 一覧を並べるための戦闘力。持たない実装 (テスト用の代役) もあるので任意。 */
   combatPower?(request: CombatPowerRequest): Promise<Record<string, number>>;
-  /** 병렬 계산. 풀이 아닌 구현(테스트 대역·워커 하나)도 있어 전부 선택으로 둔다. */
+  /** 並列計算。プールを持たない実装 (テスト用の代役・ワーカー1つ) もあるので全部任意。 */
   setPoolSize?(size: number): void;
   defaultPoolSize?(): number;
   maxPoolSize?: number;
@@ -113,7 +113,7 @@ interface CalculatorDependencies {
 }
 
 
-// Pyodide 오류는 긴 파이썬 트레이스백으로 온다. 마지막 줄(실제 오류 메시지)만 보여준다.
+// Pyodide のエラーは長い Python のトレースバックで来る。最後の行 (本当のエラー文) だけ見せる。
 const cleanEngineError = (raw: string): string => {
   const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
   const last = lines[lines.length - 1] ?? raw;
@@ -133,7 +133,7 @@ const emptyDeck = (id: number): DeckState => ({
   characters: {},
 });
 
-/** 딜 1·2위 이름. 순서는 그대로 두고 «표시»만 얹기 위해 이름만 뽑는다. */
+/** ダメージ1・2位の名前。順番は変えず «印» だけを載せるために名前だけ抜く。 */
 function topScorers(entry: DeckResultEntry): Map<string, number> {
   const ranked = [...new Set(entry.request.squad)]
     .map((name) => [name, entry.result.charTotals[name] ?? 0] as const)
@@ -143,11 +143,11 @@ function topScorers(entry: DeckResultEntry): Map<string, number> {
 }
 
 /**
- * 캐릭터별 결과 줄. 초상화 오른쪽에 막대와 총딜이 선다 — 덱을 갈아 가며 볼 때는
- * 카드보다 이쪽이 짧고, 막대 길이로 «누가 캐리했나»가 곧바로 읽힌다.
- * 여기서도 **편성 순서 그대로**이고, 딜 1·2위는 뱃지와 테두리로만 표시한다.
+ * キャラごとの結果の行。立ち絵の右に棒と合計ダメージが並ぶ — デッキを切り替えながら見るときは
+ * カードよりこちらが短く、棒の長さで «誰が運んだか» がそのまま読める。
+ * ここでも**編成の順そのまま**で、ダメージ1・2位はバッジと枠線だけで示す。
  */
-/** 대미지를 어떻게 적을지. 「자세히 보기」로 갈린다 — 값이 아니라 표기만 바뀐다. */
+/** ダメージをどう書くか。「詳しく見る」で切り替わる — 値ではなく書き方だけが変わる。 */
 interface DamageFormat {
   dmg(value: number): string;
   dps(value: number): string;
@@ -210,9 +210,9 @@ function renderCharacterRows(
 }
 
 /**
- * 캐릭터별 결과 카드. **편성 순서 그대로** 왼쪽에서 오른쪽으로 선다 — 위 편성 카드와
- * 자리가 맞아야 «누가 얼마나»를 눈으로 그대로 잇는다. 딜 1·2위는 자리를 옮기지 않고
- * 뱃지와 테두리로만 표시한다.
+ * キャラごとの結果カード。**編成の順そのまま**に左から右へ並ぶ — 上の編成カードと
+ * 位置が揃っていないと «誰がどれだけ» を目で繋げない。ダメージ1・2位は位置を動かさず、
+ * バッジと枠線だけで示す。
  */
 function renderCharacterCards(
   container: HTMLElement,
@@ -256,12 +256,12 @@ function renderCharacterCards(
     const track = document.createElement('div');
     track.className = 'share-track';
     const bar = document.createElement('i');
-    // 막대는 «1위 대비»로 그린다 — 기여%로 그리면 다섯이 다 짧아 차이가 안 보인다.
+    // 棒は «1位に対して» 描く。寄与%で描くと5人とも短くなって差が見えない。
     bar.style.width = `${best > 0 ? Math.max(2, value / best * 100) : 2}%`;
     track.append(bar);
     card.append(track);
 
-    // 평타/스킬 분해와 스킬별 내역. 카드가 좁으니 접어 둔다.
+    // 通常攻撃/スキルの内訳と、スキルごとの明細。カードが狭いので畳んでおく。
     const breakdown = entry.result.charBreakdown?.[name];
     if (breakdown && value > 0) {
       const details = document.createElement('details');
@@ -313,9 +313,9 @@ function renderCharacterCards(
   container.append(grid);
 }
 
-// 블라블라링크 조회 프록시. 빌드 때 `VITE_BLABLA_PROXY`로 박히고, 비어 있으면 연동 UI를
-// 그리지 않는다 — 프록시 없이 브라우저에서 직접 부르면 CORS와 로그인 세션 두 가지가 동시에
-// 막아 반드시 실패한다(`worker/README.md`).
+// Blablalink 照会のプロキシ。ビルド時に `VITE_BLABLA_PROXY` が焼き込まれ、空なら連携の UI を
+// 描かない — プロキシ無しでブラウザから直接呼ぶと CORS とログインセッションの両方が
+// 同時に塞ぐので必ず失敗する (`worker/README.md`)。
 const BLABLA_PROXY = (import.meta.env.VITE_BLABLA_PROXY ?? '').trim().replace(/\/+$/, '');
 
 export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies): () => void {
@@ -331,11 +331,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   decks[0]!.squad = initialSquad(catalog);
   let activeDeckId = 1;
   let activeSlot = 0;
-  // 겨냥한 칸을 화면으로 끌어오는 것은 **사용자가 칸을 바꿨을 때만** 한다.
-  // 결과가 도착해도 편성은 다시 그려지는데, 그때마다 끌어오면 결과를 보던 사람이
-  // 편성 쪽으로 튕겨 올라간다.
+  // 狙った枠を画面に引き寄せるのは**人が枠を変えたときだけ**にする。
+  // 結果が届いても編成は描き直されるが、そのたびに引き寄せると、結果を見ていた人が
+  // 編成のほうへ弾き上げられる。
   let pullActiveSlot = false;
-  // 다른 덱에 만들어 둔 개별 설정을 편성할 때 따라오게 할지. 기본은 켬이다.
+  // 他のデッキで作った個別設定を、編成するときに連れてくるか。既定は入り。
   let carryOverSettings = true;
   let fiveDeckMode = false;
   let activity: 'preparing' | 'ready' | 'running' | 'complete' | 'cached' | 'error' = 'preparing';
@@ -345,16 +345,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const source = typeof storage === 'function' ? storage() : storage;
     return source ?? null;
   };
-  // jsdom에는 scrollIntoView가 없다. 화면을 끌어오는 건 편의라, 없는 환경에서는
-  // 건너뛰어도 렌더가 깨지지 않는다 — 직접 부르면 테스트가 처리되지 않은 오류로 끊긴다.
+  // jsdom には scrollIntoView が無い。画面を引き寄せるのは «あると便利» なだけなので、
+  // 無い環境では飛ばしても描画は壊れない — 直接呼ぶとテストが未処理のエラーで切れる。
   const scrollTo = (el: HTMLElement) => {
     if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'start' });
   };
 
   const cloneOverride = (value: object): CharacterOverrides =>
     JSON.parse(JSON.stringify(value)) as CharacterOverrides;
-  // 예전 판(육성 프로필 불러오기)이 저장한 오버로드는 값이 **줄별 배열**일 수 있다.
-  // 지금은 스칼라만 다루므로 합계로 옮긴다 — 두면 요약을 그릴 때 toFixed에서 끊긴다.
+  // 昔の版 (育成プロフィールの読み込み) が保存したオーバーロードは、値が**行ごとの配列**のことがある。
+  // 今はスカラーしか扱わないので合計に移す — 残すと要約を描くときの toFixed で落ちる。
   const migrateOverloadLines = (overrides: CharacterOverrides | undefined) => {
     const overload = overrides?.overload as Record<string, unknown> | undefined;
     if (!overload) return;
@@ -379,14 +379,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     try {
       resolveStorage()?.setItem(ROSTER_KEY, JSON.stringify(roster));
     } catch {
-      /* 저장 실패는 무시 (용량·프라이빗 모드 등) */
+      /* 保存に失敗しても無視 (容量・プライベートモードなど) */
     }
   };
   let roster = loadRoster();
   /** よく使うニケの印。200名から毎回探さずに済ませるための、自分で決める並び。 */
   let favorites = loadFavorites(resolveStorage());
 
-  // 편성·설정·전투 조건을 localStorage에 저장해 새로고침해도 마지막 상태로 복원한다.
+  // 編成・設定・戦闘条件を localStorage に保存し、開き直しても最後の状態に戻す。
   const STATE_KEY = 'nikke-state-v1';
   // 3凸ボードの «取り込まずに試す» を覚える鍵。PAD と同一オリジンなので nikke- を必ず付ける
   const BOARD_SKIP_KEY = 'nikke-board-skip-import-v1';
@@ -394,14 +394,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     decks: DeckState[];
     fiveDeckMode: boolean;
     activeDeckId: number;
-    /** 다른 덱의 개별 설정을 편성할 때 이어받을지. 옛 저장본에는 없다. */
+    /** 他のデッキの個別設定を編成するときに引き継ぐか。古い保存には無い。 */
     carryOverSettings: boolean;
     battle: BattleSettings;
     buffTargets: Array<{ id: number; sig: string; rows: Record<string, BuffTargetRow[]> }>;
   }
-  // 큐브 이름이 짧은 통칭에서 인게임 정식 명칭으로 바뀌었다. 이전 버전에서 저장된
-  // 편성에는 옛 이름이 남아 있어 그대로 두면 엔진이 요청을 거부한다. 불러올 때 한 번
-  // 옮겨주고, 카탈로그에 없는 이름은 캐릭터 기본값으로 되돌아가도록 지운다.
+  // キューブ名が短い通称からゲーム内の正式名称に変わった。以前の版で保存された
+  // 編成には古い名前が残っていて、そのままだとエンジンが要求を拒む。読み込むときに一度
+  // 移し替え、カタログに無い名前はキャラの既定値に戻るよう消す。
   const LEGACY_CUBE_NAMES: Record<string, string> = {
     재장: '렐릭 베어 큐브',
     탄충: '택티컬 베어 큐브',
@@ -433,7 +433,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   };
   const savedState = loadSavedState();
-  // 실제 구현은 refs·readBattle이 준비된 뒤 할당한다. 그전 호출은 no-op.
+  // 実装は refs・readBattle が揃ってから入れる。それまでの呼び出しは何もしない。
   let saveState: () => void = () => undefined;
 
   root.innerHTML = `
@@ -932,7 +932,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const submit = element<HTMLButtonElement>(root, 'button[type="submit"]');
   const resultPanel = element<HTMLElement>(root, '[data-result-panel]');
   const timelinePanel = element<HTMLElement>(root, '[data-timeline-panel]');
-  // 타임라인은 «계산 결과가 있는가»와 «지금 계산기 화면인가» 둘 다 만족할 때만 보인다.
+  // タイムラインは «計算結果があるか» と «いま計算機の画面か» の両方を満たすときだけ見せる。
   let timelineHasContent = false;
   const timelineBody = element<HTMLElement>(root, '[data-timeline-body]');
   const coreToggle = element<HTMLInputElement>(root, '#has-core');
@@ -984,10 +984,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       button.textContent = `デッキ ${deck.id}${count ? ` · ${count}` : ''}`;
       button.addEventListener('click', () => {
         activeDeckId = deck.id;
-        // 덱을 옮기면 판이 겨냥하는 칸도 그 덱 기준으로 다시 잡는다.
+        // デッキを移すと、盤が狙っている枠もそのデッキ基準で取り直す。
         const empty = deck.squad.findIndex((member) => !member);
         activeSlot = empty < 0 ? 0 : empty;
-        // 패널은 '현재 덱' 기준이라 덱을 옮기면 닫는다 (열린 채로 두면 대상이 헷갈린다).
+        // パネルは «いまのデッキ» 基準なので、デッキを移したら閉じる (開いたままだと対象が紛れる)。
         closeDeckCopy();
         saveState();
         renderDeckTabs();
@@ -999,8 +999,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const moves = element<HTMLElement>(root, '[data-deck-moves]');
     moves.replaceChildren();
 
-    // 덱 순서 바꾸기. 덱 «번호»는 자리 이름이라 그대로 두고 **내용만** 맞바꾼다 —
-    // 번호까지 따라 움직이면 지금 보던 덱이 어디로 갔는지 알 수 없다.
+    // デッキの並べ替え。デッキの «番号» は場所の名前なので動かさず、**中身だけ**入れ替える —
+    // 番号まで一緒に動くと、いま見ていたデッキがどこへ行ったか分からなくなる。
     const swapDeck = (delta: number) => {
       const index = decks.findIndex((deck) => deck.id === activeDeckId);
       const target = index + delta;
@@ -1009,7 +1009,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const b = decks[target]!;
       [a.squad, b.squad] = [b.squad, a.squad];
       [a.characters, b.characters] = [b.characters, a.characters];
-      // 방금 옮긴 편성을 따라간다.
+      // いま移した編成についていく。
       activeDeckId = b.id;
       closeDeckCopy();
       saveState();
@@ -1033,8 +1033,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   };
 
-  // 덱 복사 — 같은 편성을 여러 덱에 깔아두고 딜러 한 자리만 바꿔 비교하는 용도다.
-  // 편성(squad)과 캐릭터별 설정(characters)을 함께 복사해야 비교가 공정하다.
+  // デッキの複製 — 同じ編成を複数のデッキに敷いて、アタッカー1枠だけ変えて比べるためのもの。
+  // 編成 (squad) とキャラごとの設定 (characters) を一緒に複製しないと比較が公平にならない。
   const closeDeckCopy = () => {
     deckCopyPanel.hidden = true;
     deckCopyOpen.setAttribute('aria-expanded', 'false');
@@ -1052,7 +1052,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.dataset.deckCopyTarget = String(deck.id);
-      // 비어 있는 덱은 잃을 게 없으므로 기본 선택. 이미 짜둔 덱은 사용자가 직접 고른다.
+      // 空のデッキは失うものが無いので既定で選ぶ。組んであるデッキは人が自分で選ぶ。
       box.checked = count === 0;
       label.append(
         box,
@@ -1080,7 +1080,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         Object.entries(source.characters).map(([name, value]) => [name, cloneOverride(value)]),
       );
     }
-    // 슬롯별 캐릭터 필터는 화면 상태일 뿐이라 같이 옮겨 검색어가 남지 않게 한다.
+    // 枠ごとのキャラ絞り込みは画面の状態でしかないので、一緒に移して検索語を残さない。
 
     closeDeckCopy();
     showErrors([]);
@@ -1101,10 +1101,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   deckCopyCancel.addEventListener('click', closeDeckCopy);
   deckCopyApply.addEventListener('click', applyDeckCopy);
 
-  // 최근 계산에서 나온 「누가 이 버프를 받았나」. 덱 단위로 들고 있다가 카드에 얹는다.
-  // 계산 전에는 비어 있고, 그때는 빈 괄호로 자리만 잡는다.
-  // 값과 함께 **무엇을 계산한 결과인가**(편성 + 개별 설정)를 적어 둔다. 편성이나
-  // 스펙을 바꾸면 대상이 달라질 수 있으므로, 서명이 어긋나면 지난 값을 쓰지 않는다.
+  // 直近の計算で出た「誰がこのバフを受けたか」。デッキ単位で持っておき、カードに載せる。
+  // 計算前は空で、そのときは空の括弧で場所だけ取る。
+  // 値と一緒に**何を計算した結果か** (編成 + 個別設定) を書いておく。編成やスペックを
+  // 変えると対象が変わりうるので、署名が食い違えば前の値は使わない。
   const buffTargetsByDeck = new Map<number, { sig: string; rows: Record<string, BuffTargetRow[]> }>();
 
   const deckSignature = (deck: DeckState): string =>
@@ -1127,7 +1127,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const prefetchBuffTargets = () => {
     cancelPrefetch?.();
     cancelPrefetch = defer(() => { void (async () => {
-      // 정식 계산이 도는 중이면 워커를 뺏지 않는다 — 끝나면 어차피 채워진다.
+      // 正式な計算が回っている最中はワーカーを奪わない — 終わればどのみち埋まる。
       if (prefetching || submit.disabled) return;
       const deck = activeDeck();
       if (!needsPrefetch(deck)) return;
@@ -1144,7 +1144,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           result = await client.simulate(request);
           cache.set(key, result);
         }
-        // 기다리는 사이 편성이 바뀌었을 수 있다 — 서명이 맞을 때만 반영한다.
+        // 待っている間に編成が変わっているかもしれない — 署名が合うときだけ反映する。
         const now = activeDeck();
         if (now.id !== deck.id || deckSignature(now) !== deckSignature(deck)) return;
         if (result.buffTargets) {
@@ -1163,7 +1163,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   };
 
 
-  /** 이 덱에서 감시 대상 버프를 가진 캐릭터의 표시 줄. 아직 안 돌렸으면 빈 대상. */
+  /** このデッキで監視対象のバフを持つキャラの表示行。まだ回していなければ対象は空。 */
   const buffTargetRowsFor = (deckId: number, name: string): BuffTargetRow[] | undefined => {
     const deck = decks.find((d) => d.id === deckId);
     const saved = buffTargetsByDeck.get(deckId);
@@ -1176,8 +1176,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     return watched.map((w) => ({ ...w, targets: [] as string[], count: 0, pending }));
   };
 
-  // 「순서보기」 — 버프가 발동할 때마다 누가 받았는지 초상화로 죽 편다.
-  // 대상이 갈리는 편성에서는 이 순서 자체가 정보다(앨리스-홍련-앨리스-홍련…).
+  // 「順番を見る」 — バフが発動するたびに誰が受けたかを立ち絵で横に並べる。
+  // 対象が分かれる編成では、この順番そのものが情報になる (アリス-紅蓮-アリス-紅蓮…)。
   const buffOrderModal = element<HTMLElement>(root, '[data-buff-order-modal]');
   const showBuffOrder = (caster: string, row: BuffTargetRow) => {
     element<HTMLElement>(root, '[data-buff-order-title]').textContent =
@@ -1216,9 +1216,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     if (event.target === buffOrderModal) buffOrderModal.hidden = true;
   });
 
-  // ── 캐릭터 설정 창 ──────────────────────────────────────────────────────
-  // 어떤 캐릭터의 어느 뭉치를 보고 있는지 기억한다. 값을 바꾸면 카드가 다시 그려지고
-  // 뭉치도 새로 만들어지므로, 그때마다 새 뭉치를 창에 다시 넣어 준다.
+  // ── キャラ設定の窓 ──────────────────────────────────────────────────────
+  // どのキャラのどの塊を見ているかを覚える。値を変えるとカードが描き直され、
+  // 塊も作り直されるので、そのたびに新しい塊を窓へ入れ直す。
   const charPanelModal = element<HTMLElement>(root, '[data-char-panel-modal]');
   const charPanelBody = element<HTMLElement>(root, '[data-char-panel-body]');
   const charPanelTitle = element<HTMLElement>(root, '[data-char-panel-title]');
@@ -1240,13 +1240,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     if (event.target === charPanelModal) closeCharPanel();
   });
 
-  // ── 끌어다 놓기 ─────────────────────────────────────────────────────────
-  // 누르는 길(칸을 고르고 카드를 누른다)은 그대로 두고 «끌어다 놓기»를 더한다.
-  // 손가락에서는 HTML 끌기가 동작하지 않으므로, 누르는 길이 없어지면 안 된다.
+  // ── 掴んで置く ─────────────────────────────────────────────────────────
+  // 押す道 (枠を選んでカードを押す) はそのまま残し、«掴んで置く» を足す。
+  // 指では HTML の掴みが効かないので、押す道が無くなってはいけない。
   const DRAG_NAME = 'application/x-nikke-name';   // 니케 고르기 → 칸
   const DRAG_SLOT = 'application/x-nikke-slot';   // 칸 → 칸 (자리 맞바꾸기)
 
-  /** 이 끌기가 우리 것인가. `dragover`에서는 값이 아니라 종류만 볼 수 있다. */
+  /** この掴みが自分たちのものか。`dragover` では値ではなく種類しか見られない。 */
   const dragKind = (event: DragEvent): 'name' | 'slot' | null => {
     const types = event.dataTransfer?.types;
     if (!types) return null;
@@ -1256,7 +1256,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     return null;
   };
 
-  /** 칸 하나를 받는 자리로 만든다. */
+  /** 枠ひとつを «受け取れる場所» にする。 */
   const makeDropTarget = (card: HTMLElement, index: number) => {
     const lit = (on: boolean) => card.classList.toggle('is-drop', on);
     card.addEventListener('dragover', (event) => {
@@ -1277,7 +1277,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       if (kind === 'slot') {
         const from = Number(drag.dataTransfer!.getData(DRAG_SLOT));
         if (!Number.isInteger(from) || from < 0 || from > 4 || from === index) return;
-        // 자리만 맞바꾼다. 개별 설정은 이름에 걸려 있어 슬롯과 무관하다.
+        // 場所だけ入れ替える。個別設定は名前に紐づいているので枠とは無関係。
         [deck.squad[index], deck.squad[from]] = [deck.squad[from] ?? '', deck.squad[index] ?? ''];
         showErrors([]);
         saveState();
@@ -1288,7 +1288,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       const name = drag.dataTransfer!.getData(DRAG_NAME);
       if (!name || !catalogByName.has(name)) return;
-      // 한 덱에 같은 니케를 두 번 넣을 수 없다 — 누르는 길에서 막는 것과 같은 규칙이다.
+      // 1つのデッキに同じニケを二度は入れられない — 押す道で止めているのと同じ規則。
       const already = deck.squad.indexOf(name);
       if (already >= 0 && already !== index) {
         showErrors([`${labelFor(name)} はすでに枠 ${already + 1} にいます。`]);
@@ -1300,7 +1300,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   const renderSquad = () => {
     const deck = activeDeck();
-    // 버스트 순서는 편성에 매여 있다 — 편성이 바뀌면 배지도 따라간다.
+      // バースト順は編成に紐づく — 編成が変わればバッジもついていく。
     renderBurstBadge();
     squadGrid.replaceChildren();
     for (let index = 0; index < 5; index += 1) {
@@ -1312,7 +1312,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       card.classList.toggle('is-preview', Boolean(char?.preview));
       makeDropTarget(card, index);
       if (name) {
-        // 채워진 칸은 집어서 다른 칸에 놓을 수 있다 — ‹ › 단추와 같은 «자리 맞바꾸기»다.
+        // 埋まった枠は掴んで他の枠に置ける — ‹ › ボタンと同じ «場所の入れ替え» になる。
         card.draggable = true;
         card.addEventListener('dragstart', (event) => {
           const drag = event as DragEvent;
@@ -1328,8 +1328,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       top.className = 'slot-top';
       const portrait = document.createElement('div');
       portrait.className = 'portrait-wrap';
-      // 슬롯 번호와 속성 아이콘은 좌상단에 나란히 선다. 번호 폭이 자릿수에 따라
-      // 달라져도 아이콘이 겹치지 않도록 절대배치 대신 한 줄로 묶는다.
+      // 枠番号と属性アイコンは左上に並ぶ。番号の幅が桁数で変わってもアイコンが重ならないよう、
+      // 絶対配置ではなく1行にまとめる。
       const tags = document.createElement('div');
       tags.className = 'slot-tags';
       tags.append(createText('span', `0${index + 1}`, 'slot-number'));
@@ -1339,9 +1339,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       portrait.append(tags, createText('div', '', 'portrait-fallback'));
 
-      // 자리 이동. 니케는 배치 순서가 전투에 영향을 주므로 캐릭터를 다시 고르지 않고
-      // 자리만 맞바꿀 수 있어야 한다. 이름으로 걸린 설정(deck.characters)은 슬롯과
-      // 무관하니 그대로 두고, 슬롯에 매인 편성과 검색어만 맞바꾼다.
+      // 場所の移動。ニケは並び順が戦闘に影響するので、キャラを選び直さずに
+      // 場所だけ入れ替えられる必要がある。名前に紐づく設定 (deck.characters) は枠と
+      // 無関係なのでそのまま置き、枠に紐づく編成と検索語だけを入れ替える。
       const moves = document.createElement('div');
       moves.className = 'slot-moves';
       for (const [delta, label, title] of [
@@ -1376,9 +1376,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const identity = document.createElement('div');
       identity.className = 'slot-identity';
 
-      // 이름 검색과 드롭다운, 교체 버튼을 걷어냈다. 카드는 «지금 채울 칸»을 정하는
-      // 역할만 하고, 고르는 일은 아래 상시 판이 맡는다. 검색 결과가 어디에도 숨지
-      // 않게 하는 것이 이 화면의 요점이다.
+      // 名前検索とドロップダウン、入れ替えボタンを取り払った。カードは «いま埋める枠» を
+      // 決める役だけを持ち、選ぶ仕事は下の常設の盤が持つ。検索結果がどこにも隠れないように
+      // するのが、この画面の要点。
       const choose = document.createElement('button');
       choose.type = 'button';
       choose.className = 'slot-choose';
@@ -1395,9 +1395,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         renderSquad();
         renderRosterGrid();
       });
-      // 좁은 화면에서는 슬롯 줄이 옆으로 밀린다. 겨냥한 칸이 화면 밖에 있으면
-      // 판이 어디를 채우는지 알 수 없으므로 끌어다 보여 준다.
-      // jsdom에는 scrollIntoView가 없다. 없다고 렌더가 깨질 일은 아니므로 건너뛴다.
+      // 狭い画面では枠の行が横に押し出される。狙った枠が画面の外にあると
+      // 盤がどこを埋めるのか分からないので、引き寄せて見せる。
+      // jsdom には scrollIntoView が無い。無いからといって描画が壊れることではないので飛ばす。
       if (pullActiveSlot && activeSlot === index && typeof choose.scrollIntoView === 'function') {
         requestAnimationFrame(() => choose.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
       }
@@ -1427,17 +1427,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const editor = document.createElement('div');
         const cname = char.name;
         /**
-         * 창 안의 뭉치를 카드가 방금 그린 새 것으로 바꾼다. 값 하나를 바꾸면
-         * `renderCharacterSettings`가 스스로 카드를 다시 그리는데, 그때 창에는 **옛
-         * 뭉치**가 남아 있어 «직접 설정»으로 켠 체크박스가 여전히 잠겨 보였다.
+         * 窓の中の塊を、カードがいま描いた新しいものに差し替える。値を1つ変えると
+         * `renderCharacterSettings` が自分でカードを描き直すが、そのとき窓には**古い塊**が
+         * 残っていて、«個別設定» で入れたチェックが未だに掛かって見えていた。
          */
         const syncOpenPanel = () => {
           if (openCharPanel?.name !== cname || charPanelModal.hidden) return;
           const kind = openCharPanel.kind;
-          // 그 뭉치를 여는 단추가 사라졌으면(개별 설정을 껐다) 창도 닫는다.
+          // その塊を開くボタンが消えていたら (個別設定を切った) 窓も閉じる。
           const opener = editor.querySelector<HTMLElement>(`[data-char-panel-open="${kind}"]`);
           if (!opener) { closeCharPanel(); return; }
-          // 없으면 이미 창에 있는 것이 최신이다 — 두 번 불려도 닫지 않는다.
+          // 無ければ、すでに窓にあるものが最新 — 二度呼ばれても閉じない。
           const fresh = editor.querySelector<HTMLElement>(`[data-char-panel="${kind}"]`);
           if (!fresh) return;
           placeCharPanel(fresh, cname, opener.querySelector('.disclosure-label')?.getAttribute('title') ?? '');
@@ -1447,23 +1447,23 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             if (next) deck.characters[cname] = next;
             else delete deck.characters[cname];
             saveState();
-            // 개별 설정 안 드롭다운으로 돌파를 바꿔도 초상화의 별이 따라가게 한다.
+            // 個別設定の中のドロップダウンで突破を変えても、立ち絵の星がついていくようにする。
             renderGrowthStepper();
-            // 이 콜백은 카드가 다시 그려지기 **직전**에 불린다 — 다 그린 뒤에 창을 맞춘다.
+            // このコールバックはカードが描き直される**直前**に呼ばれる — 描き終えてから窓を合わせる。
             queueMicrotask(syncOpenPanel);
           }, buffTargetRowsFor(deck.id, cname), (row) => showBuffOrder(cname, row),
           (kind, panel, label) => {
             openCharPanel = { name: cname, kind };
             placeCharPanel(panel, cname, label);
           },
-          // 조합 조건부 컨트롤(아인 + 에이다 = 홀드)을 카드가 스스로 판정하게 한다.
+          // 組み合わせで決まる操作 (アイン + エイダ = ホールド) はカードが自分で判定する。
           deck.squad.filter((slot): slot is string => Boolean(slot)));
           syncOpenPanel();
         };
 
-        // 초상화 우측하단의 돌파·코어 강화 스테퍼. blablalink 도감처럼 별 + 진화 숫자로
-        // 명함~풀코를 한눈에 보이고, 좌우 −/+로 바로 조절한다. 개별 설정을 펼치지 않아도
-        // 손이 닿는 자리다. R(성장 없음)은 조절할 게 없으니 아예 그리지 않는다.
+        // 立ち絵の右下にある突破・コア強化のステッパー。Blablalink の図鑑と同じく星 + 進化の数字で
+        // 名刺〜フルコアを一目で見せ、左右の −/+ でそのまま動かす。個別設定を開かなくても
+        // 手が届く場所。R (成長なし) は動かすものが無いので、そもそも描かない。
         const growthDefaults = settings.characters[cname];
         const maxStage = growthDefaults?.maxGrowthStage ?? 0;
         const defStage = growthDefaults?.growthStage ?? 0;
@@ -1493,14 +1493,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           const core = Math.max(0, stage - 3);
           stars.replaceChildren();
           for (let i = 0; i < slots; i += 1) {
-            // 별 그림은 blablalink 도감의 스프라이트(25프레임)를 그대로 쓴다 — CSS에서
-            // 채워진 별/빈 별 프레임을 background-position으로 고른다.
+            // 星の絵は Blablalink の図鑑のスプライト (25コマ) をそのまま使う — CSS で
+            // 埋まった星/空の星のコマを background-position で選ぶ。
             const star = document.createElement('span');
             star.className = i < Math.min(stage, 3) ? 'growth-star is-on' : 'growth-star';
             stars.append(star);
           }
-          // 진화 뱃지는 도감처럼 0일 때도 자리를 지킨다 — 켜졌다 꺼졌다 하면
-          // 별 줄의 폭이 흔들려 카드가 들썩인다.
+          // 進化バッジは図鑑と同じく 0 のときも場所を取る — 出たり消えたりすると
+          // 星の行の幅が揺れてカードが跳ねる。
           const badge = document.createElement('span');
           badge.className = 'growth-core';
           badge.append(createText('span', String(core)));
@@ -1539,16 +1539,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       squadGrid.append(card);
     }
     pullActiveSlot = false;
-    // 편성·개별 설정·덱 전환이 모두 이 함수를 지난다 — 미리 계산 예약은 여기 한 곳.
+    // 編成・個別設定・デッキの切り替えは全部この関数を通る — 先読みの予約はここ1箇所。
     prefetchBuffTargets();
   };
 
-  // ── 콘솔 ────────────────────────────────────────────────────────────────
-  // 클래스·기업은 소속별로 따로 큰다. 목록은 카탈로그가 정본이라(로스터에서 뽑는다)
-  // 신규 기업·클래스가 생겨도 코드는 그대로다.
+  // ── コンソール ────────────────────────────────────────────────────────────
+  // クラス・企業は所属ごとに別に育つ。一覧はカタログが正本なので (ロスターから抜く)
+  // 新しい企業やクラスが増えてもコードはそのまま。
   //
-  // 만든 입력을 Map으로 들고 읽고 쓴다 — 소속명이 그대로 들어가는 선택자를 쓰면
-  // 이스케이프에 기대게 되고(`CSS.escape`), 그 API가 없는 환경에서 통째로 깨진다.
+  // 作った入力は Map で持って読み書きする — 所属名がそのまま入るセレクタを使うと
+  // エスケープ (`CSS.escape`) に頼ることになり、その API が無い環境で丸ごと壊れる。
   const CONSOLE_DEFAULTS = { common: 180, class: 100, company: 100 } as const;
   const consoleInputs: Record<'class' | 'company', Map<string, HTMLInputElement>> = {
     class: new Map(),
@@ -1602,7 +1602,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     );
 
     grid.append(
-      // 인게임·블라블라링크와 같은 순서 — 공통 → 기업 → 클래스.
+      // ゲーム内・Blablalink と同じ順 — 共通 → 企業 → クラス。
       group('共通', [commonWrap]),
       axisGroup('company', '企業'),
       axisGroup('class', 'クラス'),
@@ -1620,19 +1620,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   };
 
-  // ── 적정거리 ────────────────────────────────────────────────────────────
-  // 무기군마다 적과의 적정 사거리가 달라, 같은 전투에서도 어떤 무기군은 적정거리에
-  // 들고 어떤 무기군은 못 든다 → 여럿을 함께 켤 수 있어야 한다.
-  // 목록 정본은 `data/weapon_mechanics.json`(설정으로 내려온다). 콘솔과 같은 이유로
-  // 선택자 대신 Map으로 들고 읽고 쓴다.
+  // ── 適正距離 ────────────────────────────────────────────────────────────
+  // 武器種ごとに敵との適正な射程が違うので、同じ戦闘でもある武器種は適正距離に
+  // 入り、ある武器種は入れない → 複数を同時に入れられる必要がある。
+  // 一覧の正本は `data/weapon_mechanics.json` (設定として降りてくる)。コンソールと同じ理由で
+  // セレクタではなく Map で持って読み書きする。
   const rangeInputs = new Map<string, HTMLInputElement>();
 
   const renderOptimalRange = () => {
     const box = element<HTMLElement>(root, '[data-optimal-range]');
     box.replaceChildren();
     rangeInputs.clear();
-    // 적정거리가 없는 무기군(런처)은 아예 그리지 않는다 — 켤 수 있게 두면
-    // 인게임에 없는 보정을 켜게 된다. 목록의 정본은 무기 데이터다.
+    // 適正距離を持たない武器種 (ランチャー) はそもそも描かない — 入れられる状態にすると
+    // ゲーム内に無い補正を入れることになる。一覧の正本は武器データ。
     for (const weapon of settings.optimalRangeWeapons ?? settings.weaponTypes) {
       const label = document.createElement('label');
       label.className = 'range-option';
@@ -1646,9 +1646,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   };
   renderOptimalRange();
 
-  // ── 평타 계수 ───────────────────────────────────────────────────────────
-  // 시뮬은 쏜 탄이 전부 맞는다고 보지만 인게임은 탄퍼짐으로 빗나간다. 무기군마다
-  // 퍼짐이 다르므로 무기군 단위로 받고, 기본값은 설정(데이터)에서 내려온다.
+  // ── 通常攻撃の係数 ───────────────────────────────────────────────────────
+  // シミュレータは撃った弾が全部当たる前提だが、ゲーム内では弾のばらつきで外れる。武器種ごとに
+  // ばらつきが違うので武器種単位で受け取り、既定値は設定 (データ) から降りてくる。
   const coeffInputs = new Map<string, HTMLInputElement>();
 
   const renderHitCoeff = () => {
@@ -1686,10 +1686,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   };
 
-  // ── 보스 페이즈 (족자 · 속저) ───────────────────────────────────────────
-  // 구간은 개수가 정해지지 않아 입력을 미리 만들어 둘 수 없다 — 배열을 정본으로
-  // 들고 그릴 때마다 새로 만든다. 입력값이 잘못돼도(시작>끝) 지우지 않고 그대로
-  // 두고, 실행할 때 검증 메시지로 알린다.
+  // ── ボスのフェーズ (足止め・速攻) ───────────────────────────────────────
+  // 区間は数が決まっていないので入力を先に作っておけない — 配列を正本として
+  // 持ち、描くたびに作り直す。入力が間違っていても (開始>終了) 消さずにそのまま
+  // 置き、実行するときに検証の文言で伝える。
   let immuneWindows: PhaseWindow[] = [];
   let elementWindows: ElementWindow[] = [];
 
@@ -1779,7 +1779,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   for (const kind of ['immune', 'element'] as const) {
     element<HTMLButtonElement>(root, `[data-phase-add="${kind}"]`).addEventListener('click', () => {
-      // 마지막 구간 뒤를 기본값으로 잡아, 겹치지 않는 구간을 이어 붙이기 쉽게 한다.
+      // 最後の区間の後ろを既定値にして、重ならない区間を継ぎ足しやすくする。
       const all = [...immuneWindows, ...elementWindows];
       const start = all.length > 0 ? Math.max(...all.map((w) => w.to)) : 0;
       const from = Math.min(start, 178);
@@ -1808,10 +1808,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     for (const [weapon, input] of rangeInputs) input.checked = on.has(weapon);
   };
 
-  // ── 덱마다 다른 버스트 게이지 충전 ──────────────────────────────────────
-  // 버스트 쿨이 밀리는 덱이 있어 하나로 묶으면 그 덱만 계속 틀린다. 기본은 일괄이고,
-  // 켤 때만 다섯 칸이 나온다 — 켜는 순간 지금 값으로 다섯을 채워 두므로 «켰더니 값이
-  // 사라졌다»가 없다.
+  // ── デッキごとに違うバーストゲージの充填 ──────────────────────────────────
+  // バーストのクールが遅れるデッキがあり、1つにまとめるとそのデッキだけずっと外れる。既定は一括で、
+  // 入れたときだけ5枠が出る — 入れた瞬間に今の値で5つを埋めるので «入れたら値が
+  // 消えた» が起きない。
   const deckRegenBox = element<HTMLElement>(root, '[data-deck-regen]');
   const deckRegenToggle = element<HTMLInputElement>(root, '#burst-regen-per-deck');
   const readDeckRegen = (): Record<number, number> => {
@@ -1866,8 +1866,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     hasParts: element<HTMLInputElement>(root, '#has-parts').checked,
     seed: Number(element<HTMLInputElement>(root, '#seed').value),
     optimalRangeWeapons: readOptimalRange(),
-    // 배열은 화면이 아니라 이 변수가 정본이다 — 입력이 잘못돼도 지우지 않고
-    // 그대로 실어 실행 시 검증 메시지로 알린다.
+    // 配列は画面ではなくこの変数が正本 — 入力が間違っていても消さずに
+    // そのまま載せ、実行時に検証の文言で伝える。
     immuneWindows: immuneWindows.map((w) => ({ ...w })),
     elementWindows: elementWindows.map((w) => ({ ...w })),
     rngMode: element<HTMLSelectElement>(root, '#rng-mode').value as RngMode,
@@ -1886,7 +1886,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   const writeBattle = (battle: BattleSettings) => {
     element<HTMLInputElement>(root, '#duration').value = String(battle.duration);
-    // 싱크로 레벨이 없던 시절에 저장된 설정을 되살릴 때가 있다 — 기본값으로 채운다.
+    // シンクロレベルが無かった頃に保存された設定を戻すことがある — 既定値で埋める。
     element<HTMLInputElement>(root, '#synchro-level').value =
       String(battle.synchroLevel ?? DEFAULT_SYNCHRO_LEVEL);
     element<HTMLInputElement>(root, '#enemy-def').value = String(battle.enemyDef);
@@ -1906,7 +1906,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     if (battle.burstRegenTime !== undefined) {
       element<HTMLInputElement>(root, '#burst-regen').value = String(battle.burstRegenTime);
     }
-    // 이 항목이 생기기 전에 저장된 설정에는 없다 — 기본값으로 채운다.
+    // この項目ができる前に保存された設定には無い — 既定値で埋める。
     element<HTMLInputElement>(root, '#burst-reaction').value =
       String(battle.burstReaction ?? DEFAULT_BURST_REACTION);
     writeDeckRegen(battle.burstRegenPerDeck, battle.burstRegenTime);
@@ -1915,15 +1915,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       writeConsoleBuckets('class', battle.console.class_level);
       writeConsoleBuckets('company', battle.console.company_level);
     }
-    // 조건이 창으로 들어간 뒤로 화면에 남는 표시는 요약 한 줄뿐이다. 프로그램이 값을
-    // 써넣을 때는 change가 나지 않아 그 줄이 갱신되지 않았고, 「적 수치 초기화」와
-    // 「받은 코드 적용」이 아무 일도 안 한 것처럼 보였다. 쓰는 자리에서 함께 끌고 간다.
+    // 条件が窓に入って以降、画面に残る表示は要約の1行だけになった。プログラムが値を
+    // 書き込むときは change が出ないのでその行が更新されず、「敵の数値を初期化」と
+    // 「受け取ったコードを適用」が何もしていないように見えていた。書く場所で一緒に連れて行く。
     refreshBattleSummary();
   };
 
-  // ── 전투 조건 접이판 ────────────────────────────────────────────────────
-  // 조건은 한 번 정해 두면 계속 쓰는 값이라 접어 두고, 접힌 채로도 «무엇으로 재는지»를
-  // 한 줄로 남긴다. 요약 문구는 공유 목록에 쓰는 것과 같은 함수를 쓴다.
+  // ── 戦闘条件の折りたたみ ────────────────────────────────────────────────
+  // 条件は一度決めたらずっと使う値なので畳んでおき、畳んだままでも «何で測っているか» を
+  // 1行残す。要約の文言は共有の一覧に使うのと同じ関数を使う。
   const battleOpen = element<HTMLButtonElement>(root, '[data-battle-open]');
   const battleModal = element<HTMLElement>(root, '[data-battle-modal]');
   const battleSummary = element<HTMLElement>(root, '[data-battle-summary]');
@@ -1931,7 +1931,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const refreshBattleSummary = () => {
     battleSummary.textContent = summarizeBattle(readBattle());
   };
-  /** 첫 계산 전 강조. 한 번이라도 열어 봤거나 계산을 돌렸으면 더 붙잡지 않는다. */
+  /** 初回計算の前の強調。一度でも開いたか計算を回したなら、もう引き止めない。 */
   const settleBattleNote = () => { battleFirstNote.hidden = true; };
   const setBattleOpen = (open: boolean) => {
     battleOpen.setAttribute('aria-expanded', String(open));
@@ -2003,8 +2003,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     return messages;
   };
 
-  // ── 자세히 보기 ─────────────────────────────────────────────────────────
-  // 켠 상태는 이 브라우저에 남는다 — 한 번 켜 둔 사람은 늘 그 눈으로 본다.
+  // ── 詳しく見る ─────────────────────────────────────────────────────────
+  // 入れた状態はこのブラウザに残る — 一度入れた人はいつもその目で見る。
   const DETAIL_KEY = 'nikke-detail-damage-v1';
   /** 直前に描いた結果。バースト順序の «実際の周回数» を読むのに使う。 */
   let lastBatch: BatchResult | null = null;
@@ -2014,11 +2014,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   } catch { /* 저장된 값을 못 읽으면 줄여 쓰기(기본)로 간다 */ }
 
   /**
-   * 「자세히 보기」 — 결과의 대미지를 줄이지 않고 1의 자리까지 적는다.
+   * 「詳しく見る」 — 結果のダメージを丸めずに1の位まで書く。
    *
-   * 두 덱이 「1.24억」으로 똑같이 보이는데 실제로는 수십만이 갈리는 일이 있다.
-   * 켠 상태는 이 브라우저에 남는다. 타임라인 눈금과 보고서 이미지는 자리가 좁아
-   * 늘 줄여 적는다 — 여기서 바뀌는 것은 결과 패널뿐이다.
+   * 2つのデッキが「1.24億」と同じに見えて、実際には数十万の差があることがある。
+   * 入れた状態はこのブラウザに残る。タイムラインの目盛りと報告画像は場所が狭いので
+   * いつも丸めて書く — ここで変わるのは結果パネルだけ。
    */
   const dmg = (value: number): string =>
     (detailDamage ? formatExactDamage(value) : formatDamage(value));
@@ -2026,9 +2026,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     (detailDamage ? formatExactDps(value) : formatDps(value));
 
   const renderBatchResult = (batch: BatchResult) => {
-    // 한 번이라도 돌렸으면 «조건부터 보라»는 강조는 물러난다.
+    // 一度でも回したなら «まず条件を見て» の強調は下がる。
     settleBattleNote();
-    // 수령자는 실제 발동 로그에서 온다 — 결과가 들어와야 카드에 채울 수 있다.
+    // 受け手は実際の発動ログから来る — 結果が入ってこないとカードに埋められない。
     let touchedActiveDeck = false;
     for (const entry of batch.decks) {
       const targets = entry.result.buffTargets;
@@ -2054,7 +2054,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     header.append(copy, summary);
     resultPanel.append(header);
 
-    // 자세히 보기 — 「1.24억」 대신 1의 자리까지. 내려받지 않고 그 자리에서 본다.
+    // 詳しく見る — 「1.24億」ではなく1の位まで。ダウンロードせずにその場で見る。
     const detailLabel = document.createElement('label');
     detailLabel.className = 'inline-check detail-toggle';
     const detailBox = document.createElement('input');
@@ -2075,7 +2075,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     resultTools.append(detailLabel);
     resultPanel.append(resultTools);
 
-    // 덱 순위 — 딜 내림차순으로 «등수»만 구한다. 세우는 순서는 끝까지 덱 번호 그대로다.
+    // デッキの順位 — ダメージの降順で «何位か» だけを出す。並べる順は最後までデッキ番号のまま。
     const ordered = [...batch.decks].sort((a, b) => b.result.squadTotal - a.result.squadTotal);
     const ranking = new Map(ordered.map((entry, index) => [entry.deckId, index + 1]));
     const best = ordered[0]?.result.squadTotal ?? 0;
@@ -2084,7 +2084,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       return image ? `${import.meta.env.BASE_URL}${image}` : undefined;
     };
 
-    /** 덱 하나의 속. 캐릭터 카드와 사실 줄, 이탈 목록. */
+    /** デッキ1つの中身。キャラカードと事実の行、離脱の一覧。 */
     const renderDeckDetail = (host: HTMLElement, entry: DeckResultEntry) => {
       host.replaceChildren();
       const section = document.createElement('section');
@@ -2113,8 +2113,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         section.append(badge);
       }
       if (entry.result.previewNote) section.append(createText('p', entry.result.previewNote, 'preview-warning'));
-      // 덱을 갈아 가며 볼 때는 줄이 짧고 비교가 쉽다. 한 덱만 볼 때는 카드가 편성과
-      // 자리가 맞아 낫다 — 화면의 목적이 달라서 모양도 다르다.
+      // デッキを切り替えながら見るときは行が短くて比べやすい。1デッキだけ見るときはカードが編成と
+      // 位置が揃って良い — 画面の目的が違うので形も違う。
       const fmt: DamageFormat = { dmg, dps };
       if (batch.decks.length > 1) renderCharacterRows(section, entry, portraitOf, fmt);
       else renderCharacterCards(section, entry, portraitOf, fmt);
@@ -2132,8 +2132,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const detail = document.createElement('div');
     detail.className = 'deck-detail';
     if (batch.decks.length > 1) {
-      // 덱마다 탭 하나. **덱 번호 순서 그대로** 왼쪽에서 오른쪽으로 세우고, 딜 1·2위는
-      // 자리를 옮기지 않고 뱃지로만 표시한다. 고른 덱만 아래에 자세히 편다.
+      // デッキごとにタブ1つ。**デッキ番号の順そのまま**に左から右へ並べ、ダメージ1・2位は
+      // 位置を動かさずバッジだけで示す。選んだデッキだけを下に詳しく開く。
       const tabs = document.createElement('div');
       tabs.className = 'deck-result-tabs';
       tabs.dataset.deckResultTabs = '';
@@ -2149,7 +2149,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const rank = ranking.get(entry.deckId)!;
         const tab = document.createElement('button');
         tab.type = 'button';
-        // 순위는 다섯 덱 모두에 적고, 1·2위만 색으로 강조한다. 자리는 덱 번호 순 그대로다.
+        // 順位は5デッキ全部に書き、1・2位だけ色で強調する。位置はデッキ番号順のまま。
         tab.className = 'deck-result-tab'
           + (rank === 1 ? ' is-first' : rank === 2 ? ' is-second' : '');
         tab.dataset.deckResultTab = String(entry.deckId);
@@ -2157,8 +2157,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const head = document.createElement('b');
         head.append(document.createTextNode(`デッキ ${entry.deckId}`));
         head.append(createText('em', `${rank}位`, 'deck-tab-rank'));
-        // 덱끼리 견주는 자리라 줄이지 않고 온전한 숫자를 적는다 — «1.14억»으로는
-        // 2위와의 차이가 읽히지 않는다.
+        // デッキ同士を見比べる場所なので、丸めずに完全な数字を書く — «1.14億» では
+        // 2位との差が読めない。
         tab.append(head, createText('span', Math.round(entry.result.squadTotal).toLocaleString('ja-JP')));
         tab.addEventListener('click', () => show(entry));
         buttons.set(entry.deckId, tab);
@@ -2171,12 +2171,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
     resultPanel.append(detail);
 
-    // 타임라인도 한 번에 하나만 본다 — 다섯을 세로로 쌓으면 어느 덱을 보고 있는지
-    // 스크롤 중에 놓친다. 탭은 결과와 같이 **덱 번호 순서 그대로** 선다.
+    // タイムラインも一度に1つだけ見る — 5つを縦に積むと、どのデッキを見ているのか
+    // スクロール中に見失う。タブは結果と同じく**デッキ番号の順そのまま**に並ぶ。
     timelineBody.replaceChildren();
     const blocks = new Map<number, HTMLElement>();
     for (const entry of batch.decks) {
-      // 버스트 핀에 쓸 초상화. 캔버스가 직접 그리므로 URL만 넘긴다.
+      // バーストのピンに使う立ち絵。キャンバスが直接描くので URL だけ渡す。
       const portraitUrls: Record<string, string> = {};
       for (const name of entry.request.squad) {
         const image = catalogByName.get(name)?.image;
@@ -2218,11 +2218,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     timelinePanel.hidden = !timelineHasContent || currentView !== 'calc';
   };
 
-  // ── 버스트 순서 ─────────────────────────────────────────────────────────
-  /** 이 판에서만 쓰는 요소 만들기. union-raid의 같은 이름 도우미와 짝이다. */
+  // ── バースト順 ─────────────────────────────────────────────────────────
+  /** この画面だけで使う要素づくり。union-raid の同名の助けと対になっている。 */
 
-  // 사이클마다 단계별로 누구를 쓸지 손으로 정한다. 창을 쓰는 이유는 **키보드를
-  // 통째로 가져가기 때문**이다 — 탭 안에 두면 A·S·D·F·G가 검색칸과 부딪친다.
+  // サイクルごとに段階別で誰を使うかを手で決める。窓を使う理由は**キーボードを
+  // 丸ごと持っていくから** — タブの中に置くと A・S・D・F・G が検索欄とぶつかる。
   const burstModal = element<HTMLElement>(root, '[data-burst-order-modal]');
   const burstOpenButton = element<HTMLButtonElement>(root, '[data-burst-order-open]');
   const burstBadge = element<HTMLElement>(root, '[data-burst-order-badge]');
@@ -2234,7 +2234,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   const burstCyclesNote = element<HTMLElement>(root, '[data-burst-cycles-note]');
   const burstMsg = element<HTMLElement>(root, '[data-burst-order-msg]');
 
-  /** 창이 열려 있는 동안의 작업본. 「이 순서로 두기」를 눌러야 덱에 남는다. */
+  /** 窓が開いている間の作業用の写し。「この順で置く」を押さないとデッキに残らない。 */
   let burstPicks: Record<string, string> = {};
   let burstCycles = 1;
   let burstAt = 0;          // 지금 서 있는 걸음
@@ -2246,7 +2246,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     burstMsg.classList.toggle('is-ok', ok);
   };
 
-  /** 「버스트 안 씀」으로 잡아 둔 사람. 후보에서 뺀다. */
+  /** 「バーストを使わない」と決めた人。候補から外す。 */
   const burstSkipped = (deck: DeckState): Set<string> => new Set(
     Object.entries(deck.characters)
       .filter(([, value]) => value.burst?.mode === 'skip')
@@ -2262,16 +2262,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     });
   };
 
-  /** 덱 도구 줄의 단추에 「9사이클」처럼 적어 둔다 — 열지 않아도 걸려 있는지 보인다. */
+  /** デッキの道具の行のボタンに「9サイクル」のように書いておく — 開かなくても掛かっているか見える。 */
   function renderBurstBadge(): void {
     const kept = sequenceForDeck(activeDeck());
     burstBadge.hidden = kept === null;
     burstBadge.textContent = kept ? `${kept.length}` : '';
-    // 순서를 걸어 두면 단추 자체가 색을 바꾼다 — 열어 보지 않아도 걸린 게 보인다.
+    // 順を掛けておくとボタン自体が色を変える — 開いてみなくても掛かっているのが見える。
     burstOpenButton.classList.toggle('is-on', kept !== null);
   }
 
-  /** 아직 안 고른 첫 칸으로 옮긴다. 창을 다시 열면 하던 자리에서 이어진다. */
+  /** まだ選んでいない最初の枠へ移る。窓を開き直すと、やっていた場所から続く。 */
   const firstUnpicked = (): number => {
     const at = burstSteps.findIndex((step) => !burstPicks[stepKey(step)]);
     return at >= 0 ? at : Math.max(0, burstSteps.length - 1);
@@ -2285,7 +2285,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const { done, total } = progressOf(burstPicks, burstSteps);
     burstProgress.textContent = `${done} / ${total}枠`;
 
-    // ── 지금 걸음 ──
+    // ── いまの歩み ──
     burstNow.replaceChildren();
     burstPicksBox.replaceChildren();
     const step = burstSteps[burstAt];
@@ -2327,7 +2327,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         button.addEventListener('click', () => pickBurst(name));
         burstPicksBox.append(button);
       });
-      // 「이 단계는 자동으로」 — 고른 것을 무르는 자리다.
+      // 「この段階は自動で」 — 選んだものを取り消す場所。
       const auto = el('button', 'burst-pick is-auto' + (picked ? '' : ' is-on'));
       (auto as HTMLButtonElement).type = 'button';
       auto.append(el('span', 'burst-pick-name', '自動'));
@@ -2336,9 +2336,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       burstPicksBox.append(auto);
     }
 
-    // ── 적어 둔 것 ──
-    // 사이클마다 **빈 칸 셋**이고, 고를 때마다 초상화가 채워진다. 글줄로 적으면
-    // 스물일곱 칸 중 어디까지 왔는지가 안 읽힌다 — 빈 칸이 남아 있는 게 보여야 한다.
+    // ── 書いておいたもの ──
+    // サイクルごとに**空の枠が3つ**あり、選ぶたびに立ち絵が埋まる。文字列で書くと
+    // 27ある枠のどこまで来たのかが読めない — 空の枠が残っているのが見えないといけない。
     burstList.replaceChildren();
     const sequence = sequenceFrom(burstPicks, burstCycles);
     sequence.forEach((cycle, index) => {
@@ -2385,7 +2385,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     });
   }
 
-  /** 한 칸 고르고 다음으로. `null`이면 그 칸을 자동으로 되돌린다. */
+  /** 1枠選んで次へ。`null` ならその枠を自動に戻す。 */
   function pickBurst(name: string | null): void {
     const step = burstSteps[burstAt];
     if (!step) return;
@@ -2404,8 +2404,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
     const kept = sequenceForDeck(deck);
     burstPicks = picksFrom(kept ?? undefined);
-    // 사이클 수: 적어 둔 게 있으면 그만큼, 아니면 지난 계산의 **실제 횟수**,
-    // 그것도 없으면 전투 시간으로 어림한다.
+    // サイクル数: 書いておいたものがあればその数、無ければ前回の計算の**実際の回数**、
+    // それも無ければ戦闘時間から見積もる。
     const measured = cyclesFromTimeline(
       lastBatch?.decks.find((entry) => entry.deckId === deck.id)?.result.timeline);
     burstCycles = kept?.length ?? measured ?? estimateCycles(readBattle().duration);
@@ -2462,7 +2462,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     showBurstMsg('順序を消しました。計算機が通常の順序で選びます。', true);
   });
 
-  // 키보드는 창이 열려 있을 때만 가져간다. 조합키가 눌린 입력은 브라우저 것이다.
+  // キーボードは窓が開いているときだけ持っていく。修飾キーが押された入力はブラウザのもの。
   document.addEventListener('keydown', (event) => {
     if (burstModal.hidden) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -2505,8 +2505,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   element<HTMLInputElement>(root, '#squad-mode').addEventListener('change', (event) => {
     fiveDeckMode = (event.currentTarget as HTMLInputElement).checked;
-    // 5덱을 끄면 «지금 보고 있던 덱»이 1덱 자리로 온다 — 2~5덱 중 하나만 계산하려고
-    // 끄는 경우가 많은데, 그때마다 편성을 손으로 옮기는 건 번거롭다(유저 피드백).
+    // 5デッキを切ると «いま見ていたデッキ» が1デッキの場所に来る — 2〜5デッキのどれか1つだけを計算しようとして
+    // 切ることが多いのに、そのたびに編成を手で移すのは面倒 (利用者の声)。
     if (!fiveDeckMode && activeDeckId !== 1) {
       const picked = decks.find((deck) => deck.id === activeDeckId);
       const first = decks[0]!;
@@ -2529,7 +2529,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   coreToggle.addEventListener('change', () => {
     corePxInput.disabled = !coreToggle.checked;
   });
-  // 전투 조건 입력이 바뀌면 저장한다.
+  // 戦闘条件の入力が変わったら保存する。
   form.addEventListener('change', (event) => {
     const target = event.target as HTMLElement | null;
     if (target?.closest('.settings-panel')) { saveState(); refreshBattleSummary(); }
@@ -2539,32 +2539,32 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     saveState();
     showErrors([]);
   });
-  // 니케 고르기 판. 창이 아니라 편성 바로 아래 늘 펼쳐져 있고, 검색은 이 판을 거른다.
+  // ニケを選ぶ盤。窓ではなく編成のすぐ下にいつも開いていて、検索はこの盤を絞る。
   const rosterGrid = element<HTMLElement>(root, '[data-roster-grid]');
   const rosterSearch = element<HTMLInputElement>(root, '[data-roster-search]');
   const rosterEmpty = element<HTMLElement>(root, '[data-roster-empty]');
   const rosterCount = element<HTMLElement>(root, '[data-roster-count]');
   const rosterDesc = element<HTMLElement>(root, '[data-roster-desc]');
-  // 필터는 **그룹 안에서는 OR, 그룹 사이에서는 AND**다. 무기 SG·SMG를 함께 켜면
-  // 둘 중 하나면 통과하고, 거기에 클래스 화력형을 더하면 «화력형이면서 SG나 SMG»가 된다.
-  // 인게임 도감이 이 방식이라 익숙하고, 하나만 고르는 것보다 훨씬 빨리 좁혀진다.
+  // 絞り込みは**同じ組の中では OR、組と組の間では AND**。武器の SG・SMG を両方入れると
+  // どちらかなら通り、そこにクラスの火力型を足すと «火力型でありながら SG か SMG» になる。
+  // ゲーム内の図鑑がこの方式なので馴染みがあり、1つだけ選ぶよりずっと速く絞れる。
   type FilterKey = 'burst' | 'rarity' | 'class' | 'code' | 'weapon' | 'corp';
   const picked: Record<FilterKey, Set<string>> = {
     burst: new Set(), rarity: new Set(), class: new Set(),
     code: new Set(), weapon: new Set(), corp: new Set(),
   };
   type SortKey = 'power' | 'name' | 'element' | 'elementAtk';
-  // 처음 보이는 순서는 전투력 높은 순이다 — 목록에서 먼저 찾는 것이 «내가 키운
-  // 니케»라, 가나다순으로 세워 두면 매번 스크롤해서 찾아야 한다.
+  // 最初に見える順は戦闘力の高い順 — 一覧で先に探すのは «自分が育てたニケ» なので、
+  // 五十音順に並べると毎回スクロールして探すことになる。
   const DEFAULT_SORT: SortKey = 'power';
   let sortKey: SortKey = DEFAULT_SORT;
-  // 같은 항목을 다시 누르면 뒤집는다. 항목마다 «자연스러운» 방향이 달라서
-  // (이름은 가나다순, 수치는 높은 순) 처음 고를 때는 그 방향으로 잡는다.
+  // 同じ項目をもう一度押すと逆になる。項目ごとに «自然な» 向きが違うので
+  // (名前は五十音順、数値は高い順)、最初に選ぶときはその向きにする。
   let sortDesc = true;
 
-  // ── 정렬 · 필터 판 ──────────────────────────────────────────────────────
-  // 정렬은 «내 로스터에서 이 캐릭터가 얼마나 굴려졌나»를 본다. 오버로드 수치가
-  // 그 척도라, CSV·프로필로 불러온 내 값이 있으면 그걸 쓰고 없으면 기본 스펙을 쓴다.
+  // ── 並べ替え・絞り込みの盤 ──────────────────────────────────────────────
+  // 並べ替えは «自分のロスターでこのキャラがどれだけ回されたか» を見る。オーバーロードの数値が
+  // その物差しなので、CSV・プロフィールで読み込んだ自分の値があればそれを使い、無ければ既定スペックを使う。
   const SORTS: Array<{ key: SortKey; label: string; hint: string }> = [
     { key: 'power', label: '戦闘力', hint: 'ゲーム内の戦闘力 — もう一度押すと逆順になります' },
     { key: 'name', label: '名前', hint: '五十音順 — もう一度押すと逆順になります' },
@@ -2572,15 +2572,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     { key: 'elementAtk', label: '有利+攻撃', hint: '有利コード + 攻撃力増加の合計 — もう一度押すと逆順になります' },
   ];
 
-  /** 처음 고를 때의 방향. 이름은 오름차순, 수치는 높은 순이 자연스럽다. */
+  /** 最初に選ぶときの向き。名前は昇順、数値は高い順が自然。 */
   const defaultDesc = (key: SortKey): boolean => key !== 'name';
 
-  /** 이 캐릭터에게 실제로 적용될 오버로드 — 내 로스터 값이 우선이다. */
+  /** このキャラに実際に効くオーバーロード — 自分のロスターの値が優先。 */
   const overloadOf = (name: string): Record<string, number> =>
     roster[name]?.overload ?? settings.characters[name]?.overload ?? {};
 
-  // 전투력은 엔진이 기본 스탯까지 계산해야 나온다 — 워커를 한 번 돌려 받아 둔다.
-  // 로스터를 바꾸면 값이 달라지므로 서명이 어긋나면 다시 받는다.
+  // 戦闘力はエンジンが基本ステータスまで計算しないと出ない — ワーカーを一度回して受け取っておく。
+  // ロスターを変えると値が変わるので、署名が食い違えば取り直す。
   let combatPower: Record<string, number> = {};
   let powerSig = '';
   let powerLoading = false;
@@ -2606,14 +2606,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderFilterState();
       renderRosterGrid();
     } catch {
-      /* 전투력은 정렬 편의 기능이다 — 실패해도 목록은 그대로 쓴다 */
+      /* 戦闘力は並べ替えの «あると便利» なだけ — 失敗しても一覧はそのまま使う */
     } finally {
       powerLoading = false;
     }
     if (powerAgain) { powerAgain = false; await loadCombatPower(); }
   };
 
-  /** 버스트만 판 밖에 있다 — 값은 여기 두고 그리는 자리만 다르다. */
+  /** バーストだけが盤の外にある — 値はここに置き、描く場所だけが違う。 */
   const BURST_VALUES = ['1', '2', '3', 'A'];
   const FILTER_GROUPS: Array<{ key: FilterKey; title: string; values: string[] }> = [
     { key: 'rarity', title: 'レアリティ', values: ['SSR', 'SR', 'R'] },
@@ -2632,7 +2632,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     return value;
   };
 
-  /** 고른 필터 개수. 0이면 뱃지를 감춘다. */
+  /** 選んだ絞り込みの数。0 ならバッジを隠す。 */
   const pickedCount = (): number =>
     Object.values(picked).reduce((sum, set) => sum + set.size, 0);
 
@@ -2646,7 +2646,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const element = over.element_bonus ?? 0;
       return sortKey === 'element' ? element : element + (over.atk_pct ?? 0);
     };
-    // 같은 값 안에서는 늘 이름순 — 정렬 방향을 바꿔도 동점끼리 요동치지 않는다.
+    // 同じ値の中ではいつも名前順 — 並べ替えの向きを変えても、同点同士が揺れない。
     list.sort((a, b) => flip * (scoreOf(a) - scoreOf(b)) || byName(a, b));
   }
 
@@ -2661,9 +2661,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     filterBadge.hidden = count === 0;
     filterBadge.textContent = String(count);
     filterReset.hidden = count === 0;
-    // 판을 접어도 무엇이 걸려 있는지 알 수 있게 요약을 남긴다.
-    // 정렬은 늘 적혀 있다 — 기본이 전투력순이라, 안 적어 두면 «왜 가나다순이
-    // 아닌가»를 판을 펼쳐야만 알 수 있다.
+    // 盤を畳んでも何が掛かっているか分かるように要約を残す。
+    // 並べ替えはいつも書いてある — 既定が戦闘力順なので、書いておかないと «なぜ五十音順
+    // ではないのか» を盤を開かないと分からない。
     const parts: string[] = [];
     const label = SORTS.find((s) => s.key === sortKey)?.label;
     const pending = sortKey === 'power' && Object.keys(combatPower).length === 0;
@@ -2677,7 +2677,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     filterSummary.textContent = parts.join(' · ');
   };
 
-  /** 필터 칩 하나. 같은 칩을 다시 누르면 꺼진다 — 「전체」 칩을 따로 두지 않아도 된다. */
+  /** 絞り込みのチップ1つ。同じチップをもう一度押すと切れる — 「全体」チップを別に置かなくて済む。 */
   const filterChip = (key: FilterKey, value: string): HTMLButtonElement => {
     const chip = document.createElement('button');
     chip.type = 'button';
@@ -2710,14 +2710,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       chip.dataset.sort = option.key;
       chip.dataset.sortDir = active ? (sortDesc ? 'desc' : 'asc') : '';
       chip.append(createText('span', option.label));
-      // 삼각형으로 방향을 알린다 — 켜진 항목에만 붙는다.
+      // 三角で向きを知らせる — 入っている項目にだけ付く。
       if (active) chip.append(createText('b', sortDesc ? '▼' : '▲', 'sort-caret'));
       chip.title = option.hint;
       chip.addEventListener('click', () => {
-        // 같은 항목을 다시 누르면 뒤집고, 다른 항목이면 그 항목의 기본 방향으로 간다.
+        // 同じ項目をもう一度押すと逆になり、違う項目ならその項目の既定の向きになる。
         if (active) sortDesc = !sortDesc;
         else { sortKey = option.key; sortDesc = defaultDesc(option.key); }
-        // 전투력은 무거우니 고를 때 받는다. 오는 동안은 이름순으로 서 있는다.
+        // 戦闘力は重いので選んだときに受け取る。届くまでは名前順で並んでいる。
         if (sortKey === 'power') void loadCombatPower();
         renderFilterPanel();
         renderFilterState();
@@ -2747,8 +2747,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   filterOpen.addEventListener('click', () => {
     setFilterPanel(filterOpen.getAttribute('aria-expanded') !== 'true');
   });
-  // 목록 위에 얹히는 판이라 드롭다운과 같은 규칙을 따른다 — 바깥을 누르거나
-  // Esc면 닫힌다. 판 안과 판을 여는 줄(«필터 지우기» 포함)은 바깥이 아니다.
+  // 一覧の上に載る盤なのでドロップダウンと同じ規則に従う — 外を押すか
+  // Esc で閉じる。盤の中と、盤を開く行 («絞り込みを消す» を含む) は «外» ではない。
   const pickerBar = element<HTMLElement>(root, '.picker-bar');
   document.addEventListener('pointerdown', (event) => {
     if (filterPanel.hidden) return;
@@ -2769,7 +2769,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   });
 
   const renderRosterGrid = () => {
-    // 직접 추가한 니케까지 포함해 지금 고를 수 있는 전체를 보여준다.
+    // 自分で足したニケまで含め、いま選べる全部を見せる。
     const all = [...catalogByName.values()].sort((a, b) => labelFor(a.name).localeCompare(labelFor(b.name), 'ja'));
     const narrowed = all.filter((char) => {
       const meta = settings.characters[char.name];
@@ -2783,8 +2783,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         && hit('corp', char.manufacturer);
     });
     sortRoster(narrowed);
-    // 칩으로 먼저 좁히고 검색어로 세운다. 검색은 초성과 구분자까지 받아
-    // 「ㅋㄹㅇ」·「라피레드」가 걸리고, 친 이름이 맨 앞에 온다.
+    // チップで先に絞り、検索語で並べる。検索は頭文字と区切りまで受けるので
+    // 「ｸﾗｳﾝ」・「ラピレド」が引っかかり、打った名前が先頭に来る。
     const shown = filterByQuery(narrowed, rosterSearch.value, buildIndex);
     rosterCount.textContent = shown.length === all.length
       ? `${all.length}名` : `${shown.length} / ${all.length}名`;
@@ -2795,7 +2795,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       cell.type = 'button';
       cell.className = 'roster-cell';
       cell.dataset.rosterCell = char.name;
-      // 이미 이 덱에 있으면 중복 편성이 안 되므로 눌리지 않게 둔다.
+      // 既にこのデッキに居るなら重ねて編成できないので、押せないままにする。
       const takenAt = deck.squad.indexOf(char.name);
       if (takenAt >= 0 && takenAt !== activeSlot) {
         cell.disabled = true;
@@ -2815,11 +2815,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       badge.className = 'roster-burst';
       badge.textContent = `B${char.burstStage}`;
       portrait.append(badge);
-      // 버스트 단계 맞은편(우상단)에 속성 아이콘.
+      // バースト段階の向かい (右上) に属性アイコン。
       const codeIcon = createElementIcon(char.elementCode, 'roster-code');
       if (codeIcon) portrait.append(codeIcon);
       if (char.preview) {
-        // (임시) — 스킬 미공개라 창작한 값으로 도는 캐릭터. 고르기 전에 보여야 한다.
+        // (暫定) — スキルが未公開で、こちらで作った値で回るキャラ。選ぶ前に見えないといけない。
         const temp = createText('i', '仮', 'roster-temp');
         temp.title = 'スキルが公開されていないため、仮に作成した値で計算します';
         portrait.append(temp);
@@ -2830,7 +2830,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         createText('span', [elementLabel(char.elementCode), char.weaponType, labelForClass(char.className)].filter(Boolean).join(' · ')),
       );
       cell.addEventListener('click', () => pickCharacter(char.name));
-      // 끌어다 칸에 놓을 수도 있다. 이미 이 덱에 있는 니케는 누를 수 없으니 끌 수도 없다.
+      // 掴んで枠に置くこともできる。既にこのデッキに居るニケは押せないので掴めもしない。
       if (!cell.disabled) {
         cell.draggable = true;
         cell.addEventListener('dragstart', (event) => {
@@ -2849,8 +2849,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   };
 
   /**
-   * 다른 덱에 남아 있는 그 캐릭터의 개별 설정. 지금 보고 있는 덱은 빼고, 가장
-   * 가까운 덱부터 찾는다 — 방금 만진 덱의 값이 가장 그럴듯하기 때문이다.
+   * 他のデッキに残っているそのキャラの個別設定。いま見ているデッキは除き、
+   * 一番近いデッキから探す — さっき触ったデッキの値が一番それらしいから。
    */
   const settingsFromOtherDeck = (name: string): CharacterOverrides | undefined => {
     const others = [...decks].sort((a, b) =>
@@ -2876,14 +2876,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     deck.squad[slot] = name;
     if (previous && previous !== name) delete deck.characters[previous];
     if (!deck.characters[name]) {
-      // 다른 덱에서 이미 만져 둔 설정이 있으면 그것을 가져온다. 없으면 CSV·프로필로
-      // 불러온 내 로스터 값을 쓴다. 덱을 옮길 때마다 같은 수치를 다시 넣는 일이
-      // 가장 잦은 불편이었다 — 끄면 예전처럼 덱마다 따로 논다.
+      // 他のデッキで既に触った設定があればそれを持ってくる。無ければ CSV・プロフィールで
+      // 読み込んだ自分のロスターの値を使う。デッキを移すたびに同じ数値を入れ直すのが
+      // 一番多かった不便 — 切れば昔どおりデッキごとに独立する。
       const borrowed = carryOverSettings ? settingsFromOtherDeck(name) : undefined;
       if (borrowed) deck.characters[name] = borrowed;
       else if (roster[name]) deck.characters[name] = cloneOverride(roster[name]!);
     }
-    // 연달아 채울 수 있게 다음 빈 칸으로 옮겨 간다. 다 찼으면 방금 넣은 칸에 머문다.
+    // 続けて埋められるように次の空き枠へ移る。全部埋まっていれば、いま入れた枠に留まる。
     const next = deck.squad.findIndex((member) => !member);
     activeSlot = next < 0 ? slot : next;
     pullActiveSlot = true;
@@ -2892,14 +2892,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     renderDeckTabs();
     renderSquad();
     renderRosterGrid();
-    // (임시) 캐릭터는 넣는 순간 바로 알린다 — 결과까지 가서야 알면 이미 늦다.
+    // (暫定) のキャラは入れた瞬間に伝える — 結果まで行ってから分かるのでは遅い。
     if (catalogByName.get(name)?.preview) {
       status.textContent = `${labelFor(name)} はまだ(仮)登録です — スキルが公開されていないため、`
         + '仮に作成した値で計算します。実際の性能とは無関係なので参考程度にご覧ください。';
     }
   };
 
-  /** 판이 어느 칸을 겨냥하는지 알려 준다. 창이 없으니 이 한 줄이 유일한 안내다. */
+  /** 盤がどの枠を狙っているかを知らせる。窓が無いので、この1行が唯一の案内。 */
   const updatePickerTarget = () => {
     const deck = activeDeck();
     const filled = deck.squad.filter(Boolean).length;
@@ -2909,15 +2909,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       : `空き枠 ${activeSlot + 1} を埋めます · ${filled}/5名`;
   };
 
-  // 접힌 채로 시작한다 — 무엇으로 재는지 한 줄은 처음부터 적혀 있어야 한다.
+  // 畳んだ状態で始める — 何で測るのかの1行は最初から書いてある必要がある。
   refreshBattleSummary();
   renderFilterPanel();
   renderFilterState();
   rosterSearch.addEventListener('input', renderRosterGrid);
 
-  // 완전 초기화 — 이 브라우저에 쌓인 저장 상태를 전부 버린다. 메모리 변수까지
-  // 하나씩 되돌리는 대신 저장소를 비우고 페이지를 다시 띄워, 새로 방문한 것과
-  // 같은 상태임을 보장한다.
+  // 完全初期化 — このブラウザに溜まった保存状態を全部捨てる。メモリ上の変数まで
+  // 1つずつ戻す代わりに、保存を空にしてページを開き直し、初めて訪れたのと
+  // 同じ状態であることを保証する。
   const resetModal = element<HTMLElement>(root, '[data-reset-modal]');
   const closeResetModal = () => { resetModal.hidden = true; };
   element<HTMLButtonElement>(root, '[data-reset-all]').addEventListener('click', () => {
@@ -2937,7 +2937,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       try {
         store?.removeItem(key);
       } catch {
-        // 저장소를 못 쓰는 브라우저에서도 나머지 초기화는 계속한다.
+        // 保存が使えないブラウザでも、残りの初期化は続ける。
       }
     }
     closeResetModal();
@@ -3162,7 +3162,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   };
   element<HTMLButtonElement>(root, '[data-roster-csv-open]').addEventListener('click', () => rosterInput.click());
 
-  // 블라블라링크 연동. 프록시가 설정된 빌드에서만 마크업이 있으므로 없으면 통째로 건너뛴다.
+  // Blablalink 連携。プロキシが設定されたビルドにしかマークアップが無いので、無ければ丸ごと飛ばす。
   if (blablaProxy) {
     const blablaModal = element<HTMLElement>(root, '[data-blabla-modal]');
     const blablaServer = element<HTMLSelectElement>(root, '[data-blabla-server]');
@@ -3256,10 +3256,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     });
   }
 
-  // ── 병렬 계산 ───────────────────────────────────────────────────────────
-  // 계산은 이 기기에서 돈다. 워커를 여럿 띄우면 덱을 나눠 돌려 빨라지지만, 워커마다
-  // 계산 런타임이 하나씩 떠서 메모리를 먹는다 — 그래서 끌 수 있고 개수도 고를 수 있다.
-  // 결과는 몇 개로 나누든 같다(판마다 독립·결정론적).
+  // ── 並列計算 ───────────────────────────────────────────────────────────
+  // 計算はこの端末で回る。ワーカーを複数立てるとデッキを分けて回せて速くなるが、ワーカーごとに
+  // 計算ランタイムが1つずつ立ってメモリを食う — なので切ることも、数を選ぶこともできる。
+  // 結果はいくつに分けても同じ (盤ごとに独立・決定論的)。
   const PARALLEL_KEY = 'nikke-parallel-v1';
   const parallelToggle = element<HTMLInputElement>(root, '[data-parallel-toggle]');
   const parallelSize = element<HTMLSelectElement>(root, '[data-parallel-size]');
@@ -3283,7 +3283,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     option.textContent = `${n}個`;
     parallelSize.append(option);
   }
-  // 권장값은 칸을 넓히지 않게 설명 쪽에만 적는다 — 토글 줄이 길어지면 줄이 접힌다.
+  // 推奨値は枠を広げないよう説明のほうにだけ書く — トグルの行が長くなると行が折れる。
   parallelSize.title = `起動するワーカースレッド数。この端末の推奨は ${poolDefault}個。`
     + '1つごとに計算ランタイムが立ち上がり、メモリを 50~80MB ずつ使います。';
   const applyParallel = (save: boolean) => {
@@ -4931,8 +4931,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   }
 
-  // ── 화면 전환 ───────────────────────────────────────────────────────────
-  /** 위쪽 탭이 고를 수 있는 화면. 「외부고리」는 우리 것이 아닌 곳으로 나가는 판이다. */
+  // ── 画面の切り替え ───────────────────────────────────────────────────────
+  /** 上のタブが選べる画面。「外部リンク」は自分たちのものでない場所へ出ていく盤。 */
   type ViewName = 'board' | 'calc' | 'roster' | 'plans';
 
   const shell = element<HTMLElement>(root, '.site-shell');
@@ -4944,7 +4944,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     shell.classList.toggle('is-board', view === 'board');
     for (const section of root.querySelectorAll<HTMLElement>('[data-view]')) {
       const mine = section.dataset.view === view;
-      // 타임라인은 계산 결과가 있을 때만 보이므로 여기서 켜지 않는다.
+      // タイムラインは計算結果があるときだけ見えるので、ここでは入れない。
       if (section === timelinePanel) { section.hidden = !mine || !timelineHasContent; continue; }
       section.hidden = !mine;
     }
@@ -4963,7 +4963,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 入口は3凸ボード (自分の育成でどの凸に何を持っていくか)。計算機は「計算機」タブから
   switchView('board');
 
-  // 렛츠도로 CSV 받는 법 안내. 스크린샷이 아직 없으면 이미지만 숨긴다 — 링크·설명은 남는다.
+  // レッツドロ CSV の受け取り方の案内。スクリーンショットがまだ無ければ画像だけ隠す — リンクと説明は残る。
   const doroModal = element<HTMLElement>(root, '[data-doro-modal]');
   const doroShot = element<HTMLImageElement>(root, '.doro-shot');
   doroShot.addEventListener('error', () => { doroShot.hidden = true; });
@@ -4981,12 +4981,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     try {
       resolveStorage()?.setItem(STATE_KEY, JSON.stringify({
         decks, fiveDeckMode, activeDeckId, carryOverSettings, battle: readBattle(),
-        // 새로고침해도 「누가 이 버프를 받았나」가 남게 한다 — 다시 계산하기 전까지
-        // 빈 괄호만 보이면 기능이 꺼진 것처럼 보인다.
+        // 開き直しても「誰がこのバフを受けたか」が残るようにする — 計算し直すまで
+        // 空の括弧しか見えないと、機能が切れているように見える。
         buffTargets: [...buffTargetsByDeck].map(([id, v]) => ({ id, ...v })),
       }));
     } catch {
-      /* 저장 실패 무시 */
+      /* 保存の失敗は無視 */
     }
   };
   const applySavedState = () => {
@@ -5007,8 +5007,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         }
       });
     }
-    // 「누가 이 버프를 받았나」는 서명이 지금 편성·설정과 맞을 때만 되살린다.
-    // 어긋나면 지난 계산의 값이라 그대로 믿을 수 없다.
+    // 「誰がこのバフを受けたか」は、署名がいまの編成・設定と合うときだけ戻す。
+    // 食い違えば前の計算の値なので、そのまま信じられない。
     for (const saved of savedState.buffTargets ?? []) {
       const deck = decks.find((d) => d.id === saved.id);
       if (deck && saved.sig === deckSignature(deck)) {
@@ -5040,7 +5040,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   renderBoard();
   renderDeckTabs();
   renderSquad();
-  // 판은 창이 아니라 늘 펼쳐져 있으므로 처음부터 그려 둔다.
+  // 盤は窓ではなくいつも開いているので、最初から描いておく。
   const firstEmpty = activeDeck().squad.findIndex((member) => !member);
   activeSlot = firstEmpty < 0 ? 0 : firstEmpty;
   renderSquad();
@@ -5058,8 +5058,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       status.textContent = `初期化に失敗 · ${error instanceof Error ? error.message : String(error)}`;
     });
 
-  // 기본 정렬이 전투력이라 목록을 열기 전에 미리 받아 둔다. 오는 동안은 이름순으로
-  // 서 있고, 도착하면 그 자리에서 다시 세운다.
+  // 既定の並べ替えが戦闘力なので、一覧を開く前に先に受け取っておく。届くまでは名前順で
+  // 並んでいて、届いたらその場で並べ直す。
   void loadCombatPower();
 
   form.addEventListener('submit', async (event) => {
@@ -5089,8 +5089,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     let failedIndex = -1;
     try {
       await prepared;
-      // 덱 하나하나는 서로 독립이라 나눠 돌려도 결과가 같다. 도착 순서만 뒤섞이므로
-      // 화면에 세울 때 **덱 번호 순으로 다시 정렬**한다 — 좌→우가 곧 1→5덱이어야 한다.
+      // デッキ1つ1つは互いに独立なので、分けて回しても結果は同じ。届く順だけが入れ替わるので
+      // 画面に並べるときに**デッキ番号順に並べ直す** — 左→右がそのまま1→5デッキであるべき。
       let done = 0;
       const runOne = async (index: number) => {
         const { deck, request } = requests[index]!;
@@ -5108,13 +5108,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         completed.sort((a, b) => a.deckId - b.deckId);
         renderBatchResult(aggregateDeckResults(completed));
       };
-      // 병렬을 꺼 뒀으면 한 판씩. 켜져 있으면 풀이 알아서 워커에 나눠 준다.
+      // 並列を切ってあれば1つずつ。入れてあればプールが自分でワーカーに振り分ける。
       const guarded = async (index: number) => {
         try {
           await runOne(index);
         } catch (error) {
-          // 어느 덱이 깨졌는지 아래 catch가 알아야 한다 — 병렬에서는 «몇 개 끝났나»로
-          // 짚을 수 없다(끝난 순서와 덱 번호가 다르다).
+          // どのデッキが壊れたかを下の catch が知る必要がある — 並列では «何個終わったか» で
+          // 突き止められない (終わった順とデッキ番号が違う)。
           if (failedIndex < 0) failedIndex = index;
           throw error;
         }

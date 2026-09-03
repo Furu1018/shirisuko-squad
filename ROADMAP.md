@@ -195,8 +195,12 @@ UI 全ファイル。**内部キー (韓国語のキャラ名・属性・保存�
    **完全初期化に漏れあり**: 削除済み機能のキー (`nikke-enikk-v1/v2` `nikke-custom-v1`) や
    `nikke-parallel-v1` `nikke-detail-damage-v1` `nikke-notice-seen` が消えず残る。cache 30件は盤面探索15件で
    押し出される前提も明記
-10. 🔜 **[構造/S] 小さな負債掃除** — ui.ts の韓国語コメント296行の日本語化、旧共有/enikk 系の CSS・宣言の整理
-    (share-code.ts は battle codec 利用が残るので用途単位で監査)
+10. ◐ **[構造/S] 小さな負債掃除** — **ui.ts は済み** (韓国語コメント238行を全部日本語に · 残り0)。
+    消した機能の CSS (`.enikk-*` `.notice-card` `.report-card` `.brand-tools .notice-open`) と、
+    参照先ごと消えていた skip 済みテスト2件も削除。**残り**: 他ファイルの韓国語コメント
+    (`character-settings.ts` 102行 / `styles.css` 90行 / `timeline.ts` 84行 / `types.ts` 81行 /
+    `share-code.ts` 79行 / `model.ts` 28行 = 464行)。share-code.ts は battle codec の利用が
+    残るので、消すかどうかは用途単位で別途監査すること
 
 ### ⑥ を «下ごしらえまで» で止めた理由 (2026-09-03 に計測)
 
@@ -347,7 +351,7 @@ npm run build      # tsc --noEmit + vite build (prebuild で Python が要る)
 
 配色を変えたら `npm run check-contrast` — styles.css を読んで文字色と背景の組み合わせを検算し、
 小文字の基準 (4.5:1) を下回るものがあれば**落とす**。**build の前と CI で自動的に走る**ので、
-基準割れのまま気づかず出すことはない (現在 359規則 / 683通りの組み合わせ。背景を指定した規則は
+基準割れのまま気づかず出すことはない (現在 355規則 / 675通りの組み合わせ。背景を指定した規則は
 下地3面それぞれで試すので、規則の数と組み合わせの数はずれる)。
 
 **`opacity` で文字を薄めるのは禁止**にしてある。要素を薄めると、その中の文字がどこまで下地に
