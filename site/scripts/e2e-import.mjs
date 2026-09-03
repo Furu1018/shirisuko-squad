@@ -79,7 +79,8 @@ try {
   if (!/取込済み/.test(bar ?? '')) { failed = true; say('!! 帯が取込済みになっていない'); }
 
   // 育成状況タブに実際に並ぶか
-  await page.locator('[data-view-tab="roster"]').click();
+  // 育成状況は主タブから外した (パイプラインの段ではないため) — 取り込みの帯から開く
+  await page.locator('[data-board-goto="roster"]').first().click();
   const rows = await page.locator('[data-myroster-rows] tr').count();
   say(`育成状況の行数: ${rows}`);
   if (rows < NAMES.length) { failed = true; say('!! 取り込んだ人数が並んでいない'); }

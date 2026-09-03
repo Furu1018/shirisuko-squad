@@ -698,12 +698,31 @@ describe('calculator UI', () => {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     } as Parameters<typeof mountCalculator>[1]);
 
-    const groups = [...root.querySelectorAll<HTMLElement>('[data-plans-group]')];
-    expect(groups.map((g) => g.dataset.plansGroup)).toEqual(['작열', '수냉', '풍압', '전격', '철갑']);
-    // 電撃編成は水冷ボス向け (エンジンの有利コード表どおり)
-    const denki = groups.find((g) => g.dataset.plansGroup === '전격')!;
-    expect(denki.querySelector('.plans-against')!.textContent).toBe('水冷ボス向け');
-    expect(denki.querySelector('.plans-empty')).not.toBeNull();
+    // 1行 = 1ボス。**ボスの順**に並び、右にそのボスへ有利な編成が入る。
+    // 以前は «ボスの登録» と «候補一覧» が別の節にあり、順序も «属性» の意味も
+    // 食い違っていた (ボスの属性か編成の属性か)。
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-prep-row]')];
+    expect(rows.map((row) => row.dataset.prepRow)).toEqual(['전격', '작열', '풍압', '수냉', '철갑']);
+
+    // 各行のボスと «有利な編成» の対応 (エンジンの有利コード表どおり)。
+    // ここが逆になると、全部の候補が間違ったボスに当たる。
+    const pairs = rows.map((row) => [
+      row.dataset.prepRow,
+      row.querySelector<HTMLElement>('[data-plans-group]')!.dataset.plansGroup,
+    ]);
+    expect(pairs).toEqual([
+      ['전격', '철갑'],   // 電撃ボス ← 鉄甲編成
+      ['작열', '수냉'],   // 灼熱ボス ← 水冷編成
+      ['풍압', '작열'],   // 風圧ボス ← 灼熱編成
+      ['수냉', '전격'],   // 水冷ボス ← 電撃編成
+      ['철갑', '풍압'],   // 鉄甲ボス ← 風圧編成
+    ]);
+
+    // 画面にも «有利なのは 〇〇編成» と出る (title 属性ではなく、見える形で)
+    const water = rows.find((row) => row.dataset.prepRow === '수냉')!;
+    expect(water.querySelector('.plans-against')!.textContent).toBe('電撃編成');
+    expect(water.querySelector('.plans-empty')).not.toBeNull();
+    expect(water.querySelector('[data-prep-state]')!.textContent).toBe('候補なし');
   });
 
   it('「ぜんぶ計算」は貯めた候補を今回のボス条件で計算し、候補に登録する', async () => {
@@ -1121,7 +1140,10 @@ describe('calculator UI', () => {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     } as Parameters<typeof mountCalculator>[1]);
     root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
-    root.querySelector<HTMLButtonElement>('[data-view-tab="roster"]')!.click();
+    // 育成状況は主タブから外した (パイプラインの段ではないため)。
+    // 取り込みの帯から開く — レイド準備と3凸ボードの両方に置いてある。
+    root.querySelector<HTMLButtonElement>('[data-board-goto="roster"]')!.click();
+    expect(root.querySelector<HTMLElement>('[data-view="roster"]')!.hidden).toBe(false);
 
     root.querySelector<HTMLButtonElement>('[data-myroster-goto-board]')!.click();
 

@@ -85,6 +85,20 @@ export function syncAgoText(at: string, now: number = Date.now()): string {
   return new Date(then).toLocaleDateString('ja-JP');
 }
 
+/**
+ * 「いつ取り込んだか」の絶対日時。`syncAgoText` の «3時間前» だけだと、
+ * **前のシーズンの取込か今回のものか**が判断できない (レイドは2週間に1度)。
+ * 相対と並べて出す。
+ */
+export function syncAtText(at: string): string {
+  const then = Date.parse(at);
+  if (Number.isNaN(then)) return '';
+  const date = new Date(then);
+  const week = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getMonth() + 1}/${date.getDate()} (${week}) ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 /** 取込元の呼び名。画面にそのまま出す。 */
 export const SOURCE_LABELS: Record<SyncSource, string> = {
   blablalink: 'Blablalink',

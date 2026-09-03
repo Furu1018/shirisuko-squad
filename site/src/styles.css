@@ -1056,39 +1056,104 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .plans-score.is-best { font-weight: 800; }
 
 /* しりすこスクワッド: ボス条件で確かめる */
-/* ── 今回のボスの登録 ────────────────────────────────────────────────
-   1属性1行。属性の欄は読むだけ (対応が候補の索引そのものなので触らせない)。
-   狭い画面では «名前» を丸ごと1行に落として、数値とトグルを下に並べる。 */
-.boss-setup { border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px; padding: 12px 14px; margin-bottom: 14px; }
-.boss-setup-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.boss-setup h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
-.boss-setup-rows { display: grid; gap: 8px; }
-/* 桁の決まらない並びなので grid ではなく flex で折り返す。狭い画面では
-   属性と名前が1行を占め、数値とトグルが次の行へ自然に落ちる。 */
-.boss-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.boss-row-code { flex: 0 0 84px; display: inline-flex; align-items: center; gap: 5px;
-  font: 700 11.5px ui-monospace, monospace; color: var(--ink-2); }
-.boss-row-icon { width: 14px; height: 14px; }
-.boss-row-name { flex: 1 1 170px; }
-.boss-row-name, .boss-row-def, .boss-row-px { min-width: 0; min-height: 34px; padding: 0 8px;
-  border: 1px solid var(--line); border-radius: 8px;
-  background: rgb(var(--surface-rgb) / .72); color: var(--ink); font-size: 12.5px; }
-.boss-row-def { width: 84px; }
-.boss-row-px { width: 60px; }
-.boss-row-def, .boss-row-px { font-variant-numeric: tabular-nums; }
-.boss-row-px:disabled { border-style: dashed; color: var(--muted); }
-.boss-row-field { display: inline-flex; align-items: center; gap: 4px; }
-.boss-row-label { font: 700 10.5px ui-monospace, monospace; color: var(--muted); }
-.boss-row-toggle { display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+/* ── レイド準備表 ──────────────────────────────────────────────────────
+   1行 = 1凸ぶんの選択肢。左が今回のボス、右がそのボスに有利な編成の候補。
+   以前はボスの登録と候補一覧が別の節にあり、順序も «属性» の意味も食い違っていた。 */
+.prep, .plans-batch, .prep-next {
+  border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px;
+  padding: 12px 14px; margin-bottom: 14px; background: var(--surface); }
+.prep h3, .plans-batch h3 { margin: 0 0 3px; font-size: 15px; font-weight: 800; }
+.prep-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.prep-rows { display: grid; gap: 10px; }
+
+.prep-row { display: grid; grid-template-columns: 336px minmax(0, 1fr);
+  border: 1px solid var(--line); border-radius: 11px; overflow: hidden; }
+.prep-side { padding: 12px 14px; border-right: 1px solid rgb(var(--line-rgb) / .08);
+  background: var(--surface-2); }
+.prep-main { padding: 12px 14px; min-width: 0; }
+
+.prep-side-top { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.prep-chip { padding: 2px 8px; border-radius: 999px; border: 1px solid;
+  font: 800 10.5px ui-monospace, monospace; white-space: nowrap; }
+.prep-chip.is-fire { color: var(--el-fire-text); border-color: rgb(var(--el-fire-rgb) / .45); background: rgb(var(--el-fire-rgb) / .10); }
+.prep-chip.is-water { color: var(--el-water-text); border-color: rgb(var(--el-water-rgb) / .45); background: rgb(var(--el-water-rgb) / .10); }
+.prep-chip.is-wind { color: var(--el-wind-text); border-color: rgb(var(--el-wind-rgb) / .45); background: rgb(var(--el-wind-rgb) / .10); }
+.prep-chip.is-electronic { color: var(--el-electric-text); border-color: rgb(var(--el-electric-rgb) / .45); background: rgb(var(--el-electric-rgb) / .10); }
+.prep-chip.is-iron { color: var(--el-iron-text); border-color: rgb(var(--el-iron-rgb) / .45); background: rgb(var(--el-iron-rgb) / .10); }
+.prep-nth { font: 700 10.5px ui-monospace, monospace; color: var(--ink-3); }
+
+.prep-name { width: 100%; min-height: 34px; padding: 0 9px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surface); color: var(--ink);
+  font-size: 13px; font-weight: 700; font-family: inherit; }
+.prep-fields { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.prep-field { display: inline-flex; align-items: center; gap: 4px; }
+.prep-label { font: 700 10px ui-monospace, monospace; color: var(--ink-3); }
+.prep-num { width: 76px; min-height: 30px; padding: 0 8px; border: 1px solid var(--line);
+  border-radius: 7px; background: var(--surface); color: var(--ink);
+  font: 700 12px ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.prep-num.is-short { width: 48px; }
+.prep-num:disabled { border-style: dashed; color: var(--muted); background: var(--surface-2); }
+.prep-toggle { display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--ink-2); white-space: nowrap; }
 /* flex の中で伸びる既定を止める — スマホでチェックが巨大になっていた */
-.boss-row-toggle input { flex: none; width: 16px; height: 16px; margin: 0; }
-@media (max-width: 700px) {
-  /* 1体ぶんを枠で囲う。5体続くので、どこまでが1体かが読めなくなる */
-  .boss-row { padding: 8px; border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 9px; }
-  .boss-row-code { flex: 0 0 100%; }
-  .boss-row-name { flex: 1 1 100%; }
+.prep-toggle input { flex: none; width: 15px; height: 15px; margin: 0; }
+
+.prep-main-top { display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+.prep-vs { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 12px; color: var(--ink-2); }
+.prep-arrow { font: 800 12px ui-monospace, monospace; color: var(--ink-3); }
+.prep-count { font: 700 11px ui-monospace, monospace; color: var(--ink-3); }
+
+/* 行の状態。どの行に手を入れれば前に進むかを一目で出す */
+.prep-state { padding: 2px 8px; border-radius: 999px; border: 1px solid;
+  font: 800 10px ui-monospace, monospace; white-space: nowrap; }
+.prep-state.is-ok { color: var(--el-wind-text); border-color: rgb(var(--success-rgb) / .45); background: rgb(var(--success-rgb) / .10); }
+.prep-state.is-warn { color: var(--danger); border-color: rgb(var(--danger-rgb) / .40); background: rgb(var(--danger-rgb) / .08); }
+.prep-state.is-todo { color: var(--ink-2); border-color: var(--line); background: var(--surface-2); }
+
+.prep-add { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.prep-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px;
+  font-size: 11.5px; color: var(--ink-2); }
+
+/* 段の進み具合。次に何をすべきかが数字で読める */
+.prep-tally { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 0; }
+.prep-tally div { display: flex; flex-direction: column; gap: 1px; }
+.prep-tally b { font: 800 16px/1.1 ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.prep-tally span { font-size: 10.5px; color: var(--ink-2); }
+.prep-tally .is-warn b { color: var(--danger); }
+
+.prep-next { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.prep-next-text { flex: 1 1 240px; min-width: 0; }
+.prep-next-text b { display: block; font-size: 13.5px; font-weight: 800; }
+.prep-next-text span { display: block; margin-top: 2px; font-size: 11.5px; color: var(--ink-2); }
+.prep-next .roster-import.lead { min-height: 40px; padding: 0 18px; font-size: 13.5px; }
+
+/* レイド準備の先頭に置く取り込みの状態。
+   «最終取込» は3凸ボードの帯にしか無く、準備表で作業している間は見えなかった。 */
+.prep-sync { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 12px;
+  border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px; background: var(--surface); }
+.prep-sync-text { flex: 1 1 220px; min-width: 0; }
+.prep-sync-text b { display: block; font-size: 13px; font-weight: 800; }
+.prep-sync-text span { display: block; margin-top: 2px;
+  font: 700 11px ui-monospace, monospace; color: var(--ink-2); }
+
+/* 詳細 (順位が入れ替わる理由を調べたいときだけ) */
+.plans-advanced { border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px;
+  padding: 10px 14px; margin-bottom: 14px; background: var(--surface); }
+.plans-advanced > summary { cursor: pointer; display: flex; align-items: baseline; gap: 8px;
+  flex-wrap: wrap; font-size: 13px; }
+.plans-advanced > summary span { font-size: 11.5px; color: var(--ink-2); }
+.plans-advanced .plans-boss, .plans-advanced .plans-baseline { border: 0; padding: 12px 0 0; margin: 0; }
+.plans-baseline-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 760px) {
+  .prep-row { grid-template-columns: minmax(0, 1fr); }
+  .prep-side { border-right: 0; border-bottom: 1px solid var(--line); }
+  .prep-next .roster-import.lead { width: 100%; }
 }
+
 .plans-boss-cond { font: 700 11.5px ui-monospace, monospace; color: var(--ink-2); }
 
 /* ── ぜんぶ計算 ────────────────────────────────────────────────────────

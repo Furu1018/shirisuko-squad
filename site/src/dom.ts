@@ -37,12 +37,16 @@ export const el = <K extends keyof HTMLElementTagNameMap>(
 
 // 属性 (コード) アイコン — 絵は `image/icon/icon-code-*.png` が正本。
 // 自分で追加したニケが一覧に無いコードを使っていたら、静かにアイコンを省く。
-const ELEMENT_ICON: Record<string, string> = {
+/**
+ * 属性コード → 絵と色の名前。CSS 側の `is-fire` などと対になる。
+ * 直接足したニケが一覧に無いコードを使ったら、静かにアイコンを省く。
+ */
+export const ELEMENT_SLUG: Record<string, string> = {
   작열: 'fire', 수냉: 'water', 풍압: 'wind', 전격: 'electronic', 철갑: 'iron',
 };
 
 export const createElementIcon = (elementCode: string, className: string): HTMLElement | null => {
-  const slug = ELEMENT_ICON[elementCode];
+  const slug = ELEMENT_SLUG[elementCode];
   if (!slug) return null;
   const icon = document.createElement('span');
   icon.className = `${className} element-icon is-${slug}`;

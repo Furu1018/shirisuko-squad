@@ -17,7 +17,7 @@ import { loadFavorites, saveFavorites, toggleFavorite } from './favorites';
 import { ALL_KEYS } from './storage-keys';
 import { TRANSFER_PREFIX, packTransfer, parseTransfer, type TransferBox } from './transfer';
 import { runScores } from './score-runner';
-import { createElementIcon, createText, el, element } from './dom';
+import { ELEMENT_SLUG, createElementIcon, createText, el, element } from './dom';
 import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import { buildIndex, filterByQuery } from './nikke-search';
 import { UNION_SEASON, bossBattle } from './union-bosses';
@@ -30,7 +30,7 @@ import {
   type ElementPlan, type ElementPlans, type PlanElement,
 } from './element-plans';
 import {
-  SOURCE_LABELS, canReSync, loadSyncMeta, saveSyncMeta, syncAgoText, syncSummary,
+  SOURCE_LABELS, canReSync, loadSyncMeta, saveSyncMeta, syncAgoText, syncAtText, syncSummary,
   type SyncMeta,
 } from './sync-meta';
 import {
@@ -454,10 +454,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       </header>
 
       <nav class="view-tabs" aria-label="画面切り替え">
-        <button type="button" class="view-tab is-on" data-view-tab="board" aria-pressed="true">3凸ボード<b class="tab-beta">NEW</b></button>
-        <button type="button" class="view-tab" data-view-tab="calc" aria-pressed="false">計算機</button>
-        <button type="button" class="view-tab" data-view-tab="roster" aria-pressed="false">育成状況</button>
-        <button type="button" class="view-tab" data-view-tab="plans" aria-pressed="false">保存候補・比較</button>
+        <button type="button" class="view-tab is-on" data-view-tab="plans" aria-pressed="true">レイド準備</button>
+        <button type="button" class="view-tab" data-view-tab="board" aria-pressed="false">最適3凸</button>
+        <button type="button" class="view-tab" data-view-tab="calc" aria-pressed="false">編成を作る・詳細計算</button>
       </nav>
 
       <section class="panel board-panel" data-view="board" aria-labelledby="board-heading" hidden>
@@ -553,7 +552,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         </section>
 
         <div class="board-main" data-board-main>
-        <h2 id="board-heading" class="board-sec">3凸を組む · ${UNION_SEASON.label}</h2>
+        <h2 id="board-heading" class="board-sec">最適3凸 · ${UNION_SEASON.label}</h2>
         <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した候補があればそこから入れることもできます。</p>
         <p class="board-status" data-board-status role="status" aria-live="polite" hidden></p>
         <div class="board-slots" data-board-slots></div>
@@ -563,7 +562,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <select data-board-element="1" aria-label="2凸目の属性"></select>
           <select data-board-element="2" aria-label="3凸目の属性"></select>
           <button type="button" class="board-btn lead" data-board-elements-run>この3属性で最適化</button>
-          <p class="board-run-note">探すのは<b>選んだ属性の保存候補だけ</b> (各属性 最大3件)。
+          <p class="board-run-note">探すのは<b>選んだ属性の保存候補だけ</b> (各属性 最大${MAX_PLANS_PER_ELEMENT}件)。
             同じニケを2度使わない組み合わせのうち、理論値の合計が最大のものを選びます。
             <b>3枠すべてを入れ替えます</b> — 同じ属性を2回選べます (例: 水冷・水冷・灼熱)。</p>
         </div>
@@ -582,44 +581,72 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
       <section class="panel plans-panel" data-view="plans" aria-labelledby="plans-heading" hidden>
         <div class="section-heading">
-          <div><p class="step">PLANS</p><h2 id="plans-heading">保存候補・比較</h2></div>
+          <div><p class="step">STEP 2</p><h2 id="plans-heading">レイド準備</h2></div>
         </div>
-        <p class="links-lede">コードごとに<b>本命の編成をいくつも</b>置いておく場所です。ここに貯めた候補の中から、3凸ボードの<b>「全ボスから自動で探す」</b>が<b>同じニケを二度使わない最良の組み合わせ</b>を選びます。</p>
-
-        <div class="boss-setup" data-boss-setup>
-          <div class="boss-setup-head">
-            <h3>今回のボス</h3>
-            <button type="button" class="roster-import" data-boss-reset hidden>出荷時の値に戻す</button>
-          </div>
-          <p class="plans-boss-lede">今シーズンのボスを入れておくと、候補の計算も3凸の探索も<b>この値で走ります</b>。<b>属性は変えられません</b> — 1属性につきボス1体という対応が、どの候補をどのボスに当てるかの索引そのものだからです。</p>
-          <div class="boss-setup-rows" data-boss-setup-rows></div>
-          <p class="plans-note" data-boss-setup-note hidden></p>
+        <div class="prep-sync" data-prep-sync>
+          <span class="board-sync-dot" data-prep-sync-dot aria-hidden="true"></span>
+          <span class="prep-sync-text">
+            <b data-prep-sync-main></b>
+            <span data-prep-sync-sub></span>
+          </span>
+          <button type="button" class="roster-import" data-prep-sync-go>取り込む</button>
+          <button type="button" class="roster-import" data-board-goto="roster">育成状況を見る</button>
         </div>
+        <p class="links-lede">1行が<b>1凸ぶんの選択肢</b>です。左が<b>今回のボス</b>、右が<b>そのボスに有利な編成の候補</b>。<b>同じニケは3凸のうち1度だけ</b>使えるので、5行から3つを選ぶことになります。</p>
 
         <div class="plans-batch" data-plans-batch>
-          <div class="boss-setup-head">
-            <h3>ぜんぶ計算する</h3>
+          <div class="prep-head">
+            <div><h3>ぜんぶ計算する</h3></div>
             <button type="button" class="roster-import lead" data-plans-batch-run>ぜんぶ計算</button>
           </div>
-          <p class="plans-boss-lede">貯めた候補を<b>今回のボス条件で全部</b>計算し、下の一覧に理論値を出します。ここまで済ませておくと、3凸ボードの<b>「全ボスから自動で探す」</b>は計算済みの値を使うので<b>すぐ答えが出ます</b>。<b>1件あたり7秒ほど</b>かかります。</p>
+          <p class="plans-boss-lede">貯めた候補を<b>今回のボス条件で全部</b>計算します。ここまで済ませておくと、下の<b>「最適3凸を探す」</b>は計算済みの値を使うので<b>すぐ答えが出ます</b>。<b>1件あたり7秒ほど</b>かかります。</p>
+          <div class="prep-tally" data-prep-tally></div>
           <div class="plans-batch-bar" data-plans-batch-bar hidden>
             <div class="plans-batch-fill" data-plans-batch-fill></div>
           </div>
           <p class="plans-note" data-plans-batch-note hidden></p>
         </div>
 
-        <div class="plans-boss" data-plans-boss>
-          <h3>ボス条件で確かめる</h3>
-          <p class="plans-boss-lede">候補の比較は<b>ボスの癖なし</b>で行います。実際のボスではコアやパーツで順位が入れ替わることがあるので、ここで<b>上に登録した条件</b>を重ねて並べ直します。</p>
-          <div class="plans-boss-row">
-            <select data-plans-boss-pick aria-label="ボス"></select>
-            <span class="plans-boss-cond" data-plans-boss-cond></span>
-            <button type="button" class="roster-import" data-plans-boss-run>このボスで比べる</button>
+        <div class="prep" data-prep>
+          <div class="prep-head">
+            <div>
+              <h3>今回のボスと、当てる編成</h3>
+              <p class="plans-boss-lede">ボスの<b>属性は変えられません</b> — 1属性につきボス1体という対応が、どの候補をどのボスに当てるかの索引そのものだからです。</p>
+            </div>
+            <button type="button" class="roster-import" data-boss-reset hidden>ボスを出荷時の値に戻す</button>
           </div>
-          <p class="plans-note" data-plans-boss-note hidden></p>
-          <div class="plans-boss-result" data-plans-boss-result></div>
+          <div class="prep-rows" data-plans-groups></div>
+          <p class="plans-note" data-boss-setup-note hidden></p>
+          <div class="prep-legend" data-prep-legend></div>
         </div>
-        <div class="plans-groups" data-plans-groups></div>
+
+        <div class="prep-next" data-prep-next>
+          <div class="prep-next-text">
+            <b>最適3凸を探す</b>
+            <span data-prep-next-note></span>
+          </div>
+          <button type="button" class="roster-import lead" data-prep-go>最適3凸を探す →</button>
+        </div>
+
+        <details class="plans-advanced">
+          <summary><b>詳しく確かめる</b><span>順位が入れ替わる理由を調べたいときだけ</span></summary>
+          <div class="plans-boss" data-plans-boss>
+            <h3>ボス条件で確かめる</h3>
+            <p class="plans-boss-lede"><b>ボスの癖なし</b>の値と<b>登録したボス条件</b>の値を並べ、コアやパーツで順位が入れ替わるかを見ます。通常は上の「ぜんぶ計算」だけで足ります。</p>
+            <div class="plans-boss-row">
+              <select data-plans-boss-pick aria-label="ボス"></select>
+              <span class="plans-boss-cond" data-plans-boss-cond></span>
+              <button type="button" class="roster-import" data-plans-boss-run>このボスで比べる</button>
+            </div>
+            <p class="plans-note" data-plans-boss-note hidden></p>
+            <div class="plans-boss-result" data-plans-boss-result></div>
+          </div>
+          <div class="plans-baseline">
+            <h3>基準条件で比べる</h3>
+            <p class="plans-boss-lede">ボス固有の癖を外した同じ条件で、その属性の候補だけを並べ直します。<b>ここで出した値は鮮度が付きません</b> (今回のボス条件ではないため)。</p>
+            <div class="plans-baseline-row" data-plans-baseline-row></div>
+          </div>
+        </details>
       </section>
 
       <section class="panel roster-panel" data-view="roster" aria-labelledby="roster-heading" hidden>
@@ -2991,10 +3018,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   let renderPlans: () => void = () => undefined;
   let renderBoard: () => void = () => undefined;
   let renderBoardSync: () => void = () => undefined;
-  // 今回のボスの登録は «保存候補・比較» タブにあるが、計算機タブのプリセット釦にも効く。
+  // 今回のボスの登録は準備表 (renderPlans) が描くが、計算機タブのプリセット釦にも効く。
   // 名前を変えたら両方を描き直す。
-  let renderBossSetup: () => void = () => undefined;
   let renderBossPresets: () => void = () => undefined;
+  let renderPrepSync: () => void = () => undefined;
   // 盤面はボードのブロックの中で持っている。端末間の持ち運びで読み書きするための窓口。
   let readBoard: () => unknown = () => null;
   let writeBoardFrom: (raw: unknown) => void = () => undefined;
@@ -3034,6 +3061,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     // CSV はファイルを選び直す必要があるので、ボタンは出さない
     syncAgain.hidden = !(canReSync(syncMeta) && reSync);
     renderBoardSync();
+    // レイド準備の帯も同じ情報を出している — 片方だけ更新すると食い違う
+    renderPrepSync();
   };
 
   const rememberSync = (meta: SyncMeta) => {
@@ -3392,110 +3421,251 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       return saved;
     };
 
+    /**
+     * 1行 = 1凸ぶんの選択肢。**左に今回のボス、右にそのボスへ有利な編成の候補**。
+     *
+     * 以前はボスの登録 (電撃→灼熱→風圧→水冷→鉄甲) と候補一覧 (灼熱→水冷→風圧→電撃→鉄甲) が
+     * 別々の節にあり、**順序も «属性» の意味も食い違っていた** (ボスの属性か編成の属性か)。
+     * 「レイタンスに使うのは鉄甲編成」を毎回頭で変換してから、別の順に並んだ5番目を探すことになる。
+     * ボスを軸に1行へまとめて、その変換を画面が肩代わりする。
+     */
     renderPlans = () => {
       groupsBox.replaceChildren();
-      for (const code of PLAN_ELEMENTS) {
-        const group = el('div', 'plans-group');
-        group.dataset.plansGroup = code;
+      bossReset.hidden = !isCustomised(bosses);
+      const base = readBattle();
+      let total = 0;
+      let fresh = 0;
+      let stale = 0;
 
-        // この属性の候補が «今» 当たるボスと条件。登録値と突き合わせて鮮度を出す
-        const nowBoss = bossForElement(code, bosses);
-        const nowCond = nowBoss ? condSignature(nowBoss, boardBattle(readBattle(), nowBoss)) : null;
+      // **ボスの順**に並べる (候補の属性順ではない)。1行が1体のボスに対応する
+      for (const [index, boss] of bosses.entries()) {
+        const code = counterOf(boss.elementCode);
+        const nowCond = condSignature(boss, boardBattle(base, boss));
+        const saved = code ? plansOf(plans, code) : [];
+        const freshness = (plan: ElementPlan): 'fresh' | 'stale' | 'old' => (
+          plan.registered?.cond === undefined ? 'old'
+            : plan.registered.cond === nowCond ? 'fresh' : 'stale');
+        total += saved.length;
+        fresh += saved.filter((plan) => freshness(plan) === 'fresh').length;
+        stale += saved.filter((plan) => freshness(plan) === 'stale').length;
 
-        const head = el('div', 'plans-group-head');
-        const title = createText('h3', `${elementLabel(code)} 編成`);
-        const against = createText('span', `${elementLabel(BEATS[code])}ボス向け`, 'plans-against');
-        const save = el('button', 'roster-import', '今の編成を保存');
-        (save as HTMLButtonElement).type = 'button';
-        save.dataset.plansSave = code;
-        save.title = '計算機で今開いているデッキを、キューブなどの個別設定ごとこの属性の候補として保存します';
-        save.addEventListener('click', () => {
-          const result = addPlan(plans, code, activeDeck().squad, { characters: snapshotOf(activeDeck()) });
-          if (result.added) {
-            const saved = commit(result.plans);
-            say(code, saved ? '保存しました。'
-              : 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと消えます)。', saved);
-            return;
-          }
-          say(code, result.reason === 'full'
-            ? `この属性は既に ${MAX_PLANS_PER_ELEMENT} 候補あります。どれかを消してから保存してください。`
-            : result.reason === 'duplicate' ? '同じ顔ぶれ・同じ個別設定の候補が既にあります。'
-              : '計算機の編成が空です。先にニケを入れてください。');
-        });
-        const compare = el('button', 'roster-import', '3候補を比較');
-        (compare as HTMLButtonElement).type = 'button';
-        compare.dataset.plansCompare = code;
-        compare.title = 'ボスの癖を外した同じ条件で、この属性の候補を順に計算します';
-        compare.addEventListener('click', () => { void comparePlans(code, compare as HTMLButtonElement); });
-        head.append(title, against, save, compare);
-        group.append(head);
+        const row = el('div', 'prep-row');
+        row.dataset.prepRow = boss.elementCode;
 
-        const note = el('p', 'plans-note');
-        note.dataset.plansNote = code;
-        note.hidden = true;
-        group.append(note);
+        // ── 左: 今回のボス ──
+        const side = el('div', 'prep-side');
+        const sideTop = el('div', 'prep-side-top');
+        const chip = createText('span', `${elementLabel(boss.elementCode)}ボス`,
+          `prep-chip is-${ELEMENT_SLUG[boss.elementCode] ?? 'iron'}`);
+        sideTop.append(chip, createText('span', `${index + 1}体目`, 'prep-nth'));
+        side.append(sideTop);
+
+        const name = el('input', 'prep-name') as HTMLInputElement;
+        name.type = 'text';
+        name.value = boss.name;
+        name.dataset.bossName = boss.elementCode;
+        name.setAttribute('aria-label', `${elementLabel(boss.elementCode)}ボスの名前`);
+        // change (確定時) で拾う。input ごとに保存すると1文字ごとに全部描き直す
+        name.addEventListener('change', () => editBoss(boss.elementCode, { name: name.value }));
+        side.append(name);
+
+        const fields = el('div', 'prep-fields');
+        // 数値には**見える見出し**を付ける。読み上げの aria-label だけだと、
+        // 目で見ている人には 31784 が何の数字か分からない
+        const defWrap = el('span', 'prep-field');
+        defWrap.append(createText('span', '防御', 'prep-label'));
+        const def = el('input', 'prep-num') as HTMLInputElement;
+        def.type = 'number';
+        def.min = '1';
+        def.value = String(boss.enemyDef ?? '');
+        def.dataset.bossDef = boss.elementCode;
+        def.setAttribute('aria-label', `${boss.name} の防御力`);
+        def.addEventListener('change', () => editBoss(boss.elementCode, { enemyDef: Number(def.value) }));
+        defWrap.append(def);
+        fields.append(defWrap);
+
+        const coreWrap = el('label', 'prep-toggle');
+        const core = el('input') as HTMLInputElement;
+        core.type = 'checkbox';
+        core.checked = boss.coreEnabled === true;
+        core.dataset.bossCore = boss.elementCode;
+        core.addEventListener('change', () => editBoss(boss.elementCode, { coreEnabled: core.checked }));
+        coreWrap.append(core, createText('span', 'コア'));
+        fields.append(coreWrap);
+
+        const pxWrap = el('span', 'prep-field');
+        const px = el('input', 'prep-num is-short') as HTMLInputElement;
+        px.type = 'number';
+        px.min = '0';
+        px.value = String(boss.corePx ?? 0);
+        px.dataset.bossPx = boss.elementCode;
+        px.setAttribute('aria-label', `${boss.name} のコアの大きさ (px)`);
+        // コア無しのボスに大きさを入れさせない — 入れても計算に効かず «効いている» と誤解する
+        px.disabled = boss.coreEnabled !== true;
+        px.addEventListener('change', () => editBoss(boss.elementCode, { corePx: Number(px.value) }));
+        pxWrap.append(px, createText('span', 'px', 'prep-label'));
+        fields.append(pxWrap);
+
+        const partsWrap = el('label', 'prep-toggle');
+        const parts = el('input') as HTMLInputElement;
+        parts.type = 'checkbox';
+        parts.checked = boss.hasParts === true;
+        parts.dataset.bossParts = boss.elementCode;
+        parts.addEventListener('change', () => editBoss(boss.elementCode, { hasParts: parts.checked }));
+        partsWrap.append(parts, createText('span', 'パーツ'));
+        fields.append(partsWrap);
+        side.append(fields);
+        row.append(side);
+
+        // ── 右: そのボスに有利な編成の候補 ──
+        const main = el('div', 'prep-main');
+        if (code) main.dataset.plansGroup = code;
+
+        const top = el('div', 'prep-main-top');
+        const vs = el('span', 'prep-vs');
+        vs.append(createText('span', '↳', 'prep-arrow'), document.createTextNode(' 有利なのは '));
+        vs.append(createText('b', code ? `${elementLabel(code)}編成` : '—', 'plans-against'));
+        vs.append(createText('span', `候補 ${saved.length}/${MAX_PLANS_PER_ELEMENT}`, 'prep-count'));
+        top.append(vs);
+
+        // 行の状態。**どの行に手を入れれば前に進むか**が一目で分かるようにする
+        const staleHere = saved.some((plan) => freshness(plan) === 'stale');
+        const noneHere = saved.some((plan) => !plan.registered);
+        const [stateText, stateKind] = saved.length === 0 ? ['候補なし', 'todo']
+          : staleHere ? ['条件が変わりました', 'warn']
+            : noneHere ? ['未計算', 'todo'] : ['最新', 'ok'];
+        const state = createText('span', stateText, `prep-state is-${stateKind}`);
+        state.dataset.prepState = boss.elementCode;
+        top.append(state);
+        main.append(top);
+
+        if (code) {
+          const note = el('p', 'plans-note');
+          note.dataset.plansNote = code;
+          note.hidden = true;
+          main.append(note);
+        }
 
         const list = el('div', 'plans-list');
-        const saved = plansOf(plans, code);
         if (saved.length === 0) {
-          list.append(createText('p', 'まだ候補がありません。3凸ボードの枠で「この枠の編成を組む」→「いまの編成を候補に加える」で増やせます。計算機で組んで「今の編成を保存」でも構いません。', 'plans-empty'));
+          const empty = el('p', 'plans-empty');
+          empty.append(document.createTextNode('この行に候補がありません。'));
+          empty.append(createText('b', `${code ? elementLabel(code) : ''}の編成`));
+          empty.append(document.createTextNode('を組んで足すと、このボスも3凸の選択肢に入ります。'));
+          list.append(empty);
         }
-        saved.forEach((plan, index) => {
-          const row = el('div', 'plans-row');
-          row.dataset.plansRow = plan.id;
-          row.append(createText('b', `候補 ${index + 1}`, 'plans-index'));
+        saved.forEach((plan, planIndex) => {
+          const planRow = el('div', 'plans-row');
+          planRow.dataset.plansRow = plan.id;
+          planRow.append(createText('b', `${planIndex + 1}`, 'plans-index'));
           const members = el('span', 'plans-members');
-          for (const name of plan.squad.filter(Boolean)) {
-            members.append(createText('span', labelFor(name), 'plans-chip'));
+          for (const who of plan.squad.filter(Boolean)) {
+            members.append(createText('span', labelFor(who), 'plans-chip'));
           }
           if (plan.characters && Object.keys(plan.characters).length > 0) {
             const mark = createText('span', '個別設定つき', 'plans-chip is-snapshot');
             mark.title = 'キューブなどの個別設定ごと保存された候補です。計算にもこの設定を使います';
             members.append(mark);
           }
-          row.append(members);
+          planRow.append(members);
+
           const score = el('span', 'plans-score');
           score.dataset.plansScore = plan.id;
           // 数値は**どの状態か**を必ず出す。空欄だと «計算していない» のか
-          // «計算したが0» なのか読めない (バックログ #4)。
+          // «計算したが0» なのか読めない。
           if (plan.registered) {
             score.textContent = `${formatDamage(plan.registered.damage)}`;
-            // **今の条件で出した値かどうか**を必ず出す。ボスの登録や戦闘時間を変えたあと、
-            // 古い値を今の値と見比べるのが一番まずい。
-            const fresh = plan.registered.cond !== undefined && plan.registered.cond === nowCond;
-            const stale = plan.registered.cond !== undefined && !fresh;
+            const how = freshness(plan);
             score.append(createText('small',
-              fresh ? `今回のボス条件 · ${plan.registered.duration}秒`
-                : stale ? '条件が変わりました' : `登録値 · ${plan.registered.duration}秒`,
-              `plans-score-state${stale ? ' is-stale' : ''}`));
-            score.title = stale
+              how === 'fresh' ? `今回のボス条件 · ${plan.registered.duration}秒`
+                : how === 'stale' ? '条件が変わりました' : `登録値 · ${plan.registered.duration}秒`,
+              `plans-score-state${how === 'stale' ? ' is-stale' : ''}`));
+            score.title = how === 'stale'
               ? `${plan.registered.cond} で出した値です。今は ${nowCond} — 「ぜんぶ計算」で出し直してください`
               : `計算して登録した理論値です (${new Date(plan.registered.at).toLocaleString('ja-JP')})`;
           } else {
             score.append(createText('small', '未計算', 'plans-score-state is-none'));
             score.title = '「ぜんぶ計算」を押すと、今回のボス条件で計算して登録します';
           }
-          row.append(score);
+          planRow.append(score);
+
           const apply = el('button', 'roster-import', '計算機に入れる');
           (apply as HTMLButtonElement).type = 'button';
           apply.dataset.plansApply = plan.id;
           apply.addEventListener('click', () => {
             applySquadToDeck(plan.squad, plan.characters);
-            say(code, `候補 ${index + 1} を計算機のデッキ ${activeDeckId} に入れました。`, true);
+            if (code) say(code, `候補 ${planIndex + 1} を計算機のデッキ ${activeDeckId} に入れました。`, true);
           });
           const drop = el('button', 'roster-import danger', '削除');
           (drop as HTMLButtonElement).type = 'button';
           drop.dataset.plansRemove = plan.id;
           drop.addEventListener('click', () => {
-            const saved = commit(removePlan(plans, code, plan.id));
-            if (!saved) say(code, 'この画面では消えましたが、ブラウザに保存できませんでした (次に開くと戻ります)。');
+            if (!code) return;
+            const kept = commit(removePlan(plans, code, plan.id));
+            if (!kept) say(code, 'この画面では消えましたが、ブラウザに保存できませんでした (次に開くと戻ります)。');
           });
-          row.append(apply, drop);
-          list.append(row);
+          planRow.append(apply, drop);
+          list.append(planRow);
         });
-        group.append(list);
-        groupsBox.append(group);
+        main.append(list);
+
+        const add = el('div', 'prep-add');
+        if (code) {
+          const save = el('button', 'roster-import', '計算機の編成をここに足す');
+          (save as HTMLButtonElement).type = 'button';
+          save.dataset.plansSave = code;
+          save.title = '計算機で今開いているデッキを、キューブなどの個別設定ごとこの行の候補として足します';
+          save.addEventListener('click', () => {
+            const result = addPlan(plans, code, activeDeck().squad, { characters: snapshotOf(activeDeck()) });
+            if (result.added) {
+              const kept = commit(result.plans);
+              say(code, kept ? '足しました。'
+                : 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと消えます)。', kept);
+              return;
+            }
+            say(code, result.reason === 'full'
+              ? `この行は既に ${MAX_PLANS_PER_ELEMENT} 候補あります。どれかを消してから足してください。`
+              : result.reason === 'duplicate' ? '同じ顔ぶれ・同じ個別設定の候補が既にあります。'
+                : '計算機の編成が空です。先にニケを入れてください。');
+          });
+          add.append(save);
+
+          // 1行足しただけで全部を回し直すのは無駄。この行だけ回せるようにする
+          const runRow = el('button', 'roster-import', 'この行だけ計算');
+          (runRow as HTMLButtonElement).type = 'button';
+          runRow.dataset.prepRowRun = boss.elementCode;
+          runRow.disabled = saved.length === 0;
+          runRow.addEventListener('click', () => { void runBatch([boss.elementCode]); });
+          add.append(runRow);
+        }
+        main.append(add);
+        row.append(main);
+        groupsBox.append(row);
       }
+
+      renderTally(total, fresh, stale);
+    };
+
+    /** 上の «ぜんぶ計算» に、いま何件がどの状態かを出す。次に何をすべきかが読める。 */
+    const renderTally = (total: number, fresh: number, stale: number) => {
+      const left = total - fresh - stale;
+      tallyBox.replaceChildren();
+      const cell = (value: number, label: string, warn = false) => {
+        const box = el('div', warn && value > 0 ? 'is-warn' : undefined);
+        box.append(createText('b', String(value)), createText('span', label));
+        tallyBox.append(box);
+      };
+      cell(total, '候補');
+      cell(fresh, '計算済み');
+      cell(stale, '条件が変わった', true);
+      cell(left, '未計算');
+      nextNote.textContent = total === 0
+        ? '候補がまだありません。上の行に編成を足してください。'
+        : fresh === 0
+          ? `${total}件の候補はまだ計算していません。先に「ぜんぶ計算」を押してください。`
+          : `計算済みの${fresh}件から、同じニケを二度使わない合計最大の3つ組を選びます。`
+            + (total - fresh > 0 ? ` 残り${total - fresh}件は未計算のままです。` : '');
+      prepGo.disabled = fresh === 0;
     };
 
     // ── ボス条件で確かめる ──
@@ -3537,8 +3707,40 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     // ── 今回のボスを登録する ──────────────────────────────────────────────
     // 属性の欄は**読むだけ**。1属性1体という対応が «どの候補をどのボスに当てるか» の
     // 索引なので、ここを触らせると盤面も候補も行き先を失う。
-    const bossRows = element<HTMLElement>(root, '[data-boss-setup-rows]');
     const bossReset = element<HTMLButtonElement>(root, '[data-boss-reset]');
+    const tallyBox = element<HTMLElement>(root, '[data-prep-tally]');
+    const nextNote = element<HTMLElement>(root, '[data-prep-next-note]');
+    const prepGo = element<HTMLButtonElement>(root, '[data-prep-go]');
+
+    // ── レイド準備の先頭に出す «取り込みの状態» ──
+    // 最終取込は3凸ボードの帯にしか無く、ここで作業している間は見えなかった。
+    // 相対時刻だけだと «前のシーズンの取込» と区別できないので絶対日時も添える。
+    const prepSyncDot = element<HTMLElement>(root, '[data-prep-sync-dot]');
+    const prepSyncMain = element<HTMLElement>(root, '[data-prep-sync-main]');
+    const prepSyncSub = element<HTMLElement>(root, '[data-prep-sync-sub]');
+    const prepSyncGo = element<HTMLButtonElement>(root, '[data-prep-sync-go]');
+    renderPrepSync = () => {
+      const count = Object.keys(roster).length;
+      prepSyncDot.classList.toggle('is-on', Boolean(syncMeta));
+      if (syncMeta) {
+        prepSyncMain.textContent = `${SOURCE_LABELS[syncMeta.source]} から取込済み · ${syncMeta.matched}名`;
+        prepSyncSub.textContent = `最終取込 ${syncAgoText(syncMeta.at)} · ${syncAtText(syncMeta.at)}`;
+        prepSyncGo.textContent = '取り込み直す';
+      } else {
+        prepSyncMain.textContent = count > 0
+          ? `ロスター ${count}名を適用中` : 'まだ育成状況を取り込んでいません';
+        // 取り込まないと «既定の育成 (最大)» の数字になる — それを黙っていると、
+        // 出た理論値を自分の育成の値だと思い込む
+        prepSyncSub.textContent = count > 0 ? ''
+          : '取り込むまでは既定の育成 (最大) で計算します';
+        prepSyncGo.textContent = '取り込む';
+      }
+    };
+    prepSyncGo.addEventListener('click', () => {
+      switchView('board');
+      openBoardImport();
+    });
+    renderPrepSync();
     const bossSetupNote = element<HTMLElement>(root, '[data-boss-setup-note]');
 
     const sayBossSetup = (message: string, ok = false) => {
@@ -3570,98 +3772,24 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       const saved = saveBosses(resolveStorage(), bosses);
       sayBossSetup(saved ? '' : 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと戻ります)。');
-      renderBossSetup();
       renderBossPick();
       renderBossPresets();
-      // 候補の «この値はどの条件で出したか» が変わる — 描き直さないと、
+      // 準備表はボスの値も候補の鮮度も両方を描く。片方だけ描き直すと、
       // 条件を変えたのに «今回のボス条件» と出たままになる (テストで捕まえた)
       renderPlans();
       renderBoard();
     };
 
-    renderBossSetup = () => {
-      bossRows.replaceChildren();
-      bossReset.hidden = !isCustomised(bosses);
-      for (const boss of bosses) {
-        const row = el('div', 'boss-row');
-        row.dataset.bossRow = boss.elementCode;
-
-        const code = el('span', 'boss-row-code');
-        const icon = createElementIcon(boss.elementCode, 'boss-row-icon');
-        if (icon) code.append(icon);
-        code.append(createText('span', elementLabel(boss.elementCode)));
-        code.title = `${elementLabel(boss.elementCode)}ボス — 有利なのは ${elementLabel(counterOf(boss.elementCode) ?? '')} 編成`;
-        row.append(code);
-
-        const name = el('input', 'boss-row-name') as HTMLInputElement;
-        name.type = 'text';
-        name.value = boss.name;
-        name.dataset.bossName = boss.elementCode;
-        name.setAttribute('aria-label', `${elementLabel(boss.elementCode)}ボスの名前`);
-        // change (確定時) で拾う。input ごとに保存すると1文字ごとに盤面を描き直す
-        name.addEventListener('change', () => editBoss(boss.elementCode, { name: name.value }));
-        row.append(name);
-
-        // 数値には**見える見出し**を付ける。読み上げの aria-label だけだと、
-        // 目で見ている人には 31784 が何の数字か分からない
-        const defWrap = el('span', 'boss-row-field');
-        defWrap.append(createText('span', '防御', 'boss-row-label'));
-        const def = el('input', 'boss-row-def') as HTMLInputElement;
-        def.type = 'number';
-        def.min = '1';
-        def.value = String(boss.enemyDef ?? '');
-        def.dataset.bossDef = boss.elementCode;
-        def.setAttribute('aria-label', `${boss.name} の防御力`);
-        def.addEventListener('change', () => editBoss(boss.elementCode, { enemyDef: Number(def.value) }));
-        defWrap.append(def);
-        row.append(defWrap);
-
-        const coreWrap = el('label', 'boss-row-toggle');
-        const core = el('input') as HTMLInputElement;
-        core.type = 'checkbox';
-        core.checked = boss.coreEnabled === true;
-        core.dataset.bossCore = boss.elementCode;
-        core.addEventListener('change', () => editBoss(boss.elementCode, { coreEnabled: core.checked }));
-        coreWrap.append(core, createText('span', 'コア'));
-        row.append(coreWrap);
-
-        const px = el('input', 'boss-row-px') as HTMLInputElement;
-        px.type = 'number';
-        px.min = '0';
-        px.value = String(boss.corePx ?? 0);
-        px.dataset.bossPx = boss.elementCode;
-        px.setAttribute('aria-label', `${boss.name} のコアの大きさ (px)`);
-        // コア無しのボスに大きさを入れさせない — 入れても計算に効かず «効いている» と誤解する
-        px.disabled = boss.coreEnabled !== true;
-        px.addEventListener('change', () => editBoss(boss.elementCode, { corePx: Number(px.value) }));
-        const pxWrap = el('span', 'boss-row-field');
-        pxWrap.append(px, createText('span', 'px', 'boss-row-label'));
-        row.append(pxWrap);
-
-        const partsWrap = el('label', 'boss-row-toggle');
-        const parts = el('input') as HTMLInputElement;
-        parts.type = 'checkbox';
-        parts.checked = boss.hasParts === true;
-        parts.dataset.bossParts = boss.elementCode;
-        parts.addEventListener('change', () => editBoss(boss.elementCode, { hasParts: parts.checked }));
-        partsWrap.append(parts, createText('span', 'パーツ'));
-        row.append(partsWrap);
-
-        bossRows.append(row);
-      }
-    };
 
     bossReset.addEventListener('click', () => {
       bosses = clearBosses(resolveStorage());
       sayBossSetup('出荷時の値に戻しました。', true);
-      renderBossSetup();
       renderBossPick();
       renderBossPresets();
       renderPlans();
       renderBoard();
     });
 
-    renderBossSetup();
     renderBossPick();
 
     // ── ぜんぶ計算する ────────────────────────────────────────────────────
@@ -3706,7 +3834,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     batchBar.setAttribute('aria-valuemax', '100');
     batchBar.setAttribute('aria-label', '計算の進み具合');
 
-    const runBatch = async () => {
+    /**
+     * 貯めた候補を、今回のボス条件で計算して登録する。
+     *
+     * `only` にボスの属性コードを渡すとその行だけ回す — 1行足しただけで
+     * 全部を回し直すのは、1件7秒台では待たせすぎる。
+     */
+    const runBatch = async (only?: readonly string[]) => {
       if (comparing) { sayBatch('別の計算が走っています。終わるまで待ってください。'); return; }
       const base = readBattle();
       // 何を回すか。候補は «その属性のボス» にだけ当てる (有利属性でしか凸らないため)
@@ -3715,6 +3849,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       for (const code of PLAN_ELEMENTS) {
         const boss = bossForElement(code, bosses);
         if (!boss) continue;
+        if (only && !only.includes(boss.elementCode)) continue;
         const battle = boardBattle(base, boss);
         const cond = condSignature(boss, battle);
         for (const plan of plansOf(plans, code)) {
@@ -3786,6 +3921,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
     };
     batchRun.addEventListener('click', () => { void runBatch(); });
+
+    // 「最適3凸を探す」— ここまでの段の**次の一手**を明示する。
+    // 以前は «3凸ボードの「全ボスから自動で探す」がこの値を使います» と文章で言うだけで、
+    // 行き先のボタンが無かった (Codex の指摘)。
+    prepGo.addEventListener('click', () => {
+      switchView('board');
+      // 盤面が描かれてから押す。同じフレームで押すと、まだ古い盤面のボタンを掴む
+      requestAnimationFrame(() => {
+        root.querySelector<HTMLButtonElement>('[data-board-search-best]')?.click();
+      });
+    });
 
     const sayBoss = (message: string, ok = false) => {
       bossNote.textContent = message;
@@ -3891,6 +4037,21 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         bossRun.disabled = false;
       }
     };
+    // ── 基準条件で比べる (詳細) ──
+    // «ぜんぶ計算» が今回のボス条件で回すのに対し、こちらはボス固有の癖を外した
+    // 同じ土台で並べ直す。主導線からは外してある — 通常は上の «ぜんぶ計算» で足りる。
+    {
+      const baselineRow = element<HTMLElement>(root, '[data-plans-baseline-row]');
+      for (const code of PLAN_ELEMENTS) {
+        const button = el('button', 'roster-import', `${elementLabel(code)}編成を比べる`);
+        (button as HTMLButtonElement).type = 'button';
+        button.dataset.plansCompare = code;
+        button.title = `${elementLabel(BEATS[code])}ボスの癖を外した同じ条件で、${elementLabel(code)}の候補を順に計算します`;
+        button.addEventListener('click', () => { void comparePlans(code, button as HTMLButtonElement); });
+        baselineRow.append(button);
+      }
+    }
+
     bossRun.addEventListener('click', () => { void runBossCheck(); });
 
     // 同じ土俵 (ボスの癖なし) で順に計算し、最大値を 100% として並べる。
@@ -5089,7 +5250,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         if (syncMeta) {
           syncDot.classList.add('is-on');
           syncMain.textContent = `${SOURCE_LABELS[syncMeta.source]} から取込済み · ${syncMeta.matched}名`;
-          syncSub.textContent = `最終取込 ${syncAgoText(syncMeta.at)} · シンクロ ${readBattle().synchroLevel}`;
+          // 相対だけだと «前のシーズンの取込» と区別できない (レイドは2週間に1度)
+          syncSub.textContent = `最終取込 ${syncAgoText(syncMeta.at)} · ${syncAtText(syncMeta.at)}`
+            + ` · シンクロ ${readBattle().synchroLevel}`;
         } else {
           syncDot.classList.remove('is-on');
           syncMain.textContent = count > 0 ? `ロスター ${count}名を適用中` : 'まだ育成状況を取り込んでいません';
@@ -5320,9 +5483,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   type ViewName = 'board' | 'calc' | 'roster' | 'plans';
 
   const shell = element<HTMLElement>(root, '.site-shell');
-  let currentView: ViewName = 'board';
+  // 取り込みが済んでいれば «レイド準備» から始める。まだなら «最適3凸» タブの
+  // STEP 1 (取り込みを促す画面) を出す — 取り込む前に準備表を見せても、
+  // 既定の育成 (最大) の数字しか出ない。
+  let currentView: ViewName = (syncMeta || Object.keys(roster).length > 0) ? 'plans' : 'board';
   function switchView(view: ViewName) {
-    currentView = view;
     currentView = view;
     // 盤面はモックどおり 1000px 中央寄せ。計算機など他の画面は横に広い方が読みやすいので上流の幅のまま
     shell.classList.toggle('is-board', view === 'board');

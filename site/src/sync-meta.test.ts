@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { StorageLike } from './cache';
 import {
-  SYNC_META_KEY, canReSync, loadSyncMeta, saveSyncMeta, syncAgoText, syncSummary, type SyncMeta,
+  SYNC_META_KEY, canReSync, loadSyncMeta, saveSyncMeta, syncAgoText, syncAtText, syncSummary, type SyncMeta,
 } from './sync-meta';
 
 const memoryStorage = (seed: Record<string, string> = {}): StorageLike & { data: Record<string, string> } => {
@@ -120,5 +120,18 @@ describe('要約の一行', () => {
 
   it('記録が無ければ空文字', () => {
     expect(syncSummary(null, now)).toBe('');
+  });
+});
+
+describe('取り込んだ絶対日時', () => {
+  it('月日・曜日・時刻を出す (相対だけだと前のシーズンの取込と区別できない)', () => {
+    // レイドは2週間に1度。«3時間前» だけでは今回のものか判断できない
+    expect(syncAtText('2026-09-03T10:24:00')).toBe('9/3 (木) 10:24');
+    expect(syncAtText('2026-09-03T09:05:00')).toBe('9/3 (木) 09:05');
+  });
+
+  it('読めない値では空にする (画面に Invalid Date と出さない)', () => {
+    expect(syncAtText('こわれている')).toBe('');
+    expect(syncAtText('')).toBe('');
   });
 });

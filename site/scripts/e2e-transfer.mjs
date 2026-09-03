@@ -72,7 +72,8 @@ try {
   say(`スマホ: ${(await b.locator('[data-board-scan-status]').textContent())?.trim()}`);
 
   // 中身が本当に入ったか
-  await b.locator('[data-view-tab="roster"]').click();
+  // 育成状況は主タブから外した (パイプラインの段ではないため) — 取り込みの帯から開く
+  await b.locator('[data-board-goto="roster"]').first().click();
   await b.waitForTimeout(400);
   const rows = await b.locator('[data-myroster-rows] tr').count();
   say(`スマホ: 育成状況の行数 = ${rows}`);
