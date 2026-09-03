@@ -17,6 +17,7 @@ import { loadFavorites, saveFavorites, toggleFavorite } from './favorites';
 import { ALL_KEYS } from './storage-keys';
 import { TRANSFER_PREFIX, packTransfer, parseTransfer, type TransferBox } from './transfer';
 import { runScores } from './score-runner';
+import { createElementIcon, createText, el, element } from './dom';
 import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import { buildIndex, filterByQuery } from './nikke-search';
 import { UNION_SEASON, bossBattle } from './union-bosses';
@@ -104,34 +105,6 @@ interface CalculatorDependencies {
   blablaProxy?: string;
 }
 
-const element = <T extends Element>(root: ParentNode, selector: string): T => {
-  const found = root.querySelector<T>(selector);
-  if (!found) throw new Error(`画面要素が見つかりません: ${selector}`);
-  return found;
-};
-
-const createText = (tag: keyof HTMLElementTagNameMap, value: string, className?: string) => {
-  const node = document.createElement(tag);
-  node.textContent = value;
-  if (className) node.className = className;
-  return node;
-};
-
-// 속성(코드) 아이콘 — 그림은 `image/icon/icon-code-*.png`가 정본이다.
-// 직접 추가한 니케가 목록에 없는 코드를 쓰면 조용히 아이콘을 생략한다.
-const ELEMENT_ICON: Record<string, string> = {
-  작열: 'fire', 수냉: 'water', 풍압: 'wind', 전격: 'electronic', 철갑: 'iron',
-};
-
-const createElementIcon = (elementCode: string, className: string): HTMLElement | null => {
-  const slug = ELEMENT_ICON[elementCode];
-  if (!slug) return null;
-  const icon = document.createElement('span');
-  icon.className = `${className} element-icon is-${slug}`;
-  icon.title = elementLabel(elementCode);
-  icon.ariaLabel = elementLabel(elementCode);
-  return icon;
-};
 
 // Pyodide 오류는 긴 파이썬 트레이스백으로 온다. 마지막 줄(실제 오류 메시지)만 보여준다.
 const cleanEngineError = (raw: string): string => {
@@ -2236,14 +2209,6 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
   // ── 버스트 순서 ─────────────────────────────────────────────────────────
   /** 이 판에서만 쓰는 요소 만들기. union-raid의 같은 이름 도우미와 짝이다. */
-  const el = <K extends keyof HTMLElementTagNameMap>(
-    tag: K, className?: string, text?: string,
-  ): HTMLElementTagNameMap[K] => {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  };
 
   // 사이클마다 단계별로 누구를 쓸지 손으로 정한다. 창을 쓰는 이유는 **키보드를
   // 통째로 가져가기 때문**이다 — 탭 안에 두면 A·S·D·F·G가 검색칸과 부딪친다.
