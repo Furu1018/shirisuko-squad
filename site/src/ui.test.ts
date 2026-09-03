@@ -874,6 +874,39 @@ describe('calculator UI', () => {
     expect(status.textContent).not.toContain('計算中');
   });
 
+  it('モーダルは開いたら中へ焦点が移り、Escape で閉じて開いた場所へ戻る', async () => {
+    // role="dialog" はあっても、焦点の面倒を見ていなかった (Codex の指摘)。
+    // hidden の変化は MutationObserver 経由なので、開閉のあとに1拍待つ。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const opener = root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!;
+    opener.focus();
+    opener.click();
+    await flush();
+
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+    expect(modal.hidden).toBe(false);
+    // 焦点はモーダルの中 (カード)。背面に残ると Tab で見えない画面を操作できてしまう
+    expect(modal.contains(document.activeElement)).toBe(true);
+    expect(modal.querySelector('.custom-card')!.getAttribute('aria-modal')).toBe('true');
+
+    // Tab は中で回る: 最後の部品で Tab → 最初へ戻る
+    const items = [...modal.querySelectorAll<HTMLElement>('button, input, select, textarea')]
+      .filter((node) => !(node as HTMLButtonElement).disabled && !node.closest('[hidden]'));
+    items[items.length - 1]!.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+    expect(modal.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(items[0]);
+
+    // Escape で閉じ、開いたボタンへ焦点が戻る
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await flush();
+    expect(modal.hidden).toBe(true);
+    expect(document.activeElement).toBe(opener);
+  });
+
   it('バッファーの型: 保存 → 別の属性のモーダルでも使える → 空き枠にだけ入る', () => {
     // B3 のアタッカーは属性ごとに変わるが、B1/B2 の定番は固定されがち。
     // 定番を型にして、編成は «型から始めてアタッカーを足すだけ» にする。

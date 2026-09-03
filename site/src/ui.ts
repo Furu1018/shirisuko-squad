@@ -6377,11 +6377,96 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     }
   });
 
+  // ── モーダルの焦点管理 (全モーダル共通) ─────────────────────────────────
+  // role="dialog" はあっても、開いた直後の焦点・Tab の閉じ込め・Escape・閉じた後に
+  // 開いた場所へ戻る、がどれも無かった (Codex の指摘)。開閉は各所が hidden を直接
+  // いじる作りなので、hidden 属性の変化を観察して1箇所で面倒を見る —
+  // 呼び出し側を書き換えないので、新しいモーダルを足しても勝手に効く。
+  const modalCleanups: Array<() => void> = [];
+  {
+    const openStack: HTMLElement[] = [];
+    const restoreTo = new WeakMap<HTMLElement, HTMLElement | null>();
+
+    const focusablesIn = (modal: HTMLElement): HTMLElement[] =>
+      [...modal.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )].filter((node) => !(node as HTMLButtonElement).disabled && !node.closest('[hidden]'));
+
+    const onShow = (modal: HTMLElement) => {
+      restoreTo.set(modal, document.activeElement instanceof HTMLElement ? document.activeElement : null);
+      openStack.push(modal);
+      const card = modal.querySelector<HTMLElement>('.custom-card');
+      if (card) {
+        card.setAttribute('aria-modal', 'true');
+        // 中身の最初の入力ではなくカードへ。入力に飛ばすと、読み上げが見出しを
+        // 読む前に欄の説明から始まってしまう
+        card.setAttribute('tabindex', '-1');
+        card.focus();
+      }
+    };
+    const onHide = (modal: HTMLElement) => {
+      const at = openStack.indexOf(modal);
+      if (at >= 0) openStack.splice(at, 1);
+      const back = restoreTo.get(modal);
+      // 開いた場所がもう無ければ (描き直しで消えた) 動かさない — 変な場所に飛ぶより良い
+      if (back && back.isConnected) back.focus();
+    };
+
+    const observer = new MutationObserver((entries) => {
+      for (const entry of entries) {
+        const modal = entry.target as HTMLElement;
+        const isOpen = openStack.includes(modal);
+        // hidden = true を二度入れても属性の変化として届く — 状態が変わったときだけ動く
+        if (modal.hidden && isOpen) onHide(modal);
+        else if (!modal.hidden && !isOpen) onShow(modal);
+      }
+    });
+    for (const modal of root.querySelectorAll<HTMLElement>('.custom-modal')) {
+      observer.observe(modal, { attributes: true, attributeFilter: ['hidden'] });
+    }
+
+    const onKeydown = (event: KeyboardEvent) => {
+      const modal = openStack[openStack.length - 1];
+      if (!modal) return;
+      if (event.key === 'Escape') {
+        // 閉じ方は各モーダルの ✕ に任せる (後片付けがそれぞれ違う)。
+        // 自前で Escape を持つモーダル (戦闘条件・バースト順) と二重に閉じても、
+        // hidden を重ねて入れるだけで壊れない
+        modal.querySelector<HTMLButtonElement>('.custom-close')?.click();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusablesIn(modal);
+      if (items.length === 0) return;
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
+      const current = document.activeElement;
+      const inside = current instanceof HTMLElement && modal.contains(current);
+      if (!inside) {
+        // 外に出てしまっていたら中へ連れ戻す — 背面は見えないのに操作できてしまう
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && current === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && current === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeydown);
+    modalCleanups.push(() => {
+      observer.disconnect();
+      document.removeEventListener('keydown', onKeydown);
+    });
+  }
+
   return () => {
     // 先読みは 700ms 後に renderSquad() を呼ぶ。外した後に発火すると、
     // 既に無い画面を描きにいく — 予約を取り消し、**走り出した分にも印を付ける**。
     disposed = true;
     cancelPrefetch?.();
+    for (const cleanup of modalCleanups) cleanup();
     client.dispose();
   };
 }
