@@ -21,6 +21,7 @@ import { createElementIcon, createText, el, element } from './dom';
 import { PERSONAL_SNIPPET, parsePersonalScan } from './personal-scan';
 import { buildIndex, filterByQuery } from './nikke-search';
 import { UNION_SEASON, bossBattle } from './union-bosses';
+import { clearBosses, isCustomised, loadBosses, saveBosses, withBoss } from './boss-setup';
 import { applyImportedRoster, mergeImportedRoster } from './roster-merge';
 import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
 import {
@@ -385,6 +386,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   let roster = loadRoster();
   /** よく使うニケの印。200名から毎回探さずに済ませるための、自分で決める並び。 */
   let favorites = loadFavorites(resolveStorage());
+  /**
+   * 今シーズンのボス5体。**焼き込みではなく、この端末に登録されたもの**。
+   * 保存が無ければ union-bosses.ts の出荷時の値。属性は編集させない (1属性1体が索引)。
+   */
+  let bosses = loadBosses(resolveStorage());
 
   // 編成・設定・戦闘条件を localStorage に保存し、開き直しても最後の状態に戻す。
   const STATE_KEY = 'nikke-state-v1';
@@ -578,14 +584,24 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <div class="section-heading">
           <div><p class="step">PLANS</p><h2 id="plans-heading">保存候補・比較</h2></div>
         </div>
-        <p class="links-lede">コードごとに<b>本命の編成を3つまで</b>置いておく場所です。ここではボスの癖 (コア・パーツ・区間) を考えず、<b>有利コードだけ</b>を見ます。ボスに合わせた調整は計算機側で重ねてください。</p>
+        <p class="links-lede">コードごとに<b>本命の編成をいくつも</b>置いておく場所です。ここに貯めた候補の中から、3凸ボードの<b>「全ボスから自動で探す」</b>が<b>同じニケを二度使わない最良の組み合わせ</b>を選びます。</p>
+
+        <div class="boss-setup" data-boss-setup>
+          <div class="boss-setup-head">
+            <h3>今回のボス</h3>
+            <button type="button" class="roster-import" data-boss-reset hidden>出荷時の値に戻す</button>
+          </div>
+          <p class="plans-boss-lede">今シーズンのボスを入れておくと、候補の計算も3凸の探索も<b>この値で走ります</b>。<b>属性は変えられません</b> — 1属性につきボス1体という対応が、どの候補をどのボスに当てるかの索引そのものだからです。</p>
+          <div class="boss-setup-rows" data-boss-setup-rows></div>
+          <p class="plans-note" data-boss-setup-note hidden></p>
+        </div>
+
         <div class="plans-boss" data-plans-boss>
           <h3>ボス条件で確かめる</h3>
-          <p class="plans-boss-lede">上の比較は<b>ボスの癖なし</b>です。実際のボスではコアやパーツで順位が入れ替わることがあるので、ここで並べて確かめます。</p>
+          <p class="plans-boss-lede">候補の比較は<b>ボスの癖なし</b>で行います。実際のボスではコアやパーツで順位が入れ替わることがあるので、ここで<b>上に登録した条件</b>を重ねて並べ直します。</p>
           <div class="plans-boss-row">
             <select data-plans-boss-pick aria-label="ボス"></select>
-            <label class="toggle-field mode-toggle"><input type="checkbox" data-plans-boss-core /><span class="toggle"></span><span>コアあり</span></label>
-            <label class="toggle-field mode-toggle"><input type="checkbox" data-plans-boss-parts /><span class="toggle"></span><span>破壊可能パーツあり</span></label>
+            <span class="plans-boss-cond" data-plans-boss-cond></span>
             <button type="button" class="roster-import" data-plans-boss-run>このボスで比べる</button>
           </div>
           <p class="plans-note" data-plans-boss-note hidden></p>
@@ -2963,6 +2979,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   let renderPlans: () => void = () => undefined;
   let renderBoard: () => void = () => undefined;
   let renderBoardSync: () => void = () => undefined;
+  // 今回のボスの登録は «保存候補・比較» タブにあるが、計算機タブのプリセット釦にも効く。
+  // 名前を変えたら両方を描き直す。
+  let renderBossSetup: () => void = () => undefined;
+  let renderBossPresets: () => void = () => undefined;
   // 盤面はボードのブロックの中で持っている。端末間の持ち運びで読み書きするための窓口。
   let readBoard: () => unknown = () => null;
   let writeBoardFrom: (raw: unknown) => void = () => undefined;
@@ -3457,18 +3477,163 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     // 基準 (癖なし) とボス条件の両方を計算して並べる。片方だけ見せると、
     // なぜ順位が入れ替わったのか読めなくなる。
     const bossPick = element<HTMLSelectElement>(root, '[data-plans-boss-pick]');
-    const bossCore = element<HTMLInputElement>(root, '[data-plans-boss-core]');
-    const bossParts = element<HTMLInputElement>(root, '[data-plans-boss-parts]');
+    const bossCond = element<HTMLElement>(root, '[data-plans-boss-cond]');
     const bossRun = element<HTMLButtonElement>(root, '[data-plans-boss-run]');
     const bossNote = element<HTMLElement>(root, '[data-plans-boss-note]');
     const bossResult = element<HTMLElement>(root, '[data-plans-boss-result]');
 
-    for (const [index, boss] of UNION_SEASON.bosses.entries()) {
-      const option = document.createElement('option');
-      option.value = String(index);
-      option.textContent = `${boss.name} (${elementLabel(boss.elementCode)})`;
-      bossPick.append(option);
-    }
+    // 名前を変えられるので**作り直せる形**にする。選んでいたボスは属性で覚えておいて戻す
+    // (番号で覚えると、並びを変えたときに黙って別のボスが選ばれる)。
+    const renderBossPick = () => {
+      const wasCode = bosses[Number(bossPick.value)]?.elementCode;
+      bossPick.replaceChildren();
+      for (const [index, boss] of bosses.entries()) {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = `${boss.name} (${elementLabel(boss.elementCode)})`;
+        bossPick.append(option);
+      }
+      const back = bosses.findIndex((boss) => boss.elementCode === wasCode);
+      if (back >= 0) bossPick.value = String(back);
+      renderBossCond();
+    };
+
+    /** 選んだボスに登録されている癖を1行で出す。以前はここにチェックボックスがあった。 */
+    const renderBossCond = () => {
+      const boss = bosses[Number(bossPick.value)];
+      if (!boss) { bossCond.textContent = ''; return; }
+      const parts = [`防御 ${(boss.enemyDef ?? 0).toLocaleString('en-US')}`];
+      parts.push(boss.coreEnabled ? `コア ${boss.corePx ?? 0}px` : 'コア無し');
+      parts.push(boss.hasParts ? 'パーツあり' : 'パーツ無し');
+      bossCond.textContent = parts.join(' · ');
+    };
+    bossPick.addEventListener('change', renderBossCond);
+
+    // ── 今回のボスを登録する ──────────────────────────────────────────────
+    // 属性の欄は**読むだけ**。1属性1体という対応が «どの候補をどのボスに当てるか» の
+    // 索引なので、ここを触らせると盤面も候補も行き先を失う。
+    const bossRows = element<HTMLElement>(root, '[data-boss-setup-rows]');
+    const bossReset = element<HTMLButtonElement>(root, '[data-boss-reset]');
+    const bossSetupNote = element<HTMLElement>(root, '[data-boss-setup-note]');
+
+    const sayBossSetup = (message: string, ok = false) => {
+      bossSetupNote.textContent = message;
+      bossSetupNote.hidden = !message;
+      bossSetupNote.classList.toggle('is-ok', ok);
+    };
+
+    /**
+     * ボスを1体書き換える。
+     *
+     * 名前を変えたら**盤面の枠も連れて行く** — 枠はボスを名前で覚えているので、
+     * migrate しないと «そんなボスは居ない» ことになって枠が空になる。
+     */
+    const editBoss = (code: string, patch: Partial<UnionBoss>) => {
+      const before = bosses.find((boss) => boss.elementCode === code);
+      bosses = withBoss(bosses, code, patch);
+      const after = bosses.find((boss) => boss.elementCode === code);
+      if (before && after && before.name !== after.name) {
+        // 盤面はこのブロックからは触れないので、前方宣言した読み書きを通す
+        const raw = readBoard() as RaidBoard | null;
+        if (raw && Array.isArray(raw.slots) && raw.slots.some((slot) => slot.boss === before.name)) {
+          writeBoardFrom({
+            ...raw,
+            slots: raw.slots.map((slot) => (slot.boss === before.name
+              ? { ...slot, boss: after.name } : slot)),
+          });
+        }
+      }
+      const saved = saveBosses(resolveStorage(), bosses);
+      sayBossSetup(saved ? '' : 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと戻ります)。');
+      renderBossSetup();
+      renderBossPick();
+      renderBossPresets();
+      renderBoard();
+    };
+
+    renderBossSetup = () => {
+      bossRows.replaceChildren();
+      bossReset.hidden = !isCustomised(bosses);
+      for (const boss of bosses) {
+        const row = el('div', 'boss-row');
+        row.dataset.bossRow = boss.elementCode;
+
+        const code = el('span', 'boss-row-code');
+        const icon = createElementIcon(boss.elementCode, 'boss-row-icon');
+        if (icon) code.append(icon);
+        code.append(createText('span', elementLabel(boss.elementCode)));
+        code.title = `${elementLabel(boss.elementCode)}ボス — 有利なのは ${elementLabel(counterOf(boss.elementCode) ?? '')} 編成`;
+        row.append(code);
+
+        const name = el('input', 'boss-row-name') as HTMLInputElement;
+        name.type = 'text';
+        name.value = boss.name;
+        name.dataset.bossName = boss.elementCode;
+        name.setAttribute('aria-label', `${elementLabel(boss.elementCode)}ボスの名前`);
+        // change (確定時) で拾う。input ごとに保存すると1文字ごとに盤面を描き直す
+        name.addEventListener('change', () => editBoss(boss.elementCode, { name: name.value }));
+        row.append(name);
+
+        // 数値には**見える見出し**を付ける。読み上げの aria-label だけだと、
+        // 目で見ている人には 31784 が何の数字か分からない
+        const defWrap = el('span', 'boss-row-field');
+        defWrap.append(createText('span', '防御', 'boss-row-label'));
+        const def = el('input', 'boss-row-def') as HTMLInputElement;
+        def.type = 'number';
+        def.min = '1';
+        def.value = String(boss.enemyDef ?? '');
+        def.dataset.bossDef = boss.elementCode;
+        def.setAttribute('aria-label', `${boss.name} の防御力`);
+        def.addEventListener('change', () => editBoss(boss.elementCode, { enemyDef: Number(def.value) }));
+        defWrap.append(def);
+        row.append(defWrap);
+
+        const coreWrap = el('label', 'boss-row-toggle');
+        const core = el('input') as HTMLInputElement;
+        core.type = 'checkbox';
+        core.checked = boss.coreEnabled === true;
+        core.dataset.bossCore = boss.elementCode;
+        core.addEventListener('change', () => editBoss(boss.elementCode, { coreEnabled: core.checked }));
+        coreWrap.append(core, createText('span', 'コア'));
+        row.append(coreWrap);
+
+        const px = el('input', 'boss-row-px') as HTMLInputElement;
+        px.type = 'number';
+        px.min = '0';
+        px.value = String(boss.corePx ?? 0);
+        px.dataset.bossPx = boss.elementCode;
+        px.setAttribute('aria-label', `${boss.name} のコアの大きさ (px)`);
+        // コア無しのボスに大きさを入れさせない — 入れても計算に効かず «効いている» と誤解する
+        px.disabled = boss.coreEnabled !== true;
+        px.addEventListener('change', () => editBoss(boss.elementCode, { corePx: Number(px.value) }));
+        const pxWrap = el('span', 'boss-row-field');
+        pxWrap.append(px, createText('span', 'px', 'boss-row-label'));
+        row.append(pxWrap);
+
+        const partsWrap = el('label', 'boss-row-toggle');
+        const parts = el('input') as HTMLInputElement;
+        parts.type = 'checkbox';
+        parts.checked = boss.hasParts === true;
+        parts.dataset.bossParts = boss.elementCode;
+        parts.addEventListener('change', () => editBoss(boss.elementCode, { hasParts: parts.checked }));
+        partsWrap.append(parts, createText('span', 'パーツ'));
+        row.append(partsWrap);
+
+        bossRows.append(row);
+      }
+    };
+
+    bossReset.addEventListener('click', () => {
+      bosses = clearBosses(resolveStorage());
+      sayBossSetup('出荷時の値に戻しました。', true);
+      renderBossSetup();
+      renderBossPick();
+      renderBossPresets();
+      renderBoard();
+    });
+
+    renderBossSetup();
+    renderBossPick();
 
     const sayBoss = (message: string, ok = false) => {
       bossNote.textContent = message;
@@ -3497,7 +3662,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
     const runBossCheck = async () => {
       if (comparing) { sayBoss('別の比較が走っています。終わるまで待ってください。'); return; }
-      const boss = UNION_SEASON.bosses[Number(bossPick.value)];
+      const boss = bosses[Number(bossPick.value)];
       if (!boss) return;
       const code = counterOf(boss.elementCode);
       if (!code) { sayBoss('このボスのコードに対応する編成がありません。'); return; }
@@ -3509,8 +3674,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       const base = readBattle();
       const plain = baselineBattle(base, code);
-      const withBoss = bossConditionBattle(base, boss, {
-        coreEnabled: bossCore.checked, hasParts: bossParts.checked,
+      // コアとパーツは**ボスに登録された値**。以前はここのチェックボックスで、
+      // 盤面の計算 (全ボス一律 «無し») と食い違っていた。
+      const withBossCond = bossConditionBattle(base, boss, {
+        coreEnabled: boss.coreEnabled === true, hasParts: boss.hasParts === true,
       });
       comparing = true;
       bossRun.disabled = true;
@@ -3524,7 +3691,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           const plainTotal = await runOne(plan, plain);
           done += 1;
           sayBoss(`計算中… ${done}/${saved.length * 2}`);
-          const bossTotal = await runOne(plan, withBoss);
+          const bossTotal = await runOne(plan, withBossCond);
           done += 1;
           rows.push({ index: index + 1, squad: plan.squad, plain: plainTotal, boss: bossTotal });
         }
@@ -3652,15 +3819,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const usedBox = element<HTMLElement>(root, '[data-board-used]');
     const stockBox = element<HTMLElement>(root, '[data-board-stocks]');
     const statusBox = element<HTMLElement>(root, '[data-board-status]');
-    const bossNames = UNION_SEASON.bosses.map((boss) => boss.name);
-    const bossByName = new Map(UNION_SEASON.bosses.map((boss) => [boss.name, boss]));
+    // ボスは画面から登録し直せるので、**その場で引く**。マウント時に Map を作って持つと、
+    // 名前を変えた瞬間に «そんなボスは居ない» ことになって枠が空になる。
+    const bossNames = () => bosses.map((boss) => boss.name);
+    const bossByName = (name: string) => bosses.find((boss) => boss.name === name);
     const ELEMENT_CLASS: Record<string, string> = {
       작열: 'is-fire', 수냉: 'is-water', 풍압: 'is-wind', 전격: 'is-electric', 철갑: 'is-iron',
     };
-    let board: RaidBoard = loadBoard(resolveStorage(), bossNames);
+    let board: RaidBoard = loadBoard(resolveStorage(), bossNames());
     readBoard = () => board;
     writeBoardFrom = (raw) => {
-      board = loadBoard({ getItem: () => JSON.stringify(raw), setItem: () => undefined, removeItem: () => undefined }, bossNames);
+      board = loadBoard({ getItem: () => JSON.stringify(raw), setItem: () => undefined, removeItem: () => undefined }, bossNames());
       saveBoard(resolveStorage(), board);
     };
     // 計算中はボタンごと作り直されるので、disabled ではなくここで二重起動を止める
@@ -3900,7 +4069,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const battleNote = () => `戦闘 ${readBattle().duration}秒 · コアとパーツ無し`;
     const bossOf = (index: number): UnionBoss | undefined => {
       const name = board.slots[index]?.boss;
-      return name ? bossByName.get(name) : undefined;
+      return name ? bossByName(name) : undefined;
     };
 
     /** 枠の点数と、その枠の被りの代案 (外す / 譲る) の点数をそろえる。 */
@@ -3931,7 +4100,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const chooseBoss = async (index: number, name: string) => {
       chooserOpen = null;
       if (!name) { commit(clearSlot(board, index)); return; }
-      const boss = bossByName.get(name);
+      const boss = bossByName(name);
       if (!boss) return;
       const { element: code, plans: options } = boardCandidatesFor(boss, plans);
       let picked: ElementPlan | undefined = options[0];
@@ -3957,7 +4126,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
     /** 空き枠: 残りの人で一番出るボスを探す。 */
     const searchOpen = (index: number) => withBusy(async () => {
-      const candidates = openSlotCandidates(board, index, UNION_SEASON.bosses, plans);
+      const candidates = openSlotCandidates(board, index, bosses, plans);
       if (candidates.length === 0) {
         say('入れられる候補がありません。枠の「この枠の編成を組む」で組むか、「保存候補・比較」タブで保存してください (他の枠と全員被る候補は除きます)。');
         return;
@@ -3980,7 +4149,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     /** 全候補 (ボス × 候補) を計算し、被りなしで合計最大の3つを枠に入れる。 */
     const searchBest = () => withBusy(async () => {
       const all: Array<{ boss: UnionBoss; plan: ElementPlan }> = [];
-      for (const boss of UNION_SEASON.bosses) {
+      for (const boss of bosses) {
         for (const plan of boardCandidatesFor(boss, plans).plans) all.push({ boss, plan });
       }
       if (all.length === 0) { say('保存した候補がありません。各枠の「この枠の編成を組む」から直接選べます。'); return; }
@@ -4492,7 +4661,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
     const renderStock = () => {
       stockBox.replaceChildren();
-      for (const boss of UNION_SEASON.bosses) {
+      for (const boss of bosses) {
         const code = counterOf(boss.elementCode);
         if (!code) continue;
         const saved = plansOf(plans, code);
@@ -4557,7 +4726,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const none = el('option', undefined, '— ボスを選ぶ —');
         none.value = '';
         select.append(none);
-        for (const candidate of UNION_SEASON.bosses) {
+        for (const candidate of bosses) {
           const option = el('option', undefined, `${candidate.name} (${elementLabel(candidate.elementCode)})`);
           option.value = candidate.name;
           select.append(option);
@@ -4652,7 +4821,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       none.value = '';
       select.append(none);
       for (const code of PLAN_ELEMENTS) {
-        const target = bossForElement(code, UNION_SEASON.bosses);
+        const target = bossForElement(code, bosses);
         const option = el('option', undefined, `${elementLabel(code)}${target ? ` (${target.name})` : ''}`);
         option.value = code;
         select.append(option);
@@ -4677,12 +4846,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       }
       // 選んだ属性の候補を全部 (重複は1回) 計算してから、被りなしの割り当てを解く
       const jobs = dedupe(chosen.flatMap((code) => {
-        const boss = bossForElement(code, UNION_SEASON.bosses) ?? undefined;
+        const boss = bossForElement(code, bosses) ?? undefined;
         return plansOf(plans, code).map((plan) => jobFor(boss, plan.squad, plan.characters));
       }));
       const failures = await runJobs(jobs, '候補を計算中');
       const lists: Candidate[][] = chosen.map((code) => {
-        const boss = bossForElement(code, UNION_SEASON.bosses);
+        const boss = bossForElement(code, bosses);
         if (!boss) return [];
         return plansOf(plans, code).flatMap((plan) => {
           const score = knownScore(boss, plan.squad, plan.characters);
@@ -4696,7 +4865,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       let next = emptyBoard();
       picked.forEach((candidate, index) => {
         const code = chosen[index]!;
-        const boss = bossForElement(code, UNION_SEASON.bosses);
+        const boss = bossForElement(code, bosses);
         next = withSlot(next, index, candidate
           ? { boss: candidate.boss, squad: candidate.squad, characters: candidate.characters }
           : { boss: boss?.name ?? null, squad: ['', '', '', '', ''] });
@@ -4973,7 +5142,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   {
     const host = root.querySelector<HTMLElement>('[data-boss-presets]');
     if (host) {
-      for (const boss of UNION_SEASON.bosses) {
+      renderBossPresets = () => {
+      host.replaceChildren();
+      for (const boss of bosses) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'roster-import calc-boss-preset';
@@ -4987,6 +5158,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         });
         host.append(button);
       }
+      };
+      renderBossPresets();
     }
   }
 

@@ -706,6 +706,67 @@ describe('calculator UI', () => {
     expect(denki.querySelector('.plans-empty')).not.toBeNull();
   });
 
+  it('今回のボスを登録できる — 名前を変えると盤面の枠もついていく', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    // 盤面の 1凸目にレイタンス (電撃) を入れておく
+    const bossSelect = root.querySelector<HTMLSelectElement>('[data-board-boss="0"]')!;
+    bossSelect.value = 'レイタンス';
+    bossSelect.dispatchEvent(new Event('change'));
+
+    const name = root.querySelector<HTMLInputElement>('[data-boss-name="전격"]')!;
+    expect(name.value).toBe('レイタンス');
+    name.value = '新ボス';
+    name.dispatchEvent(new Event('change'));
+
+    // 枠が «そんなボスは居ない» にならず、新しい名前に付いていく
+    const stored = JSON.parse(localStorage.getItem('nikke-raid-board-v1')!) as
+      { slots: Array<{ boss: string | null }> };
+    expect(stored.slots[0]!.boss).toBe('新ボス');
+    expect(root.querySelector<HTMLSelectElement>('[data-board-boss="0"]')!.value).toBe('新ボス');
+
+    // 保存されている
+    const savedBosses = JSON.parse(localStorage.getItem('nikke-bosses-v1')!) as
+      { bosses: Array<{ elementCode: string; name: string }> };
+    expect(savedBosses.bosses.find((boss) => boss.elementCode === '전격')!.name).toBe('新ボス');
+  });
+
+  it('コアの大きさは、コアありのときだけ入れられる', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const px = () => root.querySelector<HTMLInputElement>('[data-boss-px="전격"]')!;
+    // コア無しのボスに大きさを入れさせない — 入れても計算に効かず «効いている» と誤解する
+    expect(px().disabled).toBe(true);
+
+    const core = root.querySelector<HTMLInputElement>('[data-boss-core="전격"]')!;
+    core.checked = true;
+    core.dispatchEvent(new Event('change'));
+    expect(px().disabled).toBe(false);
+  });
+
+  it('出荷時の値に戻す釦は、変えたときだけ出る', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const reset = () => root.querySelector<HTMLButtonElement>('[data-boss-reset]')!;
+    expect(reset().hidden).toBe(true);
+
+    const def = root.querySelector<HTMLInputElement>('[data-boss-def="전격"]')!;
+    def.value = '50000';
+    def.dispatchEvent(new Event('change'));
+    expect(reset().hidden).toBe(false);
+
+    reset().click();
+    expect(reset().hidden).toBe(true);
+    expect(localStorage.getItem('nikke-bosses-v1')).toBeNull();
+    expect(root.querySelector<HTMLInputElement>('[data-boss-def="전격"]')!.value).toBe('31784');
+  });
+
   it('今の編成を保存し、空と重複は弾き、消せる', () => {
     // 上限そのものは element-plans.test.ts で見る (純粋関数なので候補を何件でも作れる。
     // 画面側はデッキが5枠しかなく、別々の顔ぶれを10通り作れない)。

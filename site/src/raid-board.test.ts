@@ -221,19 +221,32 @@ describe('被りなしで最大の3凸', () => {
 
 describe('盤面の戦闘条件', () => {
   const base = {
-    duration: 180, enemyCode: '', enemyDef: 100, coreEnabled: true, hasParts: true,
+    duration: 180, enemyCode: '', enemyDef: 100, coreEnabled: true, corePx: 7, hasParts: true,
     immuneWindows: [{ from: 1, to: 2 }], elementWindows: [{ from: 1, to: 2, code: '풍압' }],
   };
 
-  it('ボスのコードと防御力だけ重ね、癖 (コア・パーツ・区間) は外す', () => {
+  it('ボスのコードと防御力を重ね、その人の癖 (回避区間・属性制限区間) は外す', () => {
     const battle = boardBattle(base, bossOf('レイタンス'));
     expect(battle.enemyCode).toBe('전격');
     expect(battle.enemyDef).toBe(bossOf('レイタンス').enemyDef);
-    expect(battle.coreEnabled).toBe(false);
-    expect(battle.hasParts).toBe(false);
     expect(battle.immuneWindows).toEqual([]);
     expect(battle.elementWindows).toEqual([]);
     expect(battle.duration).toBe(180);   // 戦闘時間は今の設定のまま
+  });
+
+  it('コアとパーツは**ボスの持ち物**。登録が無ければ «無し»', () => {
+    // 以前は全ボス一律に無しにしていた — コアのあるボスでは実際より低く出る
+    const battle = boardBattle(base, bossOf('レイタンス'));
+    expect(battle.coreEnabled).toBe(false);
+    expect(battle.hasParts).toBe(false);
+  });
+
+  it('コアありで登録したボスは、その大きさで計算する', () => {
+    const cored = { ...bossOf('レイタンス'), coreEnabled: true, corePx: 12, hasParts: true };
+    const battle = boardBattle(base, cored);
+    expect(battle.coreEnabled).toBe(true);
+    expect(battle.corePx).toBe(12);
+    expect(battle.hasParts).toBe(true);
   });
 
   it('ボスが防御力を持たなければ今の値を使う', () => {

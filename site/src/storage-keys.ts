@@ -14,7 +14,7 @@ export const OWNED_KEYS = [
   'nikke-roster-v1',           // 取り込んだ育成 (ロスター)
   'nikke-sync-v1',             // 取込の記録 (いつ・どこから・何名)
   'nikke-plans-v1',            // 保存した候補 (属性ごと)
-  'nikke-raid-board-v1',       // 3凸ボードの盤面
+  'nikke-raid-board-v1', 'nikke-bosses-v1',       // 3凸ボードの盤面
   'nikke-favorites-v1',        // よく使うニケの印
   'nikke-board-skip-import-v1', // 「取り込まずに試す」を押したか
   'nikke-parallel-v1',         // 並列計算の台数

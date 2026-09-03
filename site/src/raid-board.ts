@@ -368,6 +368,7 @@ export function boardBattle<T extends {
   enemyCode: string;
   enemyDef: number;
   coreEnabled: boolean;
+  corePx: number;
   hasParts: boolean;
   immuneWindows: unknown[];
   elementWindows: unknown[];
@@ -376,8 +377,12 @@ export function boardBattle<T extends {
     ...base,
     enemyCode: boss.elementCode,
     enemyDef: boss.enemyDef ?? base.enemyDef,
-    coreEnabled: false,
-    hasParts: false,
+    // コアとパーツは**ボスの持ち物**。以前は全ボス一律に «無し» にしていたので、
+    // コアのあるボスでは実際より低く出ていた。登録が無ければ従来どおり «無し»。
+    coreEnabled: boss.coreEnabled === true,
+    corePx: boss.coreEnabled === true ? (boss.corePx ?? base.corePx) : base.corePx,
+    hasParts: boss.hasParts === true,
+    // 回避区間・属性制限区間は «その人が条件パネルで入れた癖» なので、盤面の比較では外す
     immuneWindows: [],
     elementWindows: [],
   };

@@ -1056,6 +1056,41 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .plans-score.is-best { font-weight: 800; }
 
 /* しりすこスクワッド: ボス条件で確かめる */
+/* ── 今回のボスの登録 ────────────────────────────────────────────────
+   1属性1行。属性の欄は読むだけ (対応が候補の索引そのものなので触らせない)。
+   狭い画面では «名前» を丸ごと1行に落として、数値とトグルを下に並べる。 */
+.boss-setup { border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px; padding: 12px 14px; margin-bottom: 14px; }
+.boss-setup-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.boss-setup h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
+.boss-setup-rows { display: grid; gap: 8px; }
+/* 桁の決まらない並びなので grid ではなく flex で折り返す。狭い画面では
+   属性と名前が1行を占め、数値とトグルが次の行へ自然に落ちる。 */
+.boss-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.boss-row-code { flex: 0 0 84px; display: inline-flex; align-items: center; gap: 5px;
+  font: 700 11.5px ui-monospace, monospace; color: var(--ink-2); }
+.boss-row-icon { width: 14px; height: 14px; }
+.boss-row-name { flex: 1 1 170px; }
+.boss-row-name, .boss-row-def, .boss-row-px { min-width: 0; min-height: 34px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: rgb(var(--surface-rgb) / .72); color: var(--ink); font-size: 12.5px; }
+.boss-row-def { width: 84px; }
+.boss-row-px { width: 60px; }
+.boss-row-def, .boss-row-px { font-variant-numeric: tabular-nums; }
+.boss-row-px:disabled { border-style: dashed; color: var(--muted); }
+.boss-row-field { display: inline-flex; align-items: center; gap: 4px; }
+.boss-row-label { font: 700 10.5px ui-monospace, monospace; color: var(--muted); }
+.boss-row-toggle { display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+/* flex の中で伸びる既定を止める — スマホでチェックが巨大になっていた */
+.boss-row-toggle input { flex: none; width: 16px; height: 16px; margin: 0; }
+@media (max-width: 700px) {
+  /* 1体ぶんを枠で囲う。5体続くので、どこまでが1体かが読めなくなる */
+  .boss-row { padding: 8px; border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 9px; }
+  .boss-row-code { flex: 0 0 100%; }
+  .boss-row-name { flex: 1 1 100%; }
+}
+.plans-boss-cond { font: 700 11.5px ui-monospace, monospace; color: var(--ink-2); }
+
 .plans-boss { border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px; padding: 12px 14px; margin-bottom: 14px; }
 .plans-boss h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
 .plans-boss-lede { margin: 0 0 10px; font-size: 12px; color: var(--ink-2); }

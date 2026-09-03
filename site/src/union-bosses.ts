@@ -17,6 +17,16 @@ export interface UnionBoss {
   elementCode: BattleSettings['enemyCode'];
   /** 敵防御力。null なら現在の条件パネルの値を使う */
   enemyDef: number | null;
+  /**
+   * コア (弱点部位) を狙えるボスか。狙えるなら `corePx` がその大きさ。
+   *
+   * **ボスごとに違う**。以前は盤面の計算で全ボス一律に «コア無し» としていたが、
+   * コアのあるボスでは実際より低く出る。出荷時は未設定 (= 無し) で、画面から登録する。
+   */
+  coreEnabled?: boolean;
+  corePx?: number;
+  /** 壊せるパーツを持つボスか。これもボスごとに違う。 */
+  hasParts?: boolean;
 }
 
 export interface UnionSeason {
