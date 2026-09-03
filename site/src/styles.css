@@ -1091,6 +1091,19 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 }
 .plans-boss-cond { font: 700 11.5px ui-monospace, monospace; color: var(--ink-2); }
 
+/* ── ぜんぶ計算 ────────────────────────────────────────────────────────
+   1件7秒台なので «動いている» だけでは足りない。あと何割かが見えないと、
+   止まっているのか進んでいるのか分からない。 */
+.plans-batch { border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px; padding: 12px 14px; margin-bottom: 14px; }
+.plans-batch h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
+.plans-batch-bar { height: 8px; border-radius: 999px; border: 1px solid var(--line);
+  background: rgb(var(--surface-rgb) / .72); overflow: hidden; margin: 8px 0; }
+.plans-batch-fill { height: 100%; width: 0; background: var(--accent-deep);
+  transition: width .2s ease; }
+@media (prefers-reduced-motion: reduce) { .plans-batch-fill { transition: none; } }
+/* 条件が変わった登録値。数字は残すが «今の値ではない» と分かる色にする */
+.plans-score-state.is-stale { color: var(--danger); }
+
 .plans-boss { border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 11px; padding: 12px 14px; margin-bottom: 14px; }
 .plans-boss h3 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
 .plans-boss-lede { margin: 0 0 10px; font-size: 12px; color: var(--ink-2); }

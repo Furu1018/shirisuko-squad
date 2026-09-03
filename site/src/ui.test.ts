@@ -706,6 +706,69 @@ describe('calculator UI', () => {
     expect(denki.querySelector('.plans-empty')).not.toBeNull();
   });
 
+  it('「ぜんぶ計算」は貯めた候補を今回のボス条件で計算し、候補に登録する', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const savePlan = (code: string, names: string[]) => {
+      for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+      names.forEach((name, index) => chooseCharacter(root, index, name));
+      root.querySelector<HTMLButtonElement>(`[data-plans-save="${code}"]`)!.click();
+    };
+    savePlan('철갑', ['리타', '크라운']);
+    savePlan('수냉', ['앨리스', '나가']);
+
+    const bar = root.querySelector<HTMLElement>('[data-plans-batch-bar]')!;
+    expect(bar.hidden).toBe(true);   // 押す前はバーを出さない
+
+    root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
+    await settle();
+    await settle();
+
+    expect(bar.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>('[data-plans-batch-fill]')!.style.width).toBe('100%');
+    expect(root.querySelector('[data-plans-batch-note]')!.textContent)
+      .toContain('2件中 2件を計算しました');
+
+    // 候補に登録され、開き直しても残る形になっている
+    const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as {
+      byElement: Record<string, Array<{ registered?: { damage: number; cond?: string } }>>;
+    };
+    const iron = stored.byElement['철갑']![0]!;
+    expect(iron.registered!.damage).toBeGreaterThan(0);
+    // **どの条件で出したか**を一緒に持つ (ボスを変えた後に古い値と見比べないため)。
+    // 鉄甲の編成が有利なのは電撃ボス = レイタンス
+    expect(iron.registered!.cond).toContain('レイタンス');
+
+    // 画面にも «今回のボス条件» と出る
+    expect(root.querySelector('[data-plans-group="철갑"] .plans-score-state')!.textContent)
+      .toContain('今回のボス条件');
+  });
+
+  it('ボスの条件を変えると、登録値に「条件が変わりました」と出る', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    chooseCharacter(root, 0, '리타');
+    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
+    await settle();
+    await settle();
+    const state = () => root.querySelector('[data-plans-group="철갑"] .plans-score-state')!;
+    expect(state().textContent).toContain('今回のボス条件');
+
+    // 鉄甲の編成が当たるのは**電撃ボス**。変えるのはそちらの防御力
+    const def = root.querySelector<HTMLInputElement>('[data-boss-def="전격"]')!;
+    def.value = '50000';
+    def.dispatchEvent(new Event('change'));
+
+    expect(state().textContent).toContain('条件が変わりました');
+    expect(state().classList.contains('is-stale')).toBe(true);
+  });
+
   it('今回のボスを登録できる — 名前を変えると盤面の枠もついていく', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,

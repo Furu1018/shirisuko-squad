@@ -51,6 +51,13 @@ export interface RegisteredScore {
   duration: number;
   /** 計算した時刻 (ISO)。 */
   at: string;
+  /**
+   * どの条件で出した値か (ボス名・防御力・コア・パーツ・戦闘時間の署名)。
+   *
+   * 数字だけ覚えると、ボスの登録を変えた後で**古い値を今の値と見比べてしまう**。
+   * 無い場合は «ボスの癖なし» で出した古い登録値 (この項目ができる前のもの)。
+   */
+  cond?: string;
 }
 
 export interface ElementPlan {

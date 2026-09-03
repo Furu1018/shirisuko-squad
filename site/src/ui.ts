@@ -596,6 +596,18 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <p class="plans-note" data-boss-setup-note hidden></p>
         </div>
 
+        <div class="plans-batch" data-plans-batch>
+          <div class="boss-setup-head">
+            <h3>ぜんぶ計算する</h3>
+            <button type="button" class="roster-import lead" data-plans-batch-run>ぜんぶ計算</button>
+          </div>
+          <p class="plans-boss-lede">貯めた候補を<b>今回のボス条件で全部</b>計算し、下の一覧に理論値を出します。ここまで済ませておくと、3凸ボードの<b>「全ボスから自動で探す」</b>は計算済みの値を使うので<b>すぐ答えが出ます</b>。<b>1件あたり7秒ほど</b>かかります。</p>
+          <div class="plans-batch-bar" data-plans-batch-bar hidden>
+            <div class="plans-batch-fill" data-plans-batch-fill></div>
+          </div>
+          <p class="plans-note" data-plans-batch-note hidden></p>
+        </div>
+
         <div class="plans-boss" data-plans-boss>
           <h3>ボス条件で確かめる</h3>
           <p class="plans-boss-lede">候補の比較は<b>ボスの癖なし</b>で行います。実際のボスではコアやパーツで順位が入れ替わることがあるので、ここで<b>上に登録した条件</b>を重ねて並べ直します。</p>
@@ -3386,6 +3398,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const group = el('div', 'plans-group');
         group.dataset.plansGroup = code;
 
+        // この属性の候補が «今» 当たるボスと条件。登録値と突き合わせて鮮度を出す
+        const nowBoss = bossForElement(code, bosses);
+        const nowCond = nowBoss ? condSignature(nowBoss, boardBattle(readBattle(), nowBoss)) : null;
+
         const head = el('div', 'plans-group-head');
         const title = createText('h3', `${elementLabel(code)} 編成`);
         const against = createText('span', `${elementLabel(BEATS[code])}ボス向け`, 'plans-against');
@@ -3444,11 +3460,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           // «計算したが0» なのか読めない (バックログ #4)。
           if (plan.registered) {
             score.textContent = `${formatDamage(plan.registered.damage)}`;
-            score.append(createText('small', `登録値 · ${plan.registered.duration}秒`, 'plans-score-state'));
-            score.title = `「3候補を比較」などで計算して登録した理論値です (${new Date(plan.registered.at).toLocaleString('ja-JP')})`;
+            // **今の条件で出した値かどうか**を必ず出す。ボスの登録や戦闘時間を変えたあと、
+            // 古い値を今の値と見比べるのが一番まずい。
+            const fresh = plan.registered.cond !== undefined && plan.registered.cond === nowCond;
+            const stale = plan.registered.cond !== undefined && !fresh;
+            score.append(createText('small',
+              fresh ? `今回のボス条件 · ${plan.registered.duration}秒`
+                : stale ? '条件が変わりました' : `登録値 · ${plan.registered.duration}秒`,
+              `plans-score-state${stale ? ' is-stale' : ''}`));
+            score.title = stale
+              ? `${plan.registered.cond} で出した値です。今は ${nowCond} — 「ぜんぶ計算」で出し直してください`
+              : `計算して登録した理論値です (${new Date(plan.registered.at).toLocaleString('ja-JP')})`;
           } else {
             score.append(createText('small', '未計算', 'plans-score-state is-none'));
-            score.title = '「3候補を比較」を押すと計算して登録します';
+            score.title = '「ぜんぶ計算」を押すと、今回のボス条件で計算して登録します';
           }
           row.append(score);
           const apply = el('button', 'roster-import', '計算機に入れる');
@@ -3548,6 +3573,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderBossSetup();
       renderBossPick();
       renderBossPresets();
+      // 候補の «この値はどの条件で出したか» が変わる — 描き直さないと、
+      // 条件を変えたのに «今回のボス条件» と出たままになる (テストで捕まえた)
+      renderPlans();
       renderBoard();
     };
 
@@ -3629,11 +3657,135 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       renderBossSetup();
       renderBossPick();
       renderBossPresets();
+      renderPlans();
       renderBoard();
     });
 
     renderBossSetup();
     renderBossPick();
+
+    // ── ぜんぶ計算する ────────────────────────────────────────────────────
+    // 使い方は «候補を貯める → 今回のボスを入れる → まとめて計算 → 結果を見る →
+    // 最良の3凸を探す»。探すボタンの中で暗黙に計算していたので、何十秒も «押しても
+    // 無反応» に見えていた。段として切り出し、進み具合をバーで出す。
+    //
+    // **盤面の探索とまったく同じ条件で計算する** (boardBattle)。条件がずれると、
+    // ここで出した値を «全ボスから自動で探す» が使えず、また全部計算し直しになる。
+    const batchRun = element<HTMLButtonElement>(root, '[data-plans-batch-run]');
+    const batchBar = element<HTMLElement>(root, '[data-plans-batch-bar]');
+    const batchFill = element<HTMLElement>(root, '[data-plans-batch-fill]');
+    const batchNote = element<HTMLElement>(root, '[data-plans-batch-note]');
+
+    /**
+     * «どの条件で出した値か» の署名。
+     *
+     * 理論値を数字だけ覚えると、ボスの登録 (防御力・コア) や戦闘時間を変えたあとに
+     * **古い値を今の値と見比べてしまう**。登録と一緒に持たせて、画面で見分ける。
+     */
+    const condSignature = (boss: UnionBoss, battle: BattleSettings) => [
+      boss.name,
+      boss.enemyDef ?? battle.enemyDef,
+      boss.coreEnabled ? `core${boss.corePx ?? 0}` : 'core-',
+      boss.hasParts ? 'parts' : 'parts-',
+      `${battle.duration}s`,
+    ].join('/');
+
+    const sayBatch = (message: string, ok = false) => {
+      batchNote.textContent = message;
+      batchNote.hidden = !message;
+      batchNote.classList.toggle('is-ok', ok);
+    };
+    const showBar = (done: number, total: number) => {
+      batchBar.hidden = total === 0;
+      const share = total > 0 ? Math.round((done / total) * 100) : 0;
+      batchFill.style.width = `${share}%`;
+      batchBar.setAttribute('aria-valuenow', String(share));
+    };
+    batchBar.setAttribute('role', 'progressbar');
+    batchBar.setAttribute('aria-valuemin', '0');
+    batchBar.setAttribute('aria-valuemax', '100');
+    batchBar.setAttribute('aria-label', '計算の進み具合');
+
+    const runBatch = async () => {
+      if (comparing) { sayBatch('別の計算が走っています。終わるまで待ってください。'); return; }
+      const base = readBattle();
+      // 何を回すか。候補は «その属性のボス» にだけ当てる (有利属性でしか凸らないため)
+      const jobs: Array<{ key: string; request: SimulationRequest; problems: string[] }> = [];
+      const owner = new Map<string, { code: PlanElement; id: string; cond: string }>();
+      for (const code of PLAN_ELEMENTS) {
+        const boss = bossForElement(code, bosses);
+        if (!boss) continue;
+        const battle = boardBattle(base, boss);
+        const cond = condSignature(boss, battle);
+        for (const plan of plansOf(plans, code)) {
+          const deck: DeckState = {
+            id: 1,
+            squad: [...plan.squad],
+            characters: charactersWith(plan.squad, plan.characters),
+          };
+          const request = requestForDeck(deck, battle);
+          const key = cacheKey(request, version);
+          if (!owner.has(key)) {
+            owner.set(key, { code, id: plan.id, cond });
+            jobs.push({
+              key,
+              request,
+              problems: [...validateRequest(request), ...validateCharacterValues(deck)],
+            });
+          }
+        }
+      }
+      if (jobs.length === 0) {
+        sayBatch('計算する候補がありません。下の属性ごとに「今の編成を保存」で候補を貯めてください。');
+        return;
+      }
+      comparing = true;
+      batchRun.disabled = true;
+      const label = batchRun.textContent;
+      showBar(0, jobs.length);
+      sayBatch(`${jobs.length}件を計算します… 0/${jobs.length}`);
+      try {
+        await prepared;
+        const run = await runScores(jobs, {
+          simulate: (request) => client.simulate(request),
+          cache: { get: (key) => cache.get(key), set: (key, result) => { cache.set(key, result); } },
+          lanes: parallelOn ? parallelCount : 1,
+          onProgress: (done, total) => {
+            showBar(done, total);
+            batchRun.textContent = `計算中 ${done}/${total}`;
+            sayBatch(`${total}件を計算しています… ${done}/${total}`);
+          },
+        });
+        // 出た値は候補に**登録する**。ここが «編成とダメージを登録» の実体で、
+        // 開き直しても残る (計算結果のキャッシュは30件しか持てず、50候補では溢れる)。
+        const at = new Date().toISOString();
+        for (const [key, damage] of run.scores) {
+          const who = owner.get(key);
+          if (!who) continue;
+          plans = registerScore(plans, who.code, who.id, {
+            damage, duration: base.duration, at, cond: who.cond,
+          });
+        }
+        const persisted = savePlans(resolveStorage(), plans);
+        renderPlans();
+        renderBoard();
+        showBar(jobs.length, jobs.length);
+        const failed = run.failures.size;
+        const done = run.scores.size;
+        const parts = [`${jobs.length}件中 ${done}件を計算しました。`];
+        if (failed > 0) parts.push(`${failed}件は計算できませんでした (${[...run.failures.values()][0]})。`);
+        if (!persisted) parts.push('ブラウザに保存できなかったので、開き直すと消えます。');
+        else parts.push('3凸ボードの「全ボスから自動で探す」がこの値を使います。');
+        sayBatch(parts.join(' '), failed === 0 && persisted);
+      } catch (error) {
+        sayBatch(`計算に失敗しました — ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        comparing = false;
+        batchRun.disabled = false;
+        batchRun.textContent = label;
+      }
+    };
+    batchRun.addEventListener('click', () => { void runBatch(); });
 
     const sayBoss = (message: string, ok = false) => {
       bossNote.textContent = message;
