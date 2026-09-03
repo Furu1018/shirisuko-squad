@@ -528,8 +528,9 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <details class="board-move" data-board-move>
             <summary><b>別の端末へ移す</b><span>スマホでも同じ育成で見る</span></summary>
             <p class="board-move-lede">育成データは<b>この端末のこのブラウザにだけ</b>あります。
-              下の文字列をメモ等でスマホに送り、スマホの<b>この欄</b>に貼ると同じ状態になります。
-              スマホは F12 が使えずコンソールを開けないので、<b>取り込みは PC で一度だけ</b>で済みます。</p>
+              下の文字列をメモ等でスマホに送り、スマホでは上の<b>「自分のブラウザで取り込む」の貼り付け欄</b>
+              (スニペットの結果を貼るのと同じ欄) に貼ってください。スマホ側は F12 もコンソールも要りません —
+              <b>コンソールを使う取り込みは PC で一度だけ</b>で済みます。</p>
             <div class="board-move-row">
               <button type="button" class="roster-import" data-board-move-make>この端末のデータを書き出す</button>
               <span class="board-move-status" data-board-move-status></span>
@@ -4392,6 +4393,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           grid.append(wrap);
         }
         if (hits.length === 0) grid.append(createText('p', '一致するニケがいません。', 'board-picker-none'));
+        // 60件で切っていることを黙っていると、上の «残り 200名から組めます» と数が合わない
+        else if (hits.length > 60) {
+          grid.append(createText('p',
+            `${hits.length}名のうち 60名を出しています。名前で検索するか、上の絞り込みで狭めてください。`,
+            'board-picker-none'));
+        }
       };
       draw();
       search.addEventListener('input', () => { pickerQuery = search.value; draw(); });
@@ -4442,7 +4449,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const notes: string[] = [];
       if (set < BOARD_SLOTS) notes.push(`${BOARD_SLOTS - set}枠が未設定です`);
       if (slotScores.some((score, index) => score === null && board.slots[index]!.boss
-        && !isEmptySquad(board.slots[index]!.squad))) notes.push('未計算の枠があります');
+        && !isEmptySquad(board.slots[index]!.squad))) {
+        // «未計算» と言うだけでは、どこを押せば計算されるのかが分からない (Fable の指摘)。
+        // 枠の中に計算ボタンは無く、押す先はこの合計欄の「この3凸で計算する」。
+        notes.push('未計算の枠があります — 下の「この3凸で計算する」で出ます');
+      }
       if (clashes.length > 0) notes.push('被りがあるとこの合計は出せません');
       for (const note of notes) used.append(el('br'), document.createTextNode(note));
       const actions = el('div', 'board-total-actions');
@@ -4750,7 +4761,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         boardMain.hidden = !boardStart.hidden;
         // STEP 1 が出ている間は帯を出さない — 同じことを二度言うと «次に何をするか» がぼやける
         boardSync.hidden = !boardStart.hidden;
-        boardReimport.hidden = !imported;
+        // 取り込む前でも押せるようにする。«取り込むと自分の育成で見込みが出ます» と
+        // 勧めておきながら、置いてあるのが «育成状況を見る» だけだった (Fable の指摘)。
+        boardReimport.hidden = false;
+        boardReimport.textContent = imported ? '取り込み直す' : '取り込む';
         if (syncMeta) {
           syncDot.classList.add('is-on');
           syncMain.textContent = `${SOURCE_LABELS[syncMeta.source]} から取込済み · ${syncMeta.matched}名`;

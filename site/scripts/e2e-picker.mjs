@@ -54,7 +54,14 @@ try {
   // B3 で絞る
   await page.locator('[data-board-picker-burst-filter="3"]').click();
   await page.waitForTimeout(300);
-  console.log('B3 だけ:', await page.locator('[data-board-pick]').count(), '名');
+  const b3 = await page.locator('[data-board-pick]').count();
+  console.log('B3 だけ:', b3, '名');
+  // 一覧は60件で切っている。黙って切ると、枠の «残り 200名から組めます» と数が合わない
+  const capNote = await page.locator('.board-picker-none').first().textContent().catch(() => null);
+  console.log('  60件の案内:', capNote ?? '(無し)');
+  if (b3 >= 60 && !(capNote ?? '').includes('60名を出しています')) {
+    errors.push('60件で切っているのに、その案内が出ていない');
+  }
   await page.locator('[data-board-picker-burst-filter="3"]').click();
   await page.waitForTimeout(200);
 

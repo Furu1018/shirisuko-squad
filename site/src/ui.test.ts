@@ -1371,6 +1371,24 @@ describe('calculator UI', () => {
     expect(root.querySelector('[data-board-clash]')).toBeNull();
   });
 
+  it('「取り込まずに試す」の後も、帯から取り込みに戻れる', () => {
+    // 帯は «取り込むと自分の育成で見込みが出ます» と勧めるのに、置いてあるボタンが
+    // «育成状況を見る» だけで、取り込みたくなったら2ホップ必要だった。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    root.querySelector<HTMLButtonElement>('[data-board-skip]')!.click();
+    const importButton = root.querySelector<HTMLButtonElement>('[data-board-sync-import]')!;
+    expect(importButton.hidden).toBe(false);
+    expect(importButton.textContent).toBe('取り込む');   // まだ取り込んでいないので «直す» ではない
+
+    importButton.click();
+    // STEP 1 が開き、帯は引っ込む (同じことを二度言わない)
+    expect(root.querySelector<HTMLElement>('[data-board-start]')!.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>('[data-board-sync]')!.hidden).toBe(true);
+  });
+
   it('結果の一言は、押したボタンの隣にも出る (狭い画面で上の1行は見えない)', async () => {
     // 盤面の状態表示は画面のいちばん上に1つだけ。幅390pxでは押した場所から594px 上にいて
     // 見えず、«押しても何も起きない» ように見えていた (実測)。
