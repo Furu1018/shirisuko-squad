@@ -78,7 +78,9 @@ describe('属性別編成の保存', () => {
   });
 
   it('上限を超えて保存されていても読み込みで切る', () => {
-    const many = Array.from({ length: 5 }, (_, i) => ({
+    // 上限より «多く» 入っている保存を作る。上限そのものを直に書かない —
+    // 数を変えたときにテストが黙って意味を失う
+    const many = Array.from({ length: MAX_PLANS_PER_ELEMENT + 2 }, (_, i) => ({
       id: `p${i}`, squad: squad(`니케${i}`), savedAt: '2026-09-01T00:00:00.000Z',
     }));
     const stored = JSON.stringify({ schemaVersion: 1, byElement: { 작열: many } });
@@ -222,18 +224,23 @@ describe('案の追加', () => {
     expect(result.reason).toBe('duplicate');
   });
 
-  it('3案を超えて足さない', () => {
+  it('上限を超えて足さない', () => {
     let plans: ElementPlans = emptyPlans();
-    for (const name of ['A', 'B', 'C']) plans = addPlan(plans, '전격', squad(name)).plans;
-    const result = addPlan(plans, '전격', squad('D'));
+    for (let i = 0; i < MAX_PLANS_PER_ELEMENT; i += 1) {
+      plans = addPlan(plans, '전격', squad(`니케${i}`)).plans;
+    }
+    expect(plansOf(plans, '전격')).toHaveLength(MAX_PLANS_PER_ELEMENT);
+    const result = addPlan(plans, '전격', squad('あふれる'));
     expect(result.added).toBe(false);
     expect(result.reason).toBe('full');
-    expect(plansOf(result.plans, '전격')).toHaveLength(3);
+    expect(plansOf(result.plans, '전격')).toHaveLength(MAX_PLANS_PER_ELEMENT);
   });
 
   it('属性ごとに独立して数える', () => {
     let plans: ElementPlans = emptyPlans();
-    for (const name of ['A', 'B', 'C']) plans = addPlan(plans, '전격', squad(name)).plans;
+    for (let i = 0; i < MAX_PLANS_PER_ELEMENT; i += 1) {
+      plans = addPlan(plans, '전격', squad(`니케${i}`)).plans;
+    }
     expect(addPlan(plans, '철갑', squad('D')).added).toBe(true);
   });
 

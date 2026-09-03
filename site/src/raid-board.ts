@@ -254,7 +254,11 @@ export function openSlotCandidates(
  * 制約は**同じニケを2度使わない**ことだけ。返す並びは点数の高い順。候補が無ければ空。
  */
 export function bestTriple(candidates: readonly Candidate[], slots = BOARD_SLOTS): Candidate[] {
-  const LIMIT = 40;
+  // 候補プールの上限。5属性 × MAX_PLANS_PER_ELEMENT (10) = 50 を丸ごと入れられる大きさにする。
+  // 40 のままだと点数の低い10件が落ちるが、3凸は «同じニケを使わない» 制約があるので、
+  // **点数は低いが誰とも被らないから選ばれるはずの候補**が消えることがある。
+  // 総当たりは C(60,3) = 34,220 通りで、被りの枝刈りも効くので速さは問題にならない。
+  const LIMIT = 60;
   const pool = candidates
     .filter((candidate) => !isEmptySquad(candidate.squad))
     .slice()

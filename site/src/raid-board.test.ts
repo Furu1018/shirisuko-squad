@@ -188,6 +188,27 @@ describe('被りなしで最大の3凸', () => {
     expect(picked.map((p) => p.score)).toEqual([4.0, 3.0, 2.0]);
   });
 
+  it('50候補でも、点数は低いが誰とも被らない組み合わせを見つける', () => {
+    // 1属性10候補 × 5属性 = 最大50。候補プールの上限が 40 だったころは、
+    // «点数は低いが誰とも被らないから選ばれるはずの候補» が黙って落ちていた。
+    const many: Candidate[] = [];
+    // 点数の高い45件は全員 «리타» を抱えていて、2つ以上は同時に選べない
+    for (let i = 0; i < 45; i += 1) many.push(c('レイタンス', 1000 - i, '리타', `니케${i}`));
+    // 点数は低いが、互いにも上とも被らない3件 (順位でいうと 46〜48番目)
+    many.push(c('モダニア', 100, '크라운'));
+    many.push(c('アニヒリオ', 99, '앨리스'));
+    many.push(c('トゥームストーン', 98, '나가'));
+
+    // 最良は «高得点1件 + 低得点2件» = 1199。低得点の2件は上限40では見えない位置にいる
+    // (上限40のままだと、被らない相手が1つも見つからず 1件しか返らない)。
+    const picked = bestTriple(many);
+    expect(picked).toHaveLength(3);
+    expect(picked.map((p) => p.score)).toEqual([1000, 100, 99]);
+    // 念のため: 本当に誰とも被っていない
+    const all = picked.flatMap((p) => p.squad.filter(Boolean));
+    expect(new Set(all).size).toBe(all.length);
+  });
+
   it('空の編成と候補なしは扱わない', () => {
     expect(bestTriple([])).toEqual([]);
     expect(bestTriple([c('レイタンス', 9)])).toEqual([]);

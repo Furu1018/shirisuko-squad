@@ -14,8 +14,16 @@ export const ELEMENT_PLANS_KEY = 'nikke-plans-v1';
 export const PLAN_ELEMENTS = ['작열', '수냉', '풍압', '전격', '철갑'] as const;
 export type PlanElement = (typeof PLAN_ELEMENTS)[number];
 
-/** 1属性あたりの上限。3凸ぶん = 3案。 */
-export const MAX_PLANS_PER_ELEMENT = 3;
+/**
+ * 1属性あたりの上限。
+ *
+ * 以前は 3 だった (「3凸ぶん = 3案」) が、**それは凸の数であって候補の数ではない**。
+ * 使い方は «属性ごとに編成をいくつも貯めて、その中から最良の3凸を機械に探させる» なので、
+ * 貯める側を絞ると «可能性を広く見る» ことができない。
+ *
+ * 5属性 × 10 = 最大50候補。`bestTriple` の候補プール上限もこれに合わせてある。
+ */
+export const MAX_PLANS_PER_ELEMENT = 10;
 
 /**
  * 「このコードのニケは、どのコードの敵に有利するか」。

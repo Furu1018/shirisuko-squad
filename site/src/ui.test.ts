@@ -706,7 +706,9 @@ describe('calculator UI', () => {
     expect(denki.querySelector('.plans-empty')).not.toBeNull();
   });
 
-  it('今の編成を保存し、3案までで打ち止め、消せる', () => {
+  it('今の編成を保存し、空と重複は弾き、消せる', () => {
+    // 上限そのものは element-plans.test.ts で見る (純粋関数なので候補を何件でも作れる。
+    // 画面側はデッキが5枠しかなく、別々の顔ぶれを10通り作れない)。
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     } as Parameters<typeof mountCalculator>[1]);
@@ -730,15 +732,11 @@ describe('calculator UI', () => {
     expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('同じ顔ぶれ');
     expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(1);
 
-    // 3案で打ち止め
+    // 顔ぶれが違えば別の候補として貯まる
     chooseCharacter(root, 1, '크라운');
     saveIn('전격');
     chooseCharacter(root, 2, '앨리스');
     saveIn('전격');
-    expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(3);
-    chooseCharacter(root, 3, '나가');
-    saveIn('전격');
-    expect(groupOf('전격').querySelector('[data-plans-note]')!.textContent).toContain('3 候補あります');
     expect(groupOf('전격').querySelectorAll('[data-plans-row]')).toHaveLength(3);
 
     // 保存はこのブラウザに残る
