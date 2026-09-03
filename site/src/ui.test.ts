@@ -725,6 +725,69 @@ describe('calculator UI', () => {
     expect(water.querySelector('[data-prep-state]')!.textContent).toBe('候補なし');
   });
 
+  it('「編成を組む」でモーダルが開き、選んで保存すると候補に入る', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+    expect(modal.hidden).toBe(true);
+
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    expect(modal.hidden).toBe(false);
+    expect(root.querySelector('[data-squad-modal-desc]')!.textContent).toContain('鉄甲編成');
+    expect(root.querySelector('[data-squad-modal-desc]')!.textContent).toContain('レイタンス');
+    // 誰も選んでいないうちは保存できない
+    const save = root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!;
+    expect(save.disabled).toBe(true);
+
+    // ニケを2人選ぶ → 育成・キューブの切り替えタブが出る。
+    // 選ぶたびにピッカーは描き直されるので、タイルは**押す直前に取り直す**
+    const tile = (at: number) =>
+      [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')][at]!;
+    tile(0).click();
+    tile(1).click();
+    expect(modal.querySelectorAll('[data-squad-tune]')).toHaveLength(2);
+    expect(save.disabled).toBe(false);
+
+    save.click();
+    expect(modal.hidden).toBe(true);
+    // 候補として貯まっている
+    const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as
+      { byElement: Record<string, Array<{ squad: string[] }>> };
+    expect(stored.byElement['철갑']).toHaveLength(1);
+    expect(stored.byElement['철갑']![0]!.squad.filter(Boolean)).toHaveLength(2);
+  });
+
+  it('候補の「直す」もモーダルで、保存すると前の理論値を捨てる', async () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    chooseCharacter(root, 0, '리타');
+    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-plans-batch-run]')!.click();
+    await settle();
+    await settle();
+    expect(root.querySelector('[data-plans-group="철갑"] .plans-score-state')!.textContent)
+      .toContain('今回のボス条件');
+
+    root.querySelector<HTMLButtonElement>('[data-plans-edit]')!.click();
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+    expect(modal.hidden).toBe(false);
+    expect(root.querySelector('[data-squad-modal-title]')!.textContent).toBe('編成を直す');
+
+    // 1人足して保存 → **顔ぶれが変わったので前の数字は消える**
+    const tile = [...modal.querySelectorAll<HTMLButtonElement>('[data-board-pick]')]
+      .find((cell) => !cell.classList.contains('is-on'))!;
+    tile.click();
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+    expect(modal.hidden).toBe(true);
+    expect(root.querySelector('[data-plans-group="철갑"] .plans-score-state')!.textContent)
+      .toContain('理論値まだ');
+  });
+
   it('候補の顔ぶれは立ち絵で並ぶ (名前も残す)', () => {
     // 文字だけだと5人の編成が «ぱっと見» で読めない。立ち絵だけだと似た絵のニケや
     // 持っていないニケを見分けられないので、名前も下に残す。
@@ -775,7 +838,7 @@ describe('calculator UI', () => {
     expect(bar.hidden).toBe(false);
     expect(root.querySelector<HTMLElement>('[data-plans-batch-fill]')!.style.width).toBe('100%');
     expect(root.querySelector('[data-plans-batch-note]')!.textContent)
-      .toContain('2件中 2件を計算しました');
+      .toContain('2件中 2件の理論値を出しました');
 
     // 候補に登録され、開き直しても残る形になっている
     const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as {
@@ -1699,7 +1762,7 @@ describe('calculator UI', () => {
     } as Parameters<typeof mountCalculator>[1]);
     const cell = root.querySelector<HTMLElement>('[data-plans-score]')!;
     expect(cell.textContent).toContain('123,456');
-    expect(cell.textContent).toContain('登録');
+    expect(cell.textContent).toContain('前に出した値');
     // 盤面の在庫にも出るが、今の条件の値ではないので「登録値」の印つき
     const stock = root.querySelector<HTMLElement>('[data-board-stock="철갑"]')!;
     expect(stock.textContent).toContain('123,456');

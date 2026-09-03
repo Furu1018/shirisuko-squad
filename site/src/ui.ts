@@ -26,7 +26,7 @@ import { applyImportedRoster, mergeImportedRoster } from './roster-merge';
 import { readRoster, sortEntries, summarize, type SortKey as RosterSortKey } from './my-roster';
 import {
   BEATS, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, baselineBattle, registerScore,
-  bossConditionBattle, counterOf, loadPlans, plansOf, removePlan, sameSquad, savePlans,
+  bossConditionBattle, counterOf, loadPlans, plansOf, removePlan, sameSquad, savePlans, updatePlan,
   type ElementPlan, type ElementPlans, type PlanElement,
 } from './element-plans';
 import {
@@ -596,10 +596,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
         <div class="plans-batch" data-plans-batch>
           <div class="prep-head">
-            <div><h3>ぜんぶ計算する</h3></div>
-            <button type="button" class="roster-import lead" data-plans-batch-run>ぜんぶ計算</button>
+            <div><h3>理論値をぜんぶ出す</h3></div>
+            <button type="button" class="roster-import lead" data-plans-batch-run>ぜんぶ出す</button>
           </div>
-          <p class="plans-boss-lede">貯めた候補を<b>今回のボス条件で全部</b>計算します。ここまで済ませておくと、下の<b>「最適3凸を探す」</b>は計算済みの値を使うので<b>すぐ答えが出ます</b>。<b>1件あたり7秒ほど</b>かかります。</p>
+          <p class="plans-boss-lede">貯めた編成の<b>理論ダメージ</b>を、今回のボス条件でまとめて出します。ここまで済ませておくと、下の<b>「最適3凸を探す」</b>はその値を使うので<b>すぐ答えが出ます</b>。<b>1件あたり7秒ほど</b>かかります。</p>
           <div class="prep-tally" data-prep-tally></div>
           <div class="plans-batch-bar" data-plans-batch-bar hidden>
             <div class="plans-batch-fill" data-plans-batch-fill></div>
@@ -632,7 +632,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           <summary><b>詳しく確かめる</b><span>順位が入れ替わる理由を調べたいときだけ</span></summary>
           <div class="plans-boss" data-plans-boss>
             <h3>ボス条件で確かめる</h3>
-            <p class="plans-boss-lede"><b>ボスの癖なし</b>の値と<b>登録したボス条件</b>の値を並べ、コアやパーツで順位が入れ替わるかを見ます。通常は上の「ぜんぶ計算」だけで足ります。</p>
+            <p class="plans-boss-lede"><b>ボスの癖なし</b>の値と<b>登録したボス条件</b>の値を並べ、コアやパーツで順位が入れ替わるかを見ます。通常は上の「理論値をぜんぶ出す」だけで足ります。</p>
             <div class="plans-boss-row">
               <select data-plans-boss-pick aria-label="ボス"></select>
               <span class="plans-boss-cond" data-plans-boss-cond></span>
@@ -884,6 +884,25 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <div class="custom-card char-panel-card" role="dialog" aria-label="キャラクター設定">
           <div class="custom-head"><h2 data-char-panel-title>キャラクター設定</h2><button type="button" class="custom-close" data-char-panel-close aria-label="閉じる">✕</button></div>
           <div class="char-panel-body" data-char-panel-body></div>
+        </div>
+      </div>
+
+      <div class="custom-modal" data-squad-modal hidden>
+        <div class="custom-card squad-card" role="dialog" aria-modal="true" aria-labelledby="squad-modal-title">
+          <div class="custom-head">
+            <h2 id="squad-modal-title" data-squad-modal-title>編成を組む</h2>
+            <button type="button" class="custom-close" data-squad-modal-close aria-label="閉じる">✕</button>
+          </div>
+          <p class="custom-desc" data-squad-modal-desc></p>
+          <div class="squad-body">
+            <div class="squad-pick" data-squad-modal-pick></div>
+            <div class="squad-tune" data-squad-modal-tune></div>
+          </div>
+          <p class="plans-note" data-squad-modal-note hidden></p>
+          <div class="squad-foot">
+            <button type="button" class="roster-import" data-squad-modal-cancel>やめる</button>
+            <button type="button" class="roster-import lead" data-squad-modal-save>この編成を保存</button>
+          </div>
         </div>
       </div>
 
@@ -3022,6 +3041,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // 名前を変えたら両方を描き直す。
   let renderBossPresets: () => void = () => undefined;
   let renderPrepSync: () => void = () => undefined;
+  /**
+   * ニケを選ぶ盤。盤面ブロックが中身を入れる。
+   * レイド準備の編成モーダルも**同じものを使う** — 選び方が2つあると、
+   * «使用中» の出方や並び順が画面ごとに違うことになる。
+   */
+  let renderPicker: (opts: {
+    squad: readonly string[];
+    onChange: (squad: string[]) => void;
+    blocked?: (name: string) => string | null;
+    wanted: string | null;
+    redraw: () => void;
+    mark: string;
+  }) => HTMLElement = () => document.createElement('div');
   // 盤面はボードのブロックの中で持っている。端末間の持ち運びで読み書きするための窓口。
   let readBoard: () => unknown = () => null;
   let writeBoardFrom: (raw: unknown) => void = () => undefined;
@@ -3533,7 +3565,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const noneHere = saved.some((plan) => !plan.registered);
         const [stateText, stateKind] = saved.length === 0 ? ['候補なし', 'todo']
           : staleHere ? ['条件が変わりました', 'warn']
-            : noneHere ? ['未計算', 'todo'] : ['最新', 'ok'];
+            : noneHere ? ['理論値まだ', 'todo'] : ['最新', 'ok'];
         const state = createText('span', stateText, `prep-state is-${stateKind}`);
         state.dataset.prepState = boss.elementCode;
         top.append(state);
@@ -3595,23 +3627,30 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             const how = freshness(plan);
             score.append(createText('small',
               how === 'fresh' ? `今回のボス条件 · ${plan.registered.duration}秒`
-                : how === 'stale' ? '条件が変わりました' : `登録値 · ${plan.registered.duration}秒`,
+                : how === 'stale' ? '条件が変わりました' : `前に出した値 · ${plan.registered.duration}秒`,
               `plans-score-state${how === 'stale' ? ' is-stale' : ''}`));
             score.title = how === 'stale'
-              ? `${plan.registered.cond} で出した値です。今は ${nowCond} — 「ぜんぶ計算」で出し直してください`
-              : `計算して登録した理論値です (${new Date(plan.registered.at).toLocaleString('ja-JP')})`;
+              ? `${plan.registered.cond} で出した値です。今は ${nowCond} — 「理論値をぜんぶ出す」で出し直してください`
+              : `出して覚えた理論値です (${new Date(plan.registered.at).toLocaleString('ja-JP')})`;
           } else {
-            score.append(createText('small', '未計算', 'plans-score-state is-none'));
-            score.title = '「ぜんぶ計算」を押すと、今回のボス条件で計算して登録します';
+            score.append(createText('small', '理論値まだ', 'plans-score-state is-none'));
+            score.title = '「理論値をぜんぶ出す」を押すと、今回のボス条件で出して覚えます';
           }
           planRow.append(score);
 
-          const apply = el('button', 'roster-import', '計算機に入れる');
+          const edit = el('button', 'roster-import', '直す');
+          (edit as HTMLButtonElement).type = 'button';
+          edit.dataset.plansEdit = plan.id;
+          edit.title = '顔ぶれ・育成・ハーモニーキューブを直します';
+          edit.addEventListener('click', () => { if (code) openSquadModal(code, boss, plan); });
+
+          const apply = el('button', 'roster-import', '詳細計算で開く');
           (apply as HTMLButtonElement).type = 'button';
           apply.dataset.plansApply = plan.id;
+          apply.title = 'バースト順やタイムラインまで詰めたいときに使います';
           apply.addEventListener('click', () => {
             applySquadToDeck(plan.squad, plan.characters);
-            if (code) say(code, `候補 ${planIndex + 1} を計算機のデッキ ${activeDeckId} に入れました。`, true);
+            if (code) say(code, `候補 ${planIndex + 1} を詳細計算のデッキ ${activeDeckId} に入れました。`, true);
           });
           const drop = el('button', 'roster-import danger', '削除');
           (drop as HTMLButtonElement).type = 'button';
@@ -3621,17 +3660,25 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             const kept = commit(removePlan(plans, code, plan.id));
             if (!kept) say(code, 'この画面では消えましたが、ブラウザに保存できませんでした (次に開くと戻ります)。');
           });
-          planRow.append(apply, drop);
+          planRow.append(edit, apply, drop);
           list.append(planRow);
         });
         main.append(list);
 
         const add = el('div', 'prep-add');
         if (code) {
-          const save = el('button', 'roster-import', '計算機の編成をここに足す');
+          // **その場で組む**。以前は «詳細計算タブで組む → ここへ戻る → 足す» で、
+          // どこで編成を作るのかが画面から読めなかった
+          const make = el('button', 'roster-import lead', '編成を組む');
+          (make as HTMLButtonElement).type = 'button';
+          make.dataset.prepMake = code;
+          make.addEventListener('click', () => openSquadModal(code, boss));
+          add.append(make);
+
+          const save = el('button', 'roster-import', '詳細計算の編成を足す');
           (save as HTMLButtonElement).type = 'button';
           save.dataset.plansSave = code;
-          save.title = '計算機で今開いているデッキを、キューブなどの個別設定ごとこの行の候補として足します';
+          save.title = '「編成を作る・詳細計算」タブで今開いているデッキを、そのままこの行の候補として足します';
           save.addEventListener('click', () => {
             const result = addPlan(plans, code, activeDeck().squad, { characters: snapshotOf(activeDeck()) });
             if (result.added) {
@@ -3643,12 +3690,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             say(code, result.reason === 'full'
               ? `この行は既に ${MAX_PLANS_PER_ELEMENT} 候補あります。どれかを消してから足してください。`
               : result.reason === 'duplicate' ? '同じ顔ぶれ・同じ個別設定の候補が既にあります。'
-                : '計算機の編成が空です。先にニケを入れてください。');
+                : '詳細計算タブの編成が空です。先にニケを入れてください。');
           });
           add.append(save);
 
           // 1行足しただけで全部を回し直すのは無駄。この行だけ回せるようにする
-          const runRow = el('button', 'roster-import', 'この行だけ計算');
+          const runRow = el('button', 'roster-import', 'この行の理論値を出す');
           (runRow as HTMLButtonElement).type = 'button';
           runRow.dataset.prepRowRun = boss.elementCode;
           runRow.disabled = saved.length === 0;
@@ -3672,16 +3719,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         box.append(createText('b', String(value)), createText('span', label));
         tallyBox.append(box);
       };
-      cell(total, '候補');
-      cell(fresh, '計算済み');
+      cell(total, '編成');
+      cell(fresh, '理論値あり');
       cell(stale, '条件が変わった', true);
-      cell(left, '未計算');
+      cell(left, 'まだ出していない');
       nextNote.textContent = total === 0
-        ? '候補がまだありません。上の行に編成を足してください。'
+        ? '編成がまだありません。上の行の「編成を組む」から作ってください。'
         : fresh === 0
-          ? `${total}件の候補はまだ計算していません。先に「ぜんぶ計算」を押してください。`
+          ? `${total}件の編成はまだ理論値を出していません。先に「理論値をぜんぶ出す」を押してください。`
           : `計算済みの${fresh}件から、同じニケを二度使わない合計最大の3つ組を選びます。`
-            + (total - fresh > 0 ? ` 残り${total - fresh}件は未計算のままです。` : '');
+            + (total - fresh > 0 ? ` 残り${total - fresh}件は理論値が出ていません。` : '');
       prepGo.disabled = fresh === 0;
     };
 
@@ -3728,6 +3775,205 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const tallyBox = element<HTMLElement>(root, '[data-prep-tally]');
     const nextNote = element<HTMLElement>(root, '[data-prep-next-note]');
     const prepGo = element<HTMLButtonElement>(root, '[data-prep-go]');
+
+    // ── 編成モーダル ──────────────────────────────────────────────────────
+    // 行の «編成を組む» / 候補の «編集» から開く。ニケ選び・育成とキューブの設定・
+    // 保存までをここで終える。
+    //
+    // これが無かったころは «詳細計算タブで組む → レイド準備に戻る → «詳細計算の編成を
+    // ここに足す»» という順で、**どこで編成を作るのかが画面から読めなかった**。
+    const squadModal = element<HTMLElement>(root, '[data-squad-modal]');
+    const squadModalTitle = element<HTMLElement>(root, '[data-squad-modal-title]');
+    const squadModalDesc = element<HTMLElement>(root, '[data-squad-modal-desc]');
+    const squadModalPick = element<HTMLElement>(root, '[data-squad-modal-pick]');
+    const squadModalTune = element<HTMLElement>(root, '[data-squad-modal-tune]');
+    const squadModalNote = element<HTMLElement>(root, '[data-squad-modal-note]');
+    const squadModalSave = element<HTMLButtonElement>(root, '[data-squad-modal-save]');
+
+    /**
+     * 開いている間の作業用の写し。**保存を押すまで候補には入らない**。
+     * `id` があれば差し替え、無ければ新規。
+     */
+    let draft: {
+      code: PlanElement;
+      boss: UnionBoss;
+      id: string | null;
+      squad: string[];
+      characters: Record<string, CharacterOverrides>;
+      tuning: string | null;   // いま育成・キューブを見ているニケ
+    } | null = null;
+
+    /** 押せるだけの小さなボタン。盤面の `button` は «計算中は押せない» を持つので借りない。 */
+    const button = (label: string, className: string, onClick: () => void): HTMLButtonElement => {
+      const node = el('button', className, label);
+      node.type = 'button';
+      node.addEventListener('click', onClick);
+      return node;
+    };
+
+    /**
+     * 選んだニケに**取り込んだ育成値を敷く**。
+     *
+     * 敷かないと、モーダルで «個別設定» を入れた瞬間にカタログの既定値 (最大) から
+     * 始まってしまい、取り込んだスキルレベルや突破が消える。計算機で枠に入れたときと
+     * 同じ扱いにする (pickCharacter と同じ考え方)。
+     */
+    const seedFromRoster = (squad: readonly string[], into: Record<string, CharacterOverrides>) => {
+      for (const name of squad) {
+        if (!name || into[name]) continue;
+        if (roster[name]) into[name] = cloneOverride(roster[name]!);
+      }
+      return into;
+    };
+
+    const sayModal = (message: string, ok = false) => {
+      squadModalNote.textContent = message;
+      squadModalNote.hidden = !message;
+      squadModalNote.classList.toggle('is-ok', ok);
+    };
+
+    const closeSquadModal = () => {
+      draft = null;
+      squadModal.hidden = true;
+      squadModalPick.replaceChildren();
+      squadModalTune.replaceChildren();
+      sayModal('');
+    };
+
+    /** 育成とキューブ。**取り込んだ値を土台にする** — 何も入れずに保存すると既定値で計算される。 */
+    const renderTune = () => {
+      squadModalTune.replaceChildren();
+      if (!draft) return;
+      const members = draft.squad.filter(Boolean);
+      if (members.length === 0) {
+        squadModalTune.append(createText('p',
+          'ニケを選ぶと、ここで育成とハーモニーキューブを決められます。',
+          'squad-tune-empty'));
+        return;
+      }
+      // どのニケの設定を見ているか。選んでいなければ先頭
+      if (!draft.tuning || !members.includes(draft.tuning)) draft.tuning = members[0]!;
+
+      const imported = Object.keys(roster).length > 0;
+      squadModalTune.append(createText('p',
+        imported
+          ? '取り込んだ育成の値が入っています。この編成だけ変えたいときは「個別設定」を入れて直してください。'
+          : 'まだ育成を取り込んでいないので、既定の育成 (最大) で計算します。「個別設定」を入れると手で決められます。',
+        'squad-tune-lede'));
+
+      const tabs = el('div', 'squad-tune-tabs');
+      for (const name of members) {
+        const on = name === draft.tuning;
+        const tab = button('', `squad-tune-tab${on ? ' is-on' : ''}`, () => {
+          if (!draft) return;
+          draft.tuning = name;
+          renderTune();
+        });
+        tab.dataset.squadTune = name;
+        tab.setAttribute('aria-pressed', String(on));
+        const meta = catalogByName.get(name);
+        if (meta?.image) {
+          const img = document.createElement('img');
+          img.src = `${import.meta.env.BASE_URL}${meta.image}`;
+          img.alt = '';
+          img.loading = 'lazy';
+          tab.append(img);
+        }
+        tab.append(createText('span', labelFor(name), 'squad-tune-name'));
+        // 個別に触ってあるニケには印を付ける — どこを直したか分からなくなる
+        if (draft.characters[name]) tab.append(createText('b', '設定あり', 'squad-tune-mark'));
+        tabs.append(tab);
+      }
+      squadModalTune.append(tabs);
+
+      const panel = el('div', 'squad-tune-panel');
+      panel.dataset.squadTunePanel = draft.tuning;
+      squadModalTune.append(panel);
+      renderCharacterSettings(
+        panel,
+        draft.tuning,
+        settings,
+        draft.characters[draft.tuning],
+        (next) => {
+          if (!draft) return;
+          if (next) draft.characters[draft.tuning!] = next;
+          else delete draft.characters[draft.tuning!];
+          renderTune();
+        },
+        undefined,
+        undefined,
+        undefined,
+        draft.squad.filter(Boolean),
+      );
+    };
+
+    const renderSquadModal = () => {
+      if (!draft) return;
+      squadModalTitle.textContent = draft.id ? '編成を直す' : '編成を組む';
+      squadModalDesc.textContent = `${elementLabel(draft.code)}編成 — ${draft.boss.name} (${elementLabel(draft.boss.elementCode)}ボス) に当てます。`;
+      squadModalPick.replaceChildren(renderPicker({
+        squad: draft.squad,
+        wanted: draft.code,
+        mark: 'modal',
+        redraw: renderSquadModal,
+        onChange: (next) => {
+          if (!draft) return;
+          draft.squad = next;
+          // 外したニケの個別設定は連れて行かない (保存時にも落とすが、画面からも消す)
+          for (const name of Object.keys(draft.characters)) {
+            if (!next.includes(name)) delete draft.characters[name];
+          }
+          seedFromRoster(next, draft.characters);
+          renderSquadModal();
+        },
+      }));
+      renderTune();
+      squadModalSave.disabled = draft.squad.every((name) => !name);
+    };
+
+    /** モーダルを開く。`plan` を渡すとその候補を直す。 */
+    const openSquadModal = (code: PlanElement, boss: UnionBoss, plan?: ElementPlan) => {
+      draft = {
+        code,
+        boss,
+        id: plan?.id ?? null,
+        squad: plan ? [...plan.squad] : ['', '', '', '', ''],
+        // 取り込んだロスターを土台にする。何も入れずに保存すると既定値 (最大) で計算され、
+        // «自分の育成の数字» のつもりで見てしまう
+        characters: seedFromRoster(plan?.squad ?? [], plan?.characters ? { ...plan.characters } : {}),
+        tuning: null,
+      };
+      sayModal('');
+      squadModal.hidden = false;
+      renderSquadModal();
+    };
+
+    squadModalSave.addEventListener('click', () => {
+      if (!draft) return;
+      const { code, id, squad, characters } = draft;
+      const result = id
+        ? updatePlan(plans, code, id, squad, { characters })
+        : addPlan(plans, code, squad, { characters });
+      const ok = 'added' in result ? result.added : result.updated;
+      if (!ok) {
+        sayModal(result.reason === 'full'
+          ? `この行は既に ${MAX_PLANS_PER_ELEMENT} 候補あります。どれかを消してから足してください。`
+          : result.reason === 'duplicate' ? '同じ顔ぶれ・同じ設定の候補が既にあります。'
+            : result.reason === 'missing' ? 'この候補は見つかりませんでした (別の画面で消された可能性があります)。'
+              : 'ニケを1人も選んでいません。');
+        return;
+      }
+      const kept = commit(result.plans);
+      closeSquadModal();
+      if (!kept) say(code, 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと消えます)。');
+      else say(code, id ? '編成を直しました。理論値は出し直してください。' : '編成を足しました。', true);
+    });
+    element<HTMLButtonElement>(root, '[data-squad-modal-close]').addEventListener('click', closeSquadModal);
+    element<HTMLButtonElement>(root, '[data-squad-modal-cancel]').addEventListener('click', closeSquadModal);
+    // 覆いを押しても閉じる。中を押したときは閉じない
+    squadModal.addEventListener('click', (event) => {
+      if (event.target === squadModal) closeSquadModal();
+    });
 
     // ── レイド準備の先頭に出す «取り込みの状態» ──
     // 最終取込は3凸ボードの帯にしか無く、ここで作業している間は見えなかった。
@@ -3888,14 +4134,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         }
       }
       if (jobs.length === 0) {
-        sayBatch('計算する候補がありません。下の属性ごとに「今の編成を保存」で候補を貯めてください。');
+        sayBatch('編成がまだありません。下の行の「編成を組む」から作ってください。');
         return;
       }
       comparing = true;
       batchRun.disabled = true;
       const label = batchRun.textContent;
       showBar(0, jobs.length);
-      sayBatch(`${jobs.length}件を計算します… 0/${jobs.length}`);
+      sayBatch(`${jobs.length}件の理論値を出します… 0/${jobs.length}`);
       try {
         await prepared;
         const run = await runScores(jobs, {
@@ -3904,8 +4150,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           lanes: parallelOn ? parallelCount : 1,
           onProgress: (done, total) => {
             showBar(done, total);
-            batchRun.textContent = `計算中 ${done}/${total}`;
-            sayBatch(`${total}件を計算しています… ${done}/${total}`);
+            batchRun.textContent = `${done}/${total} 計算中`;
+            sayBatch(`${total}件の理論値を出しています… ${done}/${total}`);
           },
         });
         // 出た値は候補に**登録する**。ここが «編成とダメージを登録» の実体で、
@@ -3924,10 +4170,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         showBar(jobs.length, jobs.length);
         const failed = run.failures.size;
         const done = run.scores.size;
-        const parts = [`${jobs.length}件中 ${done}件を計算しました。`];
+        const parts = [`${jobs.length}件中 ${done}件の理論値を出しました。`];
         if (failed > 0) parts.push(`${failed}件は計算できませんでした (${[...run.failures.values()][0]})。`);
         if (!persisted) parts.push('ブラウザに保存できなかったので、開き直すと消えます。');
-        else parts.push('3凸ボードの「全ボスから自動で探す」がこの値を使います。');
+        else parts.push('下の「最適3凸を探す」がこの値を使います。');
         sayBatch(parts.join(' '), failed === 0 && persisted);
       } catch (error) {
         sayBatch(`計算に失敗しました — ${error instanceof Error ? error.message : String(error)}`);
@@ -4740,19 +4986,34 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
      * **同じニケは3凸のうち1度だけ**なので、他の枠で使っている人はここで «使用中» と
      * 出して選べなくする — 組んだ後に赤く怒られるより、選ぶ時点で分かる方がよい。
      */
-    const renderPicker = (index: number) => {
-      const slot = board.slots[index]!;
+    /**
+     * @param opts.squad    いま組んでいる5人 (空文字は空き枠)
+     * @param opts.onChange 選び直したときに呼ぶ。次の5人を渡す
+     * @param opts.blocked  選ばせない相手と、その理由。3凸の «同じニケは1度だけ» を伝える
+     * @param opts.wanted   このボスに有利なコード。そのニケを上に出す
+     * @param opts.redraw   絞り込みを変えたときの描き直し
+     * @param opts.mark     data 属性に付ける目印 (盤面は枠番号、モーダルは 'modal')
+     */
+    renderPicker = (opts: {
+      squad: readonly string[];
+      onChange: (squad: string[]) => void;
+      blocked?: (name: string) => string | null;
+      wanted: string | null;
+      redraw: () => void;
+      mark: string;
+    }) => {
+      const { squad, onChange, wanted, redraw, mark } = opts;
+      const blocked = opts.blocked ?? (() => null);
       const box = el('div', 'board-picker');
-      const used = usageOf(board);
       const pickable = pickableNikke();
 
       // バーストは1→2→3で繋ぐので、どれかが欠けていると回らない。
       // 5人そろってから «なぜ低いのか» を探すより、選んでいる最中に見える方がよい。
-      const stages = slot.squad.filter(Boolean)
+      const stages = squad.filter(Boolean)
         .map((name) => catalogByName.get(name)?.burstStage ?? '');
       const need = ['1', '2', '3'].filter((stage) => !stages.includes(stage));
       const burstNote = el('p', 'board-picker-burst');
-      burstNote.dataset.boardPickerBurst = String(index);
+      burstNote.dataset.boardPickerBurst = mark;
       burstNote.append(createText('span', `B1 ${stages.filter((s) => s === '1').length}`
         + ` · B2 ${stages.filter((s) => s === '2').length}`
         + ` · B3 ${stages.filter((s) => s === '3').length}`));
@@ -4762,15 +5023,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
       const line = el('div', 'board-picker-line');
       for (let at = 0; at < 5; at += 1) {
-        const name = slot.squad[at] ?? '';
+        const name = squad[at] ?? '';
         if (name) {
           const chip = button(`${labelFor(name)} ✕`, 'board-picker-chip', () => {
-            const next = [...slot.squad];
+            const next = [...squad];
             next[at] = '';
-            commit(withSlot(board, index, { boss: slot.boss, squad: next, characters: slot.characters }));
+            onChange(next);
           });
           chip.title = '外す';
-          chip.dataset.boardPickerDrop = `${index}:${at}`;
+          chip.dataset.boardPickerDrop = `${mark}:${at}`;
           line.append(chip);
         } else {
           line.append(createText('span', '空き', 'board-picker-chip is-empty'));
@@ -4783,11 +5044,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       search.className = 'board-picker-search';
       search.placeholder = ' 名前で探す (ラピ / 라피 / ㄹㅍ)';
       search.value = pickerQuery;
-      search.dataset.boardPickerSearch = String(index);
+      search.dataset.boardPickerSearch = mark;
       box.append(search);
-
-      // このボスに有利なコード。ここのニケを上に出す (何を選べばよいかの最短経路)。
-      const wanted = slot.boss ? counterOf(bossOf(index)?.elementCode ?? '') : null;
 
       /**
        * 並び順: **有利コード → 自分の戦闘力の高い順 → 名前**。
@@ -4812,7 +5070,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const on = pickerBurst === stage;
         const chip = button(`B${stage}`, `board-picker-tool${on ? ' is-on' : ''}`, () => {
           pickerBurst = on ? null : stage;
-          renderBoard();
+          redraw();
         });
         chip.dataset.boardPickerBurstFilter = stage;
         tools.append(chip);
@@ -4820,7 +5078,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const onlyFav = pickerFavOnly;
       const favChip = button('★ お気に入りだけ', `board-picker-tool is-sort${onlyFav ? ' is-on' : ''}`, () => {
         pickerFavOnly = !onlyFav;
-        renderBoard();
+        redraw();
       });
       favChip.dataset.boardPickerFavOnly = '';
       favChip.title = favorites.size === 0
@@ -4832,23 +5090,23 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const grid = el('div', 'board-picker-grid');
       const draw = () => {
         grid.replaceChildren();
-        const full = slot.squad.filter(Boolean).length >= 5;
+        const full = squad.filter(Boolean).length >= 5;
         let pool = ordered;
         if (pickerFavOnly) pool = pool.filter((c) => favorites.has(c.name));
         if (pickerBurst) pool = pool.filter((c) => c.burstStage === pickerBurst);
         const hits = filterByQuery(pool, pickerQuery, buildIndex);
         for (const char of hits.slice(0, 60)) {
-          const here = slot.squad.includes(char.name);
-          const elsewhere = (used.get(char.name) ?? []).some((at) => at !== index);
+          const here = squad.includes(char.name);
+          const why = blocked(char.name);
           const cell = button('', 'board-picker-cell', () => {
-            const next = [...slot.squad];
+            const next = [...squad];
             if (here) next[next.indexOf(char.name)] = '';
             else {
               const free = next.indexOf('');
               if (free < 0) return;
               next[free] = char.name;
             }
-            commit(withSlot(board, index, { boss: slot.boss, squad: next, characters: slot.characters }));
+            onChange(next);
           });
           // 見た目は計算機のニケ一覧と同じ (画像 + バースト帯 + 属性アイコン)
           const portrait = el('div', 'board-pick-face');
@@ -4866,10 +5124,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           if (wanted && char.elementCode === wanted) cell.classList.add('is-counter');
           cell.dataset.boardPick = char.name;
           if (here) cell.classList.add('is-on');
-          if (elsewhere) {
+          if (why && !here) {
             cell.disabled = true;
             cell.classList.add('is-taken');
-            cell.title = `${(used.get(char.name) ?? []).map((at) => `${at + 1}凸目`).join('・')}で使っています`;
+            cell.title = why;
           } else if (full && !here) {
             cell.disabled = true;
             cell.title = '5人そろっています。誰かを外してから選んでください';
@@ -4880,7 +5138,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           const star = button('★', `board-pick-star${on ? ' is-on' : ''}`, () => {
             favorites = toggleFavorite(favorites, char.name);
             saveFavorites(resolveStorage(), favorites);
-            renderBoard();
+            redraw();
           });
           star.dataset.boardFav = char.name;
           star.setAttribute('aria-pressed', String(on));
@@ -5134,7 +5392,24 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           foot.append(button('空にする', 'board-btn', () => { chooserOpen = null; commit(clearSlot(board, index)); }));
         }
         card.append(foot);
-        if (pickerOpen === index && boss) card.append(renderPicker(index));
+        if (pickerOpen === index && boss) {
+          const used = usageOf(board);
+          card.append(renderPicker({
+            squad: slot.squad,
+            wanted: counterOf(boss.elementCode),
+            mark: String(index),
+            redraw: renderBoard,
+            // **同じニケは3凸のうち1度だけ**。他の枠で使っている人はここで理由を出して
+            // 選べなくする — 組んだ後に赤く怒られるより、選ぶ時点で分かる方がよい
+            blocked: (name) => {
+              const at = (used.get(name) ?? []).filter((where) => where !== index);
+              return at.length > 0 ? `${at.map((where) => `${where + 1}凸目`).join('・')}で使っています` : null;
+            },
+            onChange: (next) => commit(withSlot(board, index, {
+              boss: slot.boss, squad: next, characters: slot.characters,
+            })),
+          }));
+        }
         if (chooserOpen === index && boss) card.append(renderChooser(index, boss));
         slotsBox.append(card);
       });

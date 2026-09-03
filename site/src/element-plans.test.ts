@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { StorageLike } from './cache';
 import {
-  BEATS, ELEMENT_PLANS_KEY, baselineBattle, bossConditionBattle, counterOf, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans,
+  BEATS, ELEMENT_PLANS_KEY, baselineBattle, bossConditionBattle, counterOf, MAX_PLANS_PER_ELEMENT, PLAN_ELEMENTS, addPlan, countPlans, emptyPlans, updatePlan,
   isEmptySquad, loadPlans, plansOf, registerScore, removePlan, samePlanSetup, sameSquad, savePlans, type ElementPlans,
 } from './element-plans';
 
@@ -234,6 +234,36 @@ describe('案の追加', () => {
     expect(result.added).toBe(false);
     expect(result.reason).toBe('full');
     expect(plansOf(result.plans, '전격')).toHaveLength(MAX_PLANS_PER_ELEMENT);
+  });
+
+  it('候補を差し替えると、登録した理論値は捨てる', () => {
+    // 顔ぶれが変われば前の数字はもうその編成の値ではない。
+    // 残すと «編集したのに前の数字のまま» になり、それで3凸を決めてしまう。
+    let plans: ElementPlans = addPlan(emptyPlans(), '전격', squad('A', 'B')).plans;
+    const id = plansOf(plans, '전격')[0]!.id;
+    plans = registerScore(plans, '전격', id, { damage: 999, duration: 180, at: 'x', cond: 'y' });
+    expect(plansOf(plans, '전격')[0]!.registered!.damage).toBe(999);
+
+    const result = updatePlan(plans, '전격', id, squad('A', 'C'));
+    expect(result.updated).toBe(true);
+    const after = plansOf(result.plans, '전격')[0]!;
+    expect(after.id).toBe(id);                       // 並び順が変わらないよう id は保つ
+    expect(after.squad.filter(Boolean)).toEqual(['A', 'C']);
+    expect(after.registered).toBeUndefined();        // **前の数字は捨てる**
+  });
+
+  it('差し替えでも空・重複・知らない id は断る', () => {
+    let plans: ElementPlans = addPlan(emptyPlans(), '전격', squad('A')).plans;
+    plans = addPlan(plans, '전격', squad('B')).plans;
+    const [first, second] = plansOf(plans, '전격');
+
+    expect(updatePlan(plans, '전격', first!.id, squad()).reason).toBe('empty');
+    // もう一方と同じ顔ぶれにはできない
+    expect(updatePlan(plans, '전격', first!.id, squad('B')).reason).toBe('duplicate');
+    // 自分自身と同じ顔ぶれ (何も変えない) は通る
+    expect(updatePlan(plans, '전격', first!.id, squad('A')).updated).toBe(true);
+    expect(updatePlan(plans, '전격', 'しらないid', squad('C')).reason).toBe('missing');
+    expect(second!.squad.filter(Boolean)).toEqual(['B']);
   });
 
   it('属性ごとに独立して数える', () => {

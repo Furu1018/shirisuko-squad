@@ -254,6 +254,49 @@ export function registerScore(
   };
 }
 
+/**
+ * 候補の中身を差し替える。**登録した理論値は必ず捨てる** —
+ * 顔ぶれや個別設定が変われば、前に出した数字はもうその編成の値ではない。
+ * 残しておくと «編集したのに前の数字のまま» になり、それで3凸を決めてしまう。
+ *
+ * id と保存時刻は保つ (並び順が変わらない)。無い id を渡しても壊れない。
+ */
+export function updatePlan(
+  plans: ElementPlans,
+  element: PlanElement,
+  id: string,
+  squad: readonly string[],
+  extras?: { note?: string; characters?: Record<string, CharacterOverrides> },
+): { plans: ElementPlans; updated: boolean; reason?: 'empty' | 'duplicate' | 'missing' } {
+  const normalized = normalizeSquad(squad);
+  if (isEmptySquad(normalized)) return { plans, updated: false, reason: 'empty' };
+  const current = plansOf(plans, element);
+  if (!current.some((plan) => plan.id === id)) return { plans, updated: false, reason: 'missing' };
+  // 自分以外に同じ顔ぶれ・同じ個別設定があるなら、それは重複になる
+  if (current.some((plan) => plan.id !== id && samePlanSetup(plan, normalized, extras?.characters))) {
+    return { plans, updated: false, reason: 'duplicate' };
+  }
+  const kept = Object.fromEntries(Object.entries(extras?.characters ?? {})
+    .filter(([name]) => normalized.includes(name)));
+  return {
+    plans: {
+      schemaVersion: 1,
+      byElement: {
+        ...plans.byElement,
+        [element]: current.map((plan) => (plan.id === id ? {
+          id: plan.id,
+          squad: normalized,
+          savedAt: plan.savedAt,
+          ...(extras?.note ?? plan.note ? { note: extras?.note ?? plan.note } : {}),
+          ...(Object.keys(kept).length > 0 ? { characters: kept } : {}),
+          // registered は**引き継がない**
+        } : plan)),
+      },
+    },
+    updated: true,
+  };
+}
+
 /** 案を消す。無い id を渡しても壊れない。 */
 export function removePlan(plans: ElementPlans, element: PlanElement, id: string): ElementPlans {
   const current = plansOf(plans, element);
