@@ -6,6 +6,7 @@ import {
   areaToOverrides,
   blablaServerLabel,
   consoleFrom,
+  synchroFrom,
   looksLikeProfileUrl,
   pickArea,
   type RawArea,
@@ -3256,7 +3257,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     // コンソールはアカウント単位なので戦闘条件の側にある。前哨基地が非公開だと来ないが、
     // そのときは触らないのが正しい — 0 で覆うと元の値が消える。
     const consoleLevels = consoleFrom(area);
-    if (consoleLevels) writeBattle({ ...readBattle(), console: consoleLevels });
+    // シンクロもアカウント単位で、火力に直結する (既定 400 のままだと理論値が大幅に低く出る)。
+    // 取れたら必ず反映し、取れないとき (前哨基地が非公開) は今の設定を触らない
+    const synchro = synchroFrom(area);
+    if (consoleLevels || synchro !== null) {
+      const battle = readBattle();
+      writeBattle({
+        ...battle,
+        ...(consoleLevels ? { console: consoleLevels } : {}),
+        ...(synchro !== null ? { synchroLevel: synchro } : {}),
+      });
+    }
 
     saveState();
     renderDeckTabs();
@@ -3264,7 +3275,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     rememberSync({ schemaVersion: 1, at: new Date().toISOString(), matched: matched.length, ...meta });
 
     const carried = Object.keys(roster).length - matched.length;
-    return { matched, unmatched, notes, refreshed, carried, console: Boolean(consoleLevels) };
+    return { matched, unmatched, notes, refreshed, carried, console: Boolean(consoleLevels), synchro };
   };
   element<HTMLButtonElement>(root, '[data-roster-csv-open]').addEventListener('click', () => rosterInput.click());
 
@@ -3329,6 +3340,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         if (applied.refreshed > 0) parts.push(`編成中 ${applied.refreshed}名の育成値を更新`);
         if (applied.carried > 0) parts.push(`今回に無かった ${applied.carried}名は前回の値のまま`);
         if (applied.unmatched.length > 0) parts.push(`未対応 ${applied.unmatched.length}名を除外`);
+        if (applied.synchro !== null) parts.push(`シンクロ ${applied.synchro} を反映`);
         if (applied.console) parts.push('コンソールレベルも適用');
         updateRosterNote(parts.join(' · '));
         setStatus([`${serverLabel}サーバーから ${applied.matched.length}名を読み込みました。`, ...applied.notes].join(' '));
@@ -5790,6 +5802,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
               if (applied.refreshed > 0) parts.push(`編成中 ${applied.refreshed}名の育成値を更新`);
               if (applied.carried > 0) parts.push(`今回に無かった ${applied.carried}名は前回の値のまま`);
               if (applied.unmatched.length > 0) parts.push(`未対応 ${applied.unmatched.length}名を除外`);
+              if (applied.synchro !== null) parts.push(`シンクロ ${applied.synchro} を反映`);
               if (applied.console) parts.push('コンソールレベルも適用');
               updateRosterNote(parts.join(' · '));
               status.textContent = [`${applied.matched.length}名を読み込みました。`, ...applied.notes].join(' ');

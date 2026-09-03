@@ -1,3 +1,4 @@
+import { SYNCHRO_MAX } from './model';
 import { NO_CUBE } from './character-settings';
 import type {
   CharacterMeta,
@@ -41,7 +42,11 @@ export interface RawArea {
     function_details?: Array<{ function_type?: string; function_value?: number }>;
   }>;
   // 재활용 연구실 레벨 필드는 `lv`다(`level`이 아니다 — 실측 2026-08-23).
-  outpost: { recycle_room_researches?: Array<{ tid: number; lv: number }> } | null;
+  // synchro_level はアカウントのシンクロレベル (前哨基地が非公開なら outpost ごと null)
+  outpost: {
+    recycle_room_researches?: Array<{ tid: number; lv: number }>;
+    synchro_level?: number;
+  } | null;
 }
 
 export interface RawProfile {
@@ -313,6 +318,21 @@ export function emptyConsole(): ConsoleImport {
     else if (kind === 'company') out.company_level[bucket] = 0;
   }
   return out;
+}
+
+/**
+ * 取り込んだプロフィールからシンクロレベルを読む。**取れないときは null** —
+ * 前哨基地が非公開だと outpost ごと来ないので、そのときは今の設定を触らない
+ * (コンソールと同じ原則。0 や既定で覆うと手で入れた値が消える)。
+ *
+ * 元のシステムはソロレイド用でシンクロ 400 固定だったが、このサイトは
+ * 「自分のシンクロで理論値を出す」のが役目 — 取れた値は必ず反映する。
+ */
+export function synchroFrom(area: RawArea): number | null {
+  const raw = area.outpost?.synchro_level;
+  if (typeof raw !== 'number' || !Number.isInteger(raw)) return null;
+  if (raw < 1 || raw > SYNCHRO_MAX) return null;   // 壊れた値で戦闘条件を汚さない
+  return raw;
 }
 
 /**

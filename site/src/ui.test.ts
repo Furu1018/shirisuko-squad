@@ -2167,6 +2167,55 @@ describe('calculator UI', () => {
       .toContain('グローバルサーバーから 1名を読み込みました。');
   });
 
+  it('取込はシンクロレベルを自動反映し、取れないとき (前哨基地が非公開) は触らない', async () => {
+    // 元のシステムはソロレイド用でシンクロ 400 固定だった。ここは自分のシンクロで
+    // 理論値を出すのが役目 — 取れた値を捨てて 400 のままにすると火力が大幅に低く出る
+    let outpost: Record<string, unknown> | null = { recycle_room_researches: [], synchro_level: 843 };
+    vi.stubGlobal('fetch', async () => Response.json({
+      openid: '15361668407129878426',
+      areas: [{
+        area: 84,
+        characters: [{ name_code: 5001, grade: 0, core: 0 }],
+        details: [{ name_code: 5001 }],
+        stateEffects: [],
+        outpost,
+      }],
+    }));
+    const blablaCatalog = catalog.map((entry) => ({
+      ...entry,
+      nameCode: entry.name === '리타' ? 5001 : null,
+    }));
+    mountCalculator(root, {
+      catalog: blablaCatalog,
+      settings,
+      version: 'v1',
+      client: new FakeClient(),
+      storage: localStorage,
+      blablaProxy: 'https://proxy.example',
+    });
+
+    const sync = async () => {
+      root.querySelector<HTMLButtonElement>('[data-blabla-open]')!.click();
+      const url = root.querySelector<HTMLInputElement>('[data-blabla-url]')!;
+      url.value = 'https://www.blablalink.com/user?openid=15361668407129878426';
+      root.querySelector<HTMLButtonElement>('[data-blabla-sync]')!.click();
+      await flush();
+      await flush();
+    };
+    const level = () => root.querySelector<HTMLInputElement>('#synchro-level')!.value;
+
+    expect(level()).toBe('400');   // 既定
+    await sync();
+    expect(level()).toBe('843');   // 取り込んだ自分のシンクロが入る
+    expect(root.querySelector('[data-roster-note]')!.textContent).toContain('シンクロ 843 を反映');
+
+    // 前哨基地が非公開 → outpost が来ない。843 を既定や 0 で覆わない
+    outpost = null;
+    await sync();
+    expect(level()).toBe('843');
+    expect(root.querySelector('[data-roster-note]')!.textContent).not.toContain('シンクロ');
+  });
+
   it('sets breakthrough from the portrait star stepper and keeps the dropdown in sync', () => {
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     const stepper = root.querySelector<HTMLElement>('[data-slot-card="0"] [data-growth-stepper]')!;

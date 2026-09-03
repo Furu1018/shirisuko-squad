@@ -78,6 +78,11 @@ try {
   say(`帯の表示: ${bar}`);
   if (!/取込済み/.test(bar ?? '')) { failed = true; say('!! 帯が取込済みになっていない'); }
 
+  // シンクロレベルが自動反映されること (既定 400 のままだと理論値が大幅に低く出る)
+  const synchro = await page.locator('#synchro-level').inputValue();
+  say(`シンクロ入力: ${synchro}`);
+  if (synchro !== '300') { failed = true; say('!! 取り込んだシンクロ (300) が反映されていない'); }
+
   // 育成状況タブに実際に並ぶか
   // 育成状況は主タブから外した (パイプラインの段ではないため) — 取り込みの帯から開く
   await page.locator('[data-board-goto="roster"]').first().click();

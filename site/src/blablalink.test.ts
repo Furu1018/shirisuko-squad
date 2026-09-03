@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   areaToOverrides,
   consoleFrom,
+  synchroFrom,
   looksLikeProfileUrl,
   pickArea,
   type RawArea,
@@ -209,6 +210,24 @@ describe('pickArea', () => {
 
   it('지역이 하나도 없으면 null', () => {
     expect(pickArea({ openid: '1', areas: [] })).toBeNull();
+  });
+});
+
+describe('synchroFrom', () => {
+  it('取り込んだシンクロレベルを読む (火力に直結するので、取れたら必ず反映する側が使う)', () => {
+    expect(synchroFrom(area({ outpost: { synchro_level: 843 } }))).toBe(843);
+  });
+
+  it('前哨基地が非公開 (outpost なし) や値なしは null — 今の設定を触らない', () => {
+    expect(synchroFrom(area({ outpost: null }))).toBeNull();
+    expect(synchroFrom(area({ outpost: { recycle_room_researches: [] } }))).toBeNull();
+  });
+
+  it('壊れた値 (範囲外・小数・文字列) は null に倒す', () => {
+    expect(synchroFrom(area({ outpost: { synchro_level: 0 } }))).toBeNull();
+    expect(synchroFrom(area({ outpost: { synchro_level: 1401 } }))).toBeNull();
+    expect(synchroFrom(area({ outpost: { synchro_level: 843.5 } }))).toBeNull();
+    expect(synchroFrom(area({ outpost: { synchro_level: '843' as never } }))).toBeNull();
   });
 });
 
