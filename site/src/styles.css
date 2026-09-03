@@ -1049,7 +1049,16 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .plans-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 7px 9px; border-radius: 8px; background: rgb(var(--line-rgb) / .08); }
 .plans-index { font-size: 12px; color: var(--ink-2); min-width: 40px; }
-.plans-members { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
+.plans-members { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 5px; flex: 1 1 auto; }
+/* 顔ぶれは立ち絵で並べる — 文字だけだと5人の編成が «ぱっと見» で読めない。
+   名前も下に残す (立ち絵だけだと似た絵のニケを見分けられない)。 */
+.plans-face { display: flex; flex-direction: column; gap: 2px; width: 52px; }
+.plans-face-shot { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden;
+  background: rgb(var(--line-rgb) / .08); }
+.plans-face-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.plans-face-code { position: absolute; top: 2px; right: 2px; width: 12px; height: 14px; }
+.plans-face-name { font-size: 9.5px; line-height: 1.25; color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plans-chip { font-size: 11.5px; padding: 2px 7px; border-radius: 999px;
   background: rgb(var(--line-rgb) / .18); white-space: nowrap; }
 .plans-score { font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 116px; text-align: right; }
@@ -1152,6 +1161,15 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
   .prep-row { grid-template-columns: minmax(0, 1fr); }
   .prep-side { border-right: 0; border-bottom: 1px solid var(--line); }
   .prep-next .roster-import.lead { width: 100%; }
+  /* **編成は5人で1つ**。狭い画面で5人目だけ折り返すと «ぱっと見» が壊れる。
+     顔ぶれを丸ごと次の行へ落とし、**5列のグリッド**にして幅に関係なく5人並べる
+     (固定幅にすると端末の幅ごとに折り返す境目を探すことになる)。 */
+  .plans-members { flex-basis: 100%; order: 1;
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .plans-face { width: auto; }
+  /* «個別設定つき» は6人目ではない — 1行を占めさせる */
+  .plans-members .plans-chip { grid-column: 1 / -1; justify-self: start; }
+  .plans-index { min-width: 0; }
 }
 
 .plans-boss-cond { font: 700 11.5px ui-monospace, monospace; color: var(--ink-2); }

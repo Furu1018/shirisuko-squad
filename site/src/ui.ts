@@ -3558,9 +3558,26 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           const planRow = el('div', 'plans-row');
           planRow.dataset.plansRow = plan.id;
           planRow.append(createText('b', `${planIndex + 1}`, 'plans-index'));
+          // 顔ぶれは**立ち絵**で並べる。文字だけだと5人の編成が «ぱっと見» で読めない
+          // (計算機のニケ一覧・枠のピッカーと同じ作り)。名前も下に残す —
+          // 立ち絵だけだと、似た絵のニケや持っていないニケが見分けられない。
           const members = el('span', 'plans-members');
           for (const who of plan.squad.filter(Boolean)) {
-            members.append(createText('span', labelFor(who), 'plans-chip'));
+            const meta = catalogByName.get(who);
+            const face = el('span', 'plans-face');
+            const shot = el('span', 'plans-face-shot');
+            if (meta?.image) {
+              const img = document.createElement('img');
+              img.src = `${import.meta.env.BASE_URL}${meta.image}`;
+              img.alt = '';
+              img.loading = 'lazy';
+              shot.append(img);
+            }
+            const icon = meta ? createElementIcon(meta.elementCode, 'plans-face-code') : null;
+            if (icon) shot.append(icon);
+            face.append(shot, createText('span', labelFor(who), 'plans-face-name'));
+            face.title = labelFor(who);
+            members.append(face);
           }
           if (plan.characters && Object.keys(plan.characters).length > 0) {
             const mark = createText('span', '個別設定つき', 'plans-chip is-snapshot');

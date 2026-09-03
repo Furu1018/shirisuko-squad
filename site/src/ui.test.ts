@@ -725,6 +725,33 @@ describe('calculator UI', () => {
     expect(water.querySelector('[data-prep-state]')!.textContent).toBe('候補なし');
   });
 
+  it('候補の顔ぶれは立ち絵で並ぶ (名前も残す)', () => {
+    // 文字だけだと5人の編成が «ぱっと見» で読めない。立ち絵だけだと似た絵のニケや
+    // 持っていないニケを見分けられないので、名前も下に残す。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+
+    for (let slot = 0; slot < 5; slot += 1) clearCharacterSlot(root, slot);
+    chooseCharacter(root, 0, '리타');
+    chooseCharacter(root, 1, '크라운');
+    root.querySelector<HTMLButtonElement>('[data-plans-save="철갑"]')!.click();
+
+    const faces = [...root.querySelectorAll<HTMLElement>('[data-plans-group="철갑"] .plans-face')];
+    expect(faces).toHaveLength(2);
+    // 立ち絵が入っている
+    expect(faces[0]!.querySelector('img')!.getAttribute('src')).toContain('characters/');
+    // 読み上げは名前が担う — 絵の alt は空にして二重に読ませない
+    expect(faces[0]!.querySelector('img')!.getAttribute('alt')).toBe('');
+    // 名前は必ず出す (テスト用のカタログには日本語名が無いので、表示名そのものは固定しない)
+    const shown = faces[0]!.querySelector('.plans-face-name')!.textContent;
+    expect(shown).toBeTruthy();
+    // 属性アイコンも載る (編成が有利属性で揃っているか一目で分かる)
+    expect(faces[0]!.querySelector('.plans-face-code')).not.toBeNull();
+    // 幅が狭いと名前は切れる — title に同じ名前を持たせて読めるようにする
+    expect(faces[0]!.title).toBe(shown);
+  });
+
   it('「ぜんぶ計算」は貯めた候補を今回のボス条件で計算し、候補に登録する', async () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
