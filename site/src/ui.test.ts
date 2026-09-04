@@ -1020,8 +1020,8 @@ describe('calculator UI', () => {
     root.querySelector<HTMLButtonElement>('[data-plans-copy]')!.click();
     const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
     expect(modal.hidden).toBe(false);
-    // 写しは**新規** — 見出しは «追加» で、保存しても元を上書きしない
-    expect(root.querySelector('[data-squad-modal-title]')!.textContent).toBe('編成を追加');
+    // 写しは**新規**だが、コピーで開いたことは見出しで分かる (保存しても元は上書きしない)
+    expect(root.querySelector('[data-squad-modal-title]')!.textContent).toBe('コピーして直す');
 
     // 何も変えずに保存 → 重複で断られ、モーダルは開いたまま
     root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
@@ -1770,7 +1770,8 @@ describe('calculator UI', () => {
 
     const slot = boardSlot(0);
     expect(slot.classList.contains('is-iron')).toBe(true);
-    expect([...slot.querySelectorAll('.board-team .board-who')].map((chip) => chip.textContent))
+    // 枠のメンバーは顔タイルになった。名前は data-board-who で読む (欠員の一言は含めない)
+    expect([...slot.querySelectorAll<HTMLElement>('.board-team [data-board-who]')].map((face) => face.dataset.boardWho))
       .toEqual(['리타', '크라운']);
     expect(boardCalls(client)).toBe(1);
     expect(slot.querySelector('[data-board-score]')!.textContent).toContain('123,456');
@@ -1804,7 +1805,7 @@ describe('calculator UI', () => {
     const clash = root.querySelector<HTMLElement>('[data-board-clash="1:0"]')!;
     expect(clash.textContent).toContain('크라운');
     expect(clash.textContent).toContain('1凸目でも使っています');
-    expect(root.querySelectorAll('.board-team .board-who.is-clash')).toHaveLength(2);
+    expect(root.querySelectorAll('.board-team [data-board-who].is-clash')).toHaveLength(2);
     expect(boardSummary()).toContain('被り 1件');
     expect(root.querySelector('[data-board-used] .board-who.is-clash')!.textContent).toContain('1凸 / 2凸');
 
@@ -2046,7 +2047,8 @@ describe('calculator UI', () => {
         registered?: { damage: number; duration: number } }>>;
     }).byElement['철갑']![0]!;
     expect(stored().characters!['리타']!.skillLevels!['1']).toBe(4);
-    expect(root.querySelector('.plans-chip.is-snapshot')).not.toBeNull();
+    // «個別設定つき» チップは引退した — 取込後は全候補に付いて識別価値が無い (実機監査⑰)。
+    // スナップショットの存在は上の stored() の中身で確かめている
 
     // 比較 → スナップショットで計算し、結果が登録される
     root.querySelector<HTMLButtonElement>('[data-plans-compare="철갑"]')!.click();

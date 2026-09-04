@@ -462,7 +462,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <div class="trust-row brand-tools" aria-label="サービスの情報"><span>${catalog.length}名対応</span><a class="credit-link" href="https://github.com/Jgaram/nikke-calc" target="_blank" rel="noreferrer noopener" title="この計算機の元のリポジトリ (エンジン・データは無改変)">原作 nikke-calc に感謝</a></div>
       </header>
 
-      <nav class="view-tabs" aria-label="画面切り替え">
+      <nav class="view-tabs" role="tablist" aria-label="画面切り替え">
         <button type="button" class="view-tab is-on" data-view-tab="plans" aria-pressed="true">レイド準備</button>
         <button type="button" class="view-tab" data-view-tab="board" aria-pressed="false">最適3凸</button>
         <button type="button" class="view-tab" data-view-tab="calc" aria-pressed="false">編成を作る・詳細計算</button>
@@ -479,6 +479,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             <button type="button" class="roster-import" data-board-sync-again hidden>今の育成を取り込む</button>
             <button type="button" class="roster-import" data-board-sync-import hidden>取り込み直す</button>
             <button type="button" class="roster-import" data-board-goto="roster">育成状況を見る</button>
+            <button type="button" class="roster-import lead" data-board-goto="plans">レイド準備で候補を作る</button>
           </div>
         </div>
 
@@ -564,6 +565,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         <h2 id="board-heading" class="board-sec">最適3凸 · ${UNION_SEASON.label}</h2>
         <p class="links-lede">枠ごとに<b>ボスを選ぶ</b>→<b>この枠の編成を組む</b>でニケを選びます。<b>同じニケは3凸のうち1度だけ</b>使えるので、他の枠で使った人は選べません。保存した候補があればそこから入れることもできます。</p>
         <p class="board-status" data-board-status role="status" aria-live="polite" hidden></p>
+        <button type="button" class="board-btn" data-board-undo hidden>探す前の盤面に戻す</button>
         <div class="board-slots" data-board-slots></div>
         <div class="board-elements" data-board-elements>
           <b class="board-elements-label">属性を決めて最適化</b>
@@ -743,7 +745,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
               <h3>ニケを選ぶ <span data-roster-count></span></h3>
               <p class="picker-target" data-roster-desc></p>
             </div>
-            <input type="search" class="roster-search" data-roster-search placeholder="名前で検索 (ラピ / 라피 / ㄹㅍ)" autocomplete="off" aria-label="ニケ名検索" />
+            <input type="search" class="roster-search" data-roster-search placeholder="名前で検索" autocomplete="off" aria-label="ニケ名検索" />
             <!-- 정렬·필터는 판을 눌러 펼친다. 칩을 늘 깔아 두면 목록이 화면 밖으로
                  밀리고, 필터가 몇 개 걸렸는지도 한눈에 안 들어온다. -->
             <div class="picker-bar">
@@ -3062,6 +3064,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
    * レイド準備の編成モーダルも**同じものを使う** — 選び方が2つあると、
    * «使用中» の出方や並び順が画面ごとに違うことになる。
    */
+  /** ピッカーの検索語・絞り込みを白紙にする。状態は盤面ブロックが持つので前方宣言。 */
+  let resetPickerFilters: () => void = () => undefined;
   let renderPicker: (opts: {
     squad: readonly string[];
     onChange: (squad: string[]) => void;
@@ -3500,6 +3504,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     // 計算中かどうかはボタンではなくここに持つ。保存・削除で renderPlans() が
     // ボタンごと作り直すため、disabled だけに頼ると二重に走らせられる。
     let comparing = false;
+    /** 消した候補の1世代 undo。次の削除で入れ替わる。 */
+    let planUndo: { code: PlanElement; plan: ElementPlan; index: number } | null = null;
     const say = (element_: PlanElement, message: string, ok = false) => {
       const note = groupsBox.querySelector<HTMLElement>(`[data-plans-note="${element_}"]`);
       if (!note) return;
@@ -3527,6 +3533,21 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     renderPlans = () => {
       groupsBox.replaceChildren();
       bossReset.hidden = !isCustomised(bosses);
+      // 5行で画面5枚ぶんになる (スマホ実測 4,600px)。行頭へ飛べるチップを置く
+      const jump = el('div', 'prep-jump');
+      for (const boss of bosses) {
+        const chip = el('button', `prep-chip is-${ELEMENT_SLUG[boss.elementCode] ?? 'iron'}`);
+        (chip as HTMLButtonElement).type = 'button';
+        chip.textContent = elementLabel(boss.elementCode);
+        chip.dataset.prepJump = boss.elementCode;
+        chip.title = `${boss.name} の行へ`;
+        chip.addEventListener('click', () => {
+          const row = groupsBox.querySelector<HTMLElement>(`[data-prep-row="${boss.elementCode}"]`);
+          row?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        });
+        jump.append(chip);
+      }
+      groupsBox.append(jump);
       const base = readBattle();
       let total = 0;
       let fresh = 0;
@@ -3584,7 +3605,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         core.type = 'checkbox';
         core.checked = boss.coreEnabled === true;
         core.dataset.bossCore = boss.elementCode;
-        core.addEventListener('change', () => editBoss(boss.elementCode, { coreEnabled: core.checked }));
+        core.addEventListener('change', () => {
+          editBoss(boss.elementCode, { coreEnabled: core.checked });
+          // 入れた直後は大きさを入れたいはず — 描き直し後の欄へ焦点を移す
+          if (core.checked) {
+            groupsBox.querySelector<HTMLInputElement>(`[data-boss-px="${boss.elementCode}"]`)?.focus();
+          }
+        });
         coreWrap.append(core, createText('span', 'コア'));
         fields.append(coreWrap);
 
@@ -3595,6 +3622,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         px.value = String(boss.corePx ?? 0);
         px.dataset.bossPx = boss.elementCode;
         px.setAttribute('aria-label', `${boss.name} のコアの大きさ (px)`);
+        px.title = 'コアの大きさ (上流計算機と同じ指標)。ゲーム内で狙えるコアの当たり判定の大きさです';
         // コア無しのボスに大きさを入れさせない — 入れても計算に効かず «効いている» と誤解する
         px.disabled = boss.coreEnabled !== true;
         px.addEventListener('change', () => editBoss(boss.elementCode, { corePx: Number(px.value) }));
@@ -3624,6 +3652,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         top.append(vs);
 
         // 行の状態。**どの行に手を入れれば前に進むか**が一目で分かるようにする
+        // この行の最大 (今回のボス条件で出した値の中で)。比べられるのは同じ条件の値だけ
+        const freshOnes = saved.filter((plan) => freshness(plan) === 'fresh');
+        const bestHere = freshOnes.length > 1
+          ? freshOnes.reduce((top, plan) =>
+            (plan.registered!.damage > top.registered!.damage ? plan : top)).id
+          : null;
         const staleHere = saved.some((plan) => freshness(plan) === 'stale');
         const noneHere = saved.some((plan) => !plan.registered);
         const [stateText, stateKind] = saved.length === 0 ? ['候補なし', 'todo']
@@ -3639,6 +3673,28 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           note.dataset.plansNote = code;
           note.hidden = true;
           main.append(note);
+          if (planUndo && planUndo.code === code) {
+            const undo = el('button', 'roster-import', '消した候補を元に戻す');
+            (undo as HTMLButtonElement).type = 'button';
+            undo.dataset.plansUndo = code;
+            undo.addEventListener('click', () => {
+              const back = planUndo;
+              planUndo = null;
+              if (!back) return;
+              // id も理論値もそのまま、元の位置へ戻す
+              const current = plansOf(plans, back.code);
+              const at = Math.min(back.index, current.length);
+              commit({
+                schemaVersion: 1,
+                byElement: {
+                  ...plans.byElement,
+                  [back.code]: [...current.slice(0, at), back.plan, ...current.slice(at)],
+                },
+              });
+              say(back.code, '元に戻しました。', true);
+            });
+            main.append(undo);
+          }
         }
 
         const list = el('div', 'plans-list');
@@ -3676,22 +3732,28 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             // 計算時にロスターの値になるので、ここで断定して出すと嘘になりうる
             const wearing = cubeNickname(plan.characters?.[who]?.cube?.name);
             if (wearing) {
-              const badge = createText('span', wearing, 'plans-face-cube');
-              badge.title = `${labelForCube(plan.characters![who]!.cube!.name)} Lv${plan.characters![who]!.cube!.level}`;
+              // スマホにホバーは無い — 押せば正式名と Lv が行のノートに出る
+              const badge = el('button', 'plans-face-cube');
+              (badge as HTMLButtonElement).type = 'button';
+              badge.textContent = wearing;
+              const full = `${labelForCube(plan.characters![who]!.cube!.name)} Lv${plan.characters![who]!.cube!.level}`;
+              badge.title = full;
+              badge.setAttribute('aria-label', `${labelFor(who)} のキューブ: ${full}`);
+              badge.addEventListener('click', () => { if (code) say(code, `${labelFor(who)}: ${full}`, true); });
               face.append(badge);
             }
             face.title = labelFor(who);
             members.append(face);
           }
-          if (plan.characters && Object.keys(plan.characters).length > 0) {
-            const mark = createText('span', '個別設定つき', 'plans-chip is-snapshot');
-            mark.title = 'キューブなどの個別設定ごと保存された候補です。計算にもこの設定を使います';
-            members.append(mark);
-          }
           planRow.append(members);
 
           const score = el('span', 'plans-score');
           score.dataset.plansScore = plan.id;
+          // 行の中の最大に印を付ける — 5行×数件を毎回目で読み比べるのは疲れる (実機監査)
+          if (bestHere !== null && plan.id === bestHere) {
+            score.classList.add('is-best');
+            score.append(createText('b', '一番', 'plans-top'));
+          }
           // 数値は**どの状態か**を必ず出す。空欄だと «計算していない» のか
           // «計算したが0» なのか読めない。
           if (plan.registered) {
@@ -3733,8 +3795,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           drop.dataset.plansRemove = plan.id;
           drop.addEventListener('click', () => {
             if (!code) return;
+            // «直す» と隣同士で誤爆が痛い。確認で止めるより、消してから戻れる方が軽い
+            planUndo = { code, plan, index: planIndex };
             const kept = commit(removePlan(plans, code, plan.id));
-            if (!kept) say(code, 'この画面では消えましたが、ブラウザに保存できませんでした (次に開くと戻ります)。');
+            say(code, kept ? `候補 ${planIndex + 1} を消しました。`
+              : 'この画面では消えましたが、ブラウザに保存できませんでした (次に開くと戻ります)。', kept);
           });
           planRow.append(copy, edit, drop);
           list.append(planRow);
@@ -3756,7 +3821,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           (runRow as HTMLButtonElement).type = 'button';
           runRow.dataset.prepRowRun = boss.elementCode;
           runRow.disabled = saved.length === 0;
-          runRow.addEventListener('click', () => { void runBatch([boss.elementCode]); });
+          runRow.addEventListener('click', () => { void runBatch([boss.elementCode], { rowMark: boss.elementCode }); });
           add.append(runRow);
         }
         main.append(add);
@@ -3859,6 +3924,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       characters: Record<string, CharacterOverrides>;
       tuning: string | null;   // いま育成・キューブを見ているニケ
       tuneOpen: boolean;       // 育成・キューブの面を開いているか (登録だけなら閉じたまま)
+      fromCopy: boolean;       // コピーとして開いたか (見出しに出す)
       /** まとめて付けたキューブ。開いている間だけ覚えて、選び直しの手間を省く */
       bulkCube?: string;
       bulkCubeLevel?: number;
@@ -4171,7 +4237,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
 
     const renderSquadModal = () => {
       if (!draft) return;
-      squadModalTitle.textContent = draft.id ? '編成を直す' : '編成を追加';
+      squadModalTitle.textContent = draft.id ? '編成を直す'
+        : draft.fromCopy ? 'コピーして直す' : '編成を追加';
       squadModalDesc.textContent = `${elementLabel(draft.code)}編成 — ${draft.boss.name} (${elementLabel(draft.boss.elementCode)}ボス) に当てます。`;
       squadModalPick.replaceChildren(renderTemplateShelf(), renderPicker({
         squad: draft.squad,
@@ -4216,7 +4283,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         // «選ぶ → 保存» を最短にする。育成・キューブは畳んでおき、押した人にだけ出す。
         // 「直す」で開いたときは**詰めるのが目的**なので開いておく
         tuneOpen: Boolean(plan) && !opts?.copy,
+        fromCopy: opts?.copy === true,
       };
+      // 前回の検索語・絞り込みが残っていると「一覧に1人しか居ない?」になる (実機監査)。
+      // 開くたびに白紙から
+      resetPickerFilters();
       sayModal('');
       squadModal.hidden = false;
       renderSquadModal();
@@ -4254,6 +4325,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       scrollTo(squadGrid);
     });
 
+    // タイルと★が全部 Tab 経路にあり、保存まで約45押しかかる (実機監査) —
+    // キーボードには近道を用意する
+    squadModal.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !squadModalSave.disabled) {
+        squadModalSave.click();
+      }
+    });
+    squadModalSave.title = 'Ctrl+Enter でも保存できます';
+
     squadModalSave.addEventListener('click', () => {
       if (!draft) return;
       const { code, id, squad, characters } = draft;
@@ -4272,7 +4352,13 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const kept = commit(result.plans);
       closeSquadModal();
       if (!kept) say(code, 'この画面では使えますが、ブラウザに保存できませんでした (次に開くと消えます)。');
-      else say(code, id ? '編成を直しました。理論値は出し直してください。' : '編成を足しました。', true);
+      else {
+        const count = squad.filter(Boolean).length;
+        // 4人編成は意図的なこともある — 止めずに、人数だけ言っておく
+        const fewNote = count < 5 ? ` (${count}人編成 — 5人まで入ります)` : '';
+        say(code, id ? `編成を直しました${fewNote}。理論値は出し直してください。`
+          : `編成を足しました${fewNote}。`, true);
+      }
     });
     element<HTMLButtonElement>(root, '[data-squad-modal-close]').addEventListener('click', closeSquadModal);
     element<HTMLButtonElement>(root, '[data-squad-modal-cancel]').addEventListener('click', closeSquadModal);
@@ -4293,7 +4379,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       prepSyncDot.classList.toggle('is-on', Boolean(syncMeta));
       if (syncMeta) {
         prepSyncMain.textContent = `${SOURCE_LABELS[syncMeta.source]} から取込済み · ${syncMeta.matched}名`;
-        prepSyncSub.textContent = `最終取込 ${syncAgoText(syncMeta.at)} · ${syncAtText(syncMeta.at)}`;
+        // 12日以上経っていたら «新しいレイドの始め方» を促す。前回の盤面と «最新» バッジが
+        // 残ったままなので、正しい入口 (ボスを直す → 出し直す) が画面から読めない (実機監査)
+        const days = Math.floor((Date.now() - Date.parse(syncMeta.at)) / 86_400_000);
+        prepSyncSub.textContent = `最終取込 ${syncAgoText(syncMeta.at)} · ${syncAtText(syncMeta.at)}`
+          + (days >= 12 ? ' — 新しいレイドなら、まずボスの登録を直して「ぜんぶ出す」から' : '');
         prepSyncGo.textContent = '取り込み直す';
       } else {
         prepSyncMain.textContent = count > 0
@@ -4409,7 +4499,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
      * `only` にボスの属性コードを渡すとその行だけ回す — 1行足しただけで
      * 全部を回し直すのは、1件7秒台では待たせすぎる。
      */
-    const runBatch = async (only?: readonly string[]) => {
+    const runBatch = async (only?: readonly string[], opts?: { rowMark?: string }) => {
       if (comparing) { sayBatch('別の計算が走っています。終わるまで待ってください。'); return; }
       const base = readBattle();
       // 何を回すか。候補は «その属性のボス» にだけ当てる (有利属性でしか凸らないため)
@@ -4471,6 +4561,16 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             showBar(done, total);
             batchRun.textContent = `${done}/${total} 計算中`;
             sayBatch(`${total}件の理論値を出しています… ${done}/${total}`);
+            // 行のボタンから押したなら、その行にも進捗を出す — 上のパネルは
+            // 5体目の行やスマホでは視界の外 (実測 y=-3,100px)
+            if (opts?.rowMark) {
+              const rowButton = groupsBox.querySelector<HTMLButtonElement>(
+                `[data-prep-row-run="${opts.rowMark}"]`);
+              if (rowButton) rowButton.textContent = `${done}/${total} 計算中`;
+              const badge = groupsBox.querySelector<HTMLElement>(
+                `[data-prep-state="${opts.rowMark}"]`);
+              if (badge) badge.textContent = '計算中';
+            }
           },
         });
         // 出た値は候補に**登録する**。ここが «編成とダメージを登録» の実体で、
@@ -4495,6 +4595,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         if (!persisted) parts.push('ブラウザに保存できなかったので、開き直すと消えます。');
         else parts.push('下の「最適3凸を探す」がこの値を使います。');
         sayBatch(parts.join(' '), failed === 0 && persisted);
+        // 行から押したなら、結果はその行の下にも出す (renderPlans の描き直し後)
+        if (opts?.rowMark) {
+          const code = counterOf(opts.rowMark);
+          if (code) say(code, parts.join(' '), failed === 0 && persisted);
+        }
       } catch (error) {
         sayBatch(`計算に失敗しました — ${error instanceof Error ? error.message : String(error)}`);
       } finally {
@@ -4737,6 +4842,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const usedBox = element<HTMLElement>(root, '[data-board-used]');
     const stockBox = element<HTMLElement>(root, '[data-board-stocks]');
     const statusBox = element<HTMLElement>(root, '[data-board-status]');
+    const undoButton = element<HTMLButtonElement>(root, '[data-board-undo]');
+    undoButton.addEventListener('click', () => {
+      const back = boardUndo;
+      boardUndo = null;
+      if (!back) return;
+      commit(back);
+      say('探す前の盤面に戻しました。', true);
+    });
     // ボスは画面から登録し直せるので、**その場で引く**。マウント時に Map を作って持つと、
     // 名前を変えた瞬間に «そんなボスは居ない» ことになって枠が空になる。
     const bossNames = () => bosses.map((boss) => boss.name);
@@ -4761,6 +4874,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     let pickerFavOnly = false;
     /** バースト段階の絞り込み。null = 全部。 */
     let pickerBurst: '1' | '2' | '3' | null = null;
+    resetPickerFilters = () => {
+      pickerQuery = '';
+      pickerFavOnly = false;
+      pickerBurst = null;
+    };
     /** 選べるニケ。取り込んでいれば手持ちだけ、まだなら全員から選ばせる。 */
     const pickableNikke = (): CharacterMeta[] => {
       const owned = Object.keys(roster);
@@ -4774,10 +4892,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     const scores = new Map<string, number>();
     const SCORE_MEMORY = 120;
 
+    /**
+     * 自動探索で上書きする**直前**の盤面。1世代だけ。
+     *
+     * 「全ボスから自動で探す」「この3属性で最適化」は手作りの盤面を確認なしで丸ごと
+     * 差し替える。説明には書いてあるが、2週間に1度の利用では忘れた頃に踏む (実機監査)。
+     * 確認ダイアログより、押した後に戻れるほうが操作が軽い。
+     */
+    let boardUndo: RaidBoard | null = null;
+
     const say = (message: string, ok = false) => {
       statusBox.textContent = message;
       statusBox.hidden = !message;
       statusBox.classList.toggle('is-ok', ok);
+      undoButton.hidden = boardUndo === null;
       lastSaid = message ? { message, ok } : null;
       // 押したボタンにも同じ進捗を出す。上部の1行だけだと、押した場所から目を離すことになる
       // (計算は1件7秒台。3件なら20秒以上、押しっぱなしで待つことになる)。
@@ -4984,7 +5112,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         renderBoard();
       }
     };
-    const battleNote = () => `戦闘 ${readBattle().duration}秒 · コアとパーツ無し`;
+    /**
+     * 何の条件で計算したかの一言。
+     *
+     * 以前は「コアとパーツ無し」の固定文字列で、**ボスにコアを登録できるようになった後も
+     * 嘘をつき続けていた** (実機監査の筆頭指摘)。計算は登録どおりコア込みなのに表示だけが
+     * 違うと、数字全体が信じられなくなる。登録から組み立てる。
+     */
+    const battleNote = () => {
+      const quirks = bosses.filter((boss) => boss.coreEnabled || boss.hasParts)
+        .map((boss) => boss.name);
+      return `戦闘 ${readBattle().duration}秒 · 登録したボス条件`
+        + (quirks.length > 0 ? ` (コア/パーツ: ${quirks.join('・')})` : ' (コア・パーツ無し)');
+    };
     const bossOf = (index: number): UnionBoss | undefined => {
       const name = board.slots[index]?.boss;
       return name ? bossByName(name) : undefined;
@@ -5065,6 +5205,22 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     });
 
     /** 全候補 (ボス × 候補) を計算し、被りなしで合計最大の3つを枠に入れる。 */
+    /**
+     * すべての候補に入っているニケ。3凸が埋まらないときの**本当の理由**を言うために数える。
+     * バッファーの型を全行に敷くと起きる — 「候補を増やして」と言っても、同じ型から
+     * 増やす限り永遠に直らない (実機監査の指摘)。
+     */
+    const commonToAll = (cands: readonly Candidate[]): string[] => {
+      if (cands.length < 2) return [];
+      const counts = new Map<string, number>();
+      for (const cand of cands) {
+        for (const name of new Set(cand.squad.filter(Boolean))) {
+          counts.set(name, (counts.get(name) ?? 0) + 1);
+        }
+      }
+      return [...counts].filter(([, seen]) => seen === cands.length).map(([name]) => name);
+    };
+
     const searchBest = () => withBusy(async () => {
       const all: Array<{ boss: UnionBoss; plan: ElementPlan }> = [];
       for (const boss of bosses) {
@@ -5082,6 +5238,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       });
       const picked = bestTriple(scored);
       if (picked.length === 0) { say(`計算できる候補がありませんでした。${failNote(failures, jobs.length)}`); return; }
+      const before = board;
       let next = emptyBoard();
       picked.forEach((candidate, index) => {
         next = withSlot(next, index, {
@@ -5090,9 +5247,15 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       });
       chooserOpen = null;
       commit(next);
+      boardUndo = before;
       const total = formatDamage(picked.reduce((sum, candidate) => sum + candidate.score, 0));
+      // 埋まらない理由が «全候補に同じ人が入っている» なら、そう名指しする。
+      // 「候補を増やして」だけでは、同じ型から増やして徒労になる
+      const stuck = picked.length < BOARD_SLOTS ? commonToAll(scored) : [];
       say(picked.length < BOARD_SLOTS
-        ? `被りなしで組めたのは ${picked.length} 凸ぶんでした (合計 ${total})。保存候補を増やすと3凸まで埋まります。${failNote(failures, jobs.length)}`
+        ? (stuck.length > 0
+          ? `被りなしで組めたのは ${picked.length} 凸ぶんでした (合計 ${total})。${stuck.map(labelFor).join('・')} がすべての候補に入っています — 別のバッファーで組んだ候補を足すと3凸まで埋まります。${failNote(failures, jobs.length)}`
+          : `被りなしで組めたのは ${picked.length} 凸ぶんでした (合計 ${total})。保存候補を増やすと3凸まで埋まります。${failNote(failures, jobs.length)}`)
         : `被りなしで最大の3凸を入れました (合計 ${total} · ${battleNote()})。${failNote(failures, jobs.length)}`, failures.size === 0);
     });
 
@@ -5426,7 +5589,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       const search = document.createElement('input');
       search.type = 'search';
       search.className = 'board-picker-search';
-      search.placeholder = ' 名前で探す (ラピ / 라피 / ㄹㅍ)';
+      search.placeholder = ' 名前で探す';
       search.value = pickerQuery;
       search.dataset.boardPickerSearch = mark;
       box.append(search);
@@ -5736,10 +5899,32 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             boss ? 'まだ誰も入っていません — 下の «この枠の編成を組む» から選べます' : emptySlotHint(owned - usage.size),
             'board-who is-empty'));
         }
+        // 枠のメンバーも顔タイルで。文字だけ残っていた最後の場所 (実機監査)
         for (const name of members) {
-          const chip = createText('span', labelFor(name), 'board-who');
-          if ((usage.get(name)?.length ?? 0) > 1) chip.classList.add('is-clash');
-          team.append(chip);
+          const meta = catalogByName.get(name);
+          const face = el('span', 'plans-face');
+          const shot = el('span', 'plans-face-shot');
+          if (meta?.image) {
+            const img = document.createElement('img');
+            img.src = `${import.meta.env.BASE_URL}${meta.image}`;
+            img.alt = '';
+            img.loading = 'lazy';
+            shot.append(img);
+          }
+          const icon = meta ? createElementIcon(meta.elementCode, 'plans-face-code') : null;
+          if (icon) shot.append(icon);
+          face.append(shot, createText('span', labelFor(name), 'plans-face-name'));
+          face.title = labelFor(name);
+          if ((usage.get(name)?.length ?? 0) > 1) face.classList.add('is-clash');
+          face.dataset.boardWho = name;
+          team.append(face);
+        }
+        // 自動で人を外した後、枠が2〜4人のまま気づかず終わる (実機監査) —
+        // 空きがあることと、その埋め方を一言
+        if (boss && members.length > 0 && members.length < 5) {
+          team.append(createText('span',
+            `5人中${members.length}人 — 「この枠の編成を組む」で足すと上がります`,
+            'board-who is-vacancy'));
         }
         card.append(team);
 
@@ -5851,6 +6036,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         });
       });
       const picked = bestForElements(lists);
+      const before = board;
       let next = emptyBoard();
       picked.forEach((candidate, index) => {
         const code = chosen[index]!;
@@ -5862,6 +6048,7 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       chooserOpen = null;
       pickerOpen = null;
       commit(next);
+      boardUndo = before;
       const total = picked.reduce((sum, candidate) => sum + (candidate?.score ?? 0), 0);
       const holes = picked.map((candidate, index) => (candidate ? null : index + 1))
         .filter((value): value is number => value !== null);
@@ -6164,8 +6351,12 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
   // STEP 1 (取り込みを促す画面) を出す — 取り込む前に準備表を見せても、
   // 既定の育成 (最大) の数字しか出ない。
   let currentView: ViewName = (syncMeta || Object.keys(roster).length > 0) ? 'plans' : 'board';
+  /** 育成状況はタブを持たない — 開いた元のタブを点けたままにする (現在地が消えると迷子)。 */
+  let litTab: ViewName = 'plans';
+
   function switchView(view: ViewName) {
     currentView = view;
+    if (view !== 'roster') litTab = view;
     // 盤面はモックどおり 1000px 中央寄せ。計算機など他の画面は横に広い方が読みやすいので上流の幅のまま
     shell.classList.toggle('is-board', view === 'board');
     for (const section of root.querySelectorAll<HTMLElement>('[data-view]')) {
@@ -6175,9 +6366,11 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
       section.hidden = !mine;
     }
     for (const tab of root.querySelectorAll<HTMLButtonElement>('[data-view-tab]')) {
-      const on = tab.dataset.viewTab === view;
+      const on = tab.dataset.viewTab === litTab;
       tab.classList.toggle('is-on', on);
       tab.setAttribute('aria-pressed', String(on));
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(on));
     }
     // 盤面の点数は戦闘条件・育成値に依るので、開くたびに今の条件で読み直す
     // (条件を変えた直後に古い数字を見せない — 合わない結果は「未計算」に戻る)
@@ -6446,7 +6639,8 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         // 外に出てしまっていたら中へ連れ戻す — 背面は見えないのに操作できてしまう
         event.preventDefault();
         first.focus();
-      } else if (event.shiftKey && current === first) {
+      } else if (event.shiftKey && (current === first || !items.includes(current as HTMLElement))) {
+        // カード自身 (tabindex=-1) に居るときの逆 Tab は、素通しすると背面へ抜ける
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && current === last) {

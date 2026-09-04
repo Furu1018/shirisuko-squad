@@ -391,3 +391,27 @@ describe('formatDamage', () => {
     expect(validateRequest({ ...valid, burstRegenTime: 2.8 })).toEqual([]);
   });
 });
+
+describe('キューブは計算リクエストまで届く', () => {
+  // 実機監査の申し送り: «リロ速 Lv15 を付けて再計算しても理論値が動かない»。
+  // UI層 (個別設定 → リクエスト) で落ちていないことをここで確定させる —
+  // ここが通るなら、残る容疑はエンジン側の扱いだけになる。
+  it('キューブの有無・レベルの違いは別のリクエスト (= 別のキャッシュ鍵) になる', () => {
+    const withCube = (cube?: { name: string; level: number }): SimulationRequest => requestForDeck(
+      {
+        id: 1,
+        squad: ['리타', '', '', '', ''],
+        characters: { 리타: { ...(cube ? { cube } : {}) } as never },
+      } as DeckState,
+      battle,
+    );
+    const none = withCube();
+    const relic = withCube({ name: '렐릭 베어 큐브', level: 15 });
+    const low = withCube({ name: '렐릭 베어 큐브', level: 7 });
+
+    expect((relic.characters?.['리타'] as { cube?: { name: string; level: number } }).cube)
+      .toEqual({ name: '렐릭 베어 큐브', level: 15 });
+    expect(cacheKey(none, 'v1')).not.toBe(cacheKey(relic, 'v1'));
+    expect(cacheKey(low, 'v1')).not.toBe(cacheKey(relic, 'v1'));
+  });
+});
