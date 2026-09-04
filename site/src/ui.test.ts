@@ -138,14 +138,14 @@ const saveDeckAsPlan = (root: HTMLElement, code: string) => {
   root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
 };
 
-/** 판의 검색칸에 친다. 슬롯마다 있던 검색은 없어지고 덱에 하나만 남았다. */
+/** ピッカーの検索欄に打ち込む。スロットごとにあった検索欄は消え、デッキに1つだけ残った。 */
 function searchRoster(root: HTMLElement, query: string): void {
   const search = root.querySelector<HTMLInputElement>('[data-roster-search]')!;
   search.value = query;
   search.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-/** 판에 지금 보이는 니케 이름을 순서대로. */
+/** ピッカーにいま見えているニケの名前を順番どおりに。 */
 function rosterNames(root: HTMLElement): string[] {
   return [...root.querySelectorAll<HTMLButtonElement>('[data-roster-cell]')]
     .map((cell) => cell.dataset.rosterCell!);
@@ -155,7 +155,7 @@ function focusSlot(root: HTMLElement, index: number): void {
   root.querySelector<HTMLButtonElement>(`[data-slot-choose="${index}"]`)!.click();
 }
 
-/** 칸을 겨냥하고 판에서 골라 넣는다 — 실제 사용 흐름 그대로다. */
+/** 枠を狙い、ピッカーから選んで入れる — 実際の使用の流れそのままだ。 */
 function chooseCharacter(root: HTMLElement, index: number, name: string): void {
   focusSlot(root, index);
   searchRoster(root, name);
@@ -179,7 +179,7 @@ describe('calculator UI', () => {
     localStorage.clear();
   });
 
-  /** jsdom에는 DragEvent가 없다 — 필요한 부분(dataTransfer)만 흉내 낸다. */
+  /** jsdom には DragEvent が無い — 必要な部分 (dataTransfer) だけ真似る。 */
   const dragEvent = (type: string, data: Record<string, string>) => {
     const event = new Event(type, { bubbles: true, cancelable: true });
     const store = new Map(Object.entries(data));
@@ -195,7 +195,7 @@ describe('calculator UI', () => {
     return event;
   };
 
-  /** 저장된 편성. 시험 카탈로그는 처음부터 다섯 칸이 차 있다. */
+  /** 保存された編成。テスト用カタログは最初から5枠が埋まっている。 */
   const savedSquad = () => (JSON.parse(localStorage.getItem('nikke-state-v1')!) as
     { decks: Array<{ squad: string[] }> }).decks[0]!.squad;
 
@@ -204,7 +204,7 @@ describe('calculator UI', () => {
     const cell = root.querySelector<HTMLButtonElement>('[data-roster-cell="프리바티"]')!;
     expect(cell.draggable).toBe(true);
 
-    // 4번 칸에 놓는다 — 고른 칸(activeSlot)이 아니라 **놓은 칸**에 들어가야 한다.
+    // 4番の枠に落とす — 選んでいた枠 (activeSlot) ではなく**落とした枠**に入らなければならない。
     const slot = root.querySelector<HTMLElement>('[data-slot-card="3"]')!;
     cell.dispatchEvent(dragEvent('dragstart', {}));
     slot.dispatchEvent(dragEvent('dragover', { 'application/x-nikke-name': '프리바티' }));
@@ -212,7 +212,7 @@ describe('calculator UI', () => {
     slot.dispatchEvent(dragEvent('drop', { 'application/x-nikke-name': '프리바티' }));
 
     expect(savedSquad()[3]).toBe('프리바티');
-    // 다시 그린 칸에는 끌던 표시가 남지 않는다.
+    // 描き直した枠にはドラッグ中の表示が残らない。
     expect(root.querySelector<HTMLElement>('[data-slot-card="3"]')!.classList.contains('is-drop'))
       .toBe(false);
   });
@@ -236,7 +236,7 @@ describe('calculator UI', () => {
       .dispatchEvent(dragEvent('drop', { 'application/x-nikke-name': '프리바티' }));
     const before = savedSquad().slice(0, 3);
 
-    // 1번을 3번 칸으로 끌어다 놓는다 — 이름에 걸린 설정은 그대로 두고 자리만 바뀐다.
+    // 1番を3番の枠へドラッグして落とす — 名前に紐づく設定はそのまま、位置だけが入れ替わる。
     root.querySelector<HTMLElement>('[data-slot-card="2"]')!
       .dispatchEvent(dragEvent('drop', { 'application/x-nikke-slot': '0' }));
 
@@ -258,12 +258,12 @@ describe('calculator UI', () => {
     const modal = root.querySelector<HTMLElement>('[data-burst-order-modal]')!;
     expect(modal.hidden).toBe(false);
 
-    // 첫 걸음은 1번째 풀버스트의 1버다.
+    // 最初のステップは1回目のフルバーストの1バだ。
     const now = root.querySelector<HTMLElement>('[data-burst-now]')!;
     expect(now.textContent).toContain('1回目のフルバースト');
     expect(now.textContent).toContain('1バ');
 
-    // 1버는 리타 하나뿐이라 A와 「자동」(0)만 붙는다.
+    // 1バは 리타 ひとりだけなので、A と「自動」(0) だけが付く。
     const keysOf = () => [...root.querySelectorAll<HTMLElement>('[data-burst-picks] .burst-pick-key')]
       .map((node) => node.textContent);
     expect(keysOf()).toEqual(['A', '0']);
@@ -272,9 +272,9 @@ describe('calculator UI', () => {
       .textContent!;
     expect(firstName).toBe('리타');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
-    // 한 칸 골랐으니 다음 걸음(2버)으로 넘어간다.
+    // 1枠選んだので次のステップ (2バ) へ進む。
     expect(now.textContent).toContain('2バ');
-    // 2버는 둘이라 A·S가 편성 순서대로 붙는다.
+    // 2バは2人なので、A・S が編成の順に付く。
     expect(keysOf()).toEqual(['A', 'S', '0']);
     expect([...root.querySelectorAll<HTMLElement>('[data-burst-picks] .burst-pick-name')]
       .map((node) => node.textContent).slice(0, 2)).toEqual(['크라운', '나가']);
@@ -286,7 +286,7 @@ describe('calculator UI', () => {
     const saved = JSON.parse(localStorage.getItem('nikke-state-v1')!) as
       { decks: Array<{ burstSequence?: Array<Record<string, string[]>> }> };
     expect(saved.decks[0]!.burstSequence![0]!['1']).toEqual([firstName]);
-    // 덱 도구 줄의 배지가 걸려 있음을 알린다.
+    // デッキ操作列のバッジが、順序が掛かっていることを知らせる。
     expect(root.querySelector<HTMLElement>('[data-burst-order-badge]')!.hidden).toBe(false);
   });
 
@@ -299,14 +299,14 @@ describe('calculator UI', () => {
     const firstRow = () => root.querySelector<HTMLElement>('[data-burst-list] .burst-row')!;
     const slots = () => [...firstRow().querySelectorAll<HTMLElement>('.burst-slot')];
 
-    // 아무것도 안 골라도 칸은 셋이다 — 몇 칸이 남았는지가 보여야 한다.
+    // 何も選ばなくても枠は3つだ — あと何枠残っているかが見えなければならない。
     expect(slots()).toHaveLength(3);
     expect(slots().map((slot) => slot.querySelector('.burst-slot-stage')?.textContent))
       .toEqual(['1バ', '2バ', '3バ']);
     expect(slots().every((slot) => !slot.classList.contains('is-filled'))).toBe(true);
     expect(firstRow().querySelectorAll('img')).toHaveLength(0);
 
-    // 첫 칸을 고르면 그 칸만 채워지고 초상화가 들어간다.
+    // 最初の枠を選ぶとその枠だけが埋まり、立ち絵が入る。
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
     expect(slots()[0]!.classList.contains('is-filled')).toBe(true);
     expect(slots()[1]!.classList.contains('is-filled')).toBe(false);
@@ -321,12 +321,12 @@ describe('calculator UI', () => {
     const now = root.querySelector<HTMLElement>('[data-burst-now]')!;
 
     const rows = [...root.querySelectorAll<HTMLElement>('[data-burst-list] .burst-row')];
-    // 3번째 사이클의 3버 칸.
+    // 3回目のサイクルの3バの枠。
     rows[2]!.querySelectorAll<HTMLButtonElement>('.burst-slot')[2]!.click();
 
     expect(now.textContent).toContain('3回目のフルバースト');
     expect(now.textContent).toContain('3バ');
-    // 지금 서 있는 칸에 표시가 붙는다.
+    // いま立っている枠に印が付く。
     const here = root.querySelectorAll('[data-burst-list] .burst-slot.is-here');
     expect(here).toHaveLength(1);
   });
@@ -336,7 +336,7 @@ describe('calculator UI', () => {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     });
     const open = root.querySelector<HTMLButtonElement>('[data-burst-order-open]')!;
-    // 파괴 단추(덱 비우기)와 같은 옷을 입고 있어 눈에 안 띄던 것을 뗐다.
+    // 破壊ボタン (デッキを空にする) と同じ装いで目立たなかったのを剥がした。
     expect(open.classList.contains('deck-clear')).toBe(false);
     expect(open.classList.contains('burst-order-open')).toBe(true);
     expect(open.classList.contains('is-on')).toBe(false);
@@ -387,7 +387,7 @@ describe('calculator UI', () => {
     mountCalculator(root, {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
     });
-    // 창을 열지 않은 채 A를 눌러도 아무 일이 없어야 한다 — 검색칸과 부딪치면 안 된다.
+    // モーダルを開かないまま A を押しても何も起きてはならない — 検索欄とぶつかってはいけない。
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
     const saved = JSON.parse(localStorage.getItem('nikke-state-v1') ?? '{"decks":[{}]}') as
       { decks: Array<{ burstSequence?: unknown }> };
@@ -415,8 +415,8 @@ describe('calculator UI', () => {
     expect(def.value).toBe('31784');
     expect(code.value).toBe('');
     expect(parts.checked).toBe(false);
-    // 전투 조건이 창으로 들어간 뒤로 이 한 줄이 화면에 남는 유일한 표시다 —
-    // 값만 되돌리고 줄을 그대로 두면 «초기화가 안 된다»로 보인다.
+    // 戦闘条件がモーダルへ入って以来、この1行が画面に残る唯一の表示だ —
+    // 値だけ戻して行をそのままにすると «初期化されていない» ように見える。
     expect(summary.textContent).not.toContain('灼熱');
     expect(summary.textContent).not.toContain('パーツ');
     expect(summary.textContent).toContain('無属性');
@@ -2471,39 +2471,39 @@ describe('calculator UI', () => {
     const filled = () => stepper.querySelectorAll('.growth-star.is-on').length;
     const core = () => stepper.querySelector('.growth-core')?.textContent ?? null;
 
-    // 기본값 3돌: 별 3개, 진화 0. 아직 오버라이드가 없어 드롭다운도 없다.
+    // 既定値は «3돌»: 星3つ・コア0。まだオーバーライドが無いのでドロップダウンも無い。
     expect(filled()).toBe(3);
     expect(core()).toBe('0');
     expect(root.querySelector('[data-slot-card="0"] [data-growth-stage]')).toBeNull();
 
-    // + 한 번 → 코강 1. 별 3개 + 동그라미 "1", 개별 설정 드롭다운이 생겨 값이 맞는다.
+    // + を1回 → 코강 1。星3つ + 丸の «1»、個別設定のドロップダウンが現れて値が合う。
     plus.click();
     expect(filled()).toBe(3);
     expect(core()).toBe('1');
     expect(root.querySelector<HTMLSelectElement>('[data-slot-card="0"] [data-growth-stage]')!.value).toBe('4');
 
-    // 바닥까지 내리면 명함(0): 채워진 별 0개, − 비활성.
-    // 진화 뱃지는 0으로 남는다 — 사라지면 별 줄 폭이 흔들린다.
+    // 底まで下げると 명함 (0): 点いた星は0個、− は無効。
+    // コアのバッジは0のまま残る — 消えると星の列の幅が揺れる。
     for (let i = 0; i < 6; i += 1) minus.click();
     expect(filled()).toBe(0);
     expect(core()).toBe('0');
     expect(minus.disabled).toBe(true);
 
-    // 기본값(3돌)으로 되돌리면 오버라이드가 사라져 드롭다운도 없어진다.
+    // 既定値 (3돌) に戻すとオーバーライドが消え、ドロップダウンも無くなる。
     for (let i = 0; i < 3; i += 1) plus.click();
     expect(filled()).toBe(3);
     expect(root.querySelector('[data-slot-card="0"] [data-growth-stage]')).toBeNull();
   });
 
   it('keeps the star art from swallowing clicks on the stepper buttons', () => {
-    // 별·진화 그림은 칸보다 크게 그려 −/+ 위로 넘친다. pointer-events를 놓치면
-    // 버튼 한가운데가 안 눌린다 (유저 제보).
+    // 星・コアの絵は枠より大きく描かれて −/+ の上へはみ出す。pointer-events を忘れると
+    // ボタンのど真ん中が押せない (ユーザー報告)。
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     const stepper = root.querySelector<HTMLElement>('[data-slot-card="0"] [data-growth-stepper]')!;
     for (const decoration of ['.growth-stars', '.growth-star', '.growth-core']) {
       expect(stepper.querySelector(decoration), decoration).not.toBeNull();
     }
-    // jsdom은 pointer-events 캐스케이드를 계산하지 않는다 — 규칙 자체를 확인한다.
+    // jsdom は pointer-events のカスケードを計算しない — 規則そのものを確認する。
     const css = readFileSync(join(import.meta.dirname, 'styles.css'), 'utf8');
     expect(css).toMatch(
       /\.growth-stars,\s*\.growth-star,\s*\.growth-core\s*\{\s*pointer-events:\s*none;/,
@@ -2513,13 +2513,13 @@ describe('calculator UI', () => {
   it('shows the element code icon on squad cards and roster cells', () => {
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
 
-    // 편성 카드는 좌상단 — 슬롯 번호와 한 줄에 선다.
+    // 編成カードでは左上 — スロット番号と同じ行に並ぶ。
     const tags = root.querySelector<HTMLElement>('[data-slot-card="0"] .slot-tags')!;
     expect(tags.querySelector('.slot-number')!.textContent).toBe('01');
-    // 리타는 철갑.
+    // 리타 は 철갑。
     expect(tags.querySelector('.slot-code')!.className).toContain('is-iron');
 
-    // 고르기 판은 우상단. 전원에게 붙고 속성별로 갈린다.
+    // ピッカーでは右上。全員に付き、属性ごとに分かれる。
     const cells = [...root.querySelectorAll<HTMLElement>('[data-roster-cell]')];
     expect(cells.length).toBeGreaterThan(0);
     expect(cells.every((cell) => cell.querySelector('.roster-code'))).toBe(true);
@@ -2534,8 +2534,8 @@ describe('calculator UI', () => {
     const client = new FakeClient();
     mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
 
-    // 기본은 아무 무기군도 적정거리가 아니다 — 요청에서 아예 빠진다.
-    // 런처는 인게임에 적정 사거리가 없어 칸 자체가 없다.
+    // 既定ではどの武器種も適正距離ではない — リクエストから丸ごと抜ける。
+    // ランチャーはインゲームに適正射程が無いので欄そのものが無い。
     const boxes = [...root.querySelectorAll<HTMLInputElement>('[data-optimal-range-weapon]')];
     expect(boxes.map((box) => box.dataset.optimalRangeWeapon))
       .toEqual(['AR', 'SMG', 'SG', 'MG', 'SR']);
@@ -2545,7 +2545,7 @@ describe('calculator UI', () => {
     await flush();
     expect(client.lastRequest?.optimalRangeWeapons).toBeUndefined();
 
-    // 여러 개를 함께 켤 수 있다.
+    // 複数を同時に点けられる。
     const check = (weapon: string) => {
       const box = root.querySelector<HTMLInputElement>(`[data-optimal-range-weapon="${weapon}"]`)!;
       box.checked = true;
@@ -2555,10 +2555,10 @@ describe('calculator UI', () => {
     check('AR');
     root.querySelector<HTMLFormElement>('form')!.requestSubmit();
     await flush();
-    // 고른 순서와 무관하게 정렬돼 실린다 — 같은 설정이 다른 캐시 키를 만들지 않게.
+    // 選んだ順序と無関係に整列して載る — 同じ設定が別のキャッシュキーを作らないように。
     expect(client.lastRequest?.optimalRangeWeapons).toEqual(['AR', 'SG']);
 
-    // 새로고침해도 남는다.
+    // リロードしても残る。
     root.remove();
     root = document.createElement('main');
     document.body.append(root);
@@ -2570,8 +2570,8 @@ describe('calculator UI', () => {
   });
 
   it('keeps buff targets across a reload, and drops them when the squad changes', async () => {
-    // 수령자는 실제 발동 로그에서 오므로 계산 전에는 알 수 없다. 새로고침할 때마다
-    // 빈 괄호로 돌아가면 기능이 꺼진 것처럼 보이므로 저장했다가 되살린다.
+    // 受け手は実際の発動ログから来るので、計算前には分からない。リロードのたびに
+    // 空の括弧へ戻ると機能が切れたように見えるので、保存しておいて蘇らせる。
     const withTargets: SimulationResult = {
       ...calculated,
       buffTargets: { 리타: [{ label: '크확 대상', buff: '웨이크업! 4', targets: ['크라운'], count: 3 }] },
@@ -2582,7 +2582,7 @@ describe('calculator UI', () => {
         return withTargets;
       }
     }
-    // 리타는 기본 편성 1번 칸에 있다 — 감시 대상으로 잡아 둔 캐릭터다.
+    // 리타 は既定編成の1番の枠にいる — 監視対象として押さえてあるキャラだ。
     mountCalculator(root, { catalog, settings, version: 'v1', client: new TargetClient(), storage: localStorage });
     const shown = () => root.querySelector<HTMLElement>('[data-buff-target]')?.textContent;
     expect(shown()).toBe('크확 대상 : []');
@@ -2592,14 +2592,14 @@ describe('calculator UI', () => {
     await flush();
     expect(shown()).toBe('크확 대상 : [크라운]');
 
-    // 새로 마운트해도(=새로고침) 남는다.
+    // マウントし直しても (=リロード) 残る。
     root.remove();
     root = document.createElement('main');
     document.body.append(root);
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     expect(shown()).toBe('크확 대상 : [크라운]');
 
-    // 편성을 바꾸면 지난 계산의 값이라 그대로 믿을 수 없다 — 비운다.
+    // 編成を変えたら過去の計算の値なのでそのまま信じられない — 空にする。
     chooseCharacter(root, 1, '프리바티');
     expect(shown()).toBe('크확 대상 : []');
   });
@@ -2679,7 +2679,7 @@ describe('calculator UI', () => {
     root.querySelector<HTMLButtonElement>(`[data-filter-chip="${key}:${value}"]`)!;
 
   it('filters the picker down to SSR only', () => {
-    // SR·R은 실전에서 거의 안 쓴다 — 목록에서 걷어낸다(유저 피드백).
+    // SR・R は実戦でほぼ使わない — 一覧から取り除く (ユーザーフィードバック)。
     const withSR: SettingsCatalog = {
       ...settings,
       characters: { ...settings.characters, 나가: { ...settings.characters.나가!, rarity: 'SR' } },
@@ -2688,19 +2688,19 @@ describe('calculator UI', () => {
     expect(rosterNames(root)).toContain('나가');
     chip(root, 'rarity', 'SSR').click();
     expect(rosterNames(root)).not.toContain('나가');
-    // 같은 칩을 다시 누르면 꺼진다 — 「전체」 칩이 따로 없다.
+    // 同じチップをもう一度押すと消える — «すべて» のチップは別に無い。
     chip(root, 'rarity', 'SSR').click();
     expect(rosterNames(root)).toContain('나가');
   });
 
   it('ORs within a filter group and ANDs across groups', () => {
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
-    // 무기 둘을 켜면 둘 중 하나면 통과한다(그룹 안 OR).
+    // 武器を2つ点けるとどちらか一方で通る (グループ内 OR)。
     chip(root, 'weapon', 'SR').click();
     chip(root, 'weapon', 'AR').click();
     expect(rosterNames(root).sort()).toEqual(['앨리스', '프리바티']);
 
-    // 거기에 속성을 더하면 둘 다 만족해야 한다(그룹 사이 AND).
+    // そこへ属性を足すと両方満たさなければならない (グループ間 AND)。
     chip(root, 'code', '수냉').click();
     expect(rosterNames(root).sort()).toEqual(['앨리스', '프리바티']);
     chip(root, 'code', '수냉').click();
@@ -2726,7 +2726,7 @@ describe('calculator UI', () => {
   });
 
   it('sorts by overload value, breaking ties by name', () => {
-    // 우월코드·우공합은 «내 로스터에서 얼마나 굴려졌나»를 보는 척도다.
+    // 有利コード・有利+攻撃は «自分のロスターでどれだけ回されたか» を見る尺度だ。
     const over = (element: number, atk: number) => ({
       element_bonus: element, atk_pct: atk, max_ammo_pct: 0, crit_rate: 0, crit_dmg: 0,
     });
@@ -2741,7 +2741,7 @@ describe('calculator UI', () => {
     };
     mountCalculator(root, { catalog, settings: tuned, version: 'v1', client: new FakeClient(), storage: localStorage });
 
-    // 기본은 이름순.
+    // 既定は名前順。
     expect(rosterNames(root)).toEqual([...rosterNames(root)].sort((a, b) => a.localeCompare(b, 'ko')));
 
     root.querySelector<HTMLButtonElement>('[data-sort="element"]')!.click();
@@ -2749,7 +2749,7 @@ describe('calculator UI', () => {
     expect(byElement.indexOf('앨리스')).toBeLessThan(byElement.indexOf('나가'));
     expect(byElement.indexOf('나가')).toBeLessThan(byElement.indexOf('리타'));
 
-    // 우공합은 공증까지 더하므로 리타(10+90=100)가 앨리스(50)를 앞선다.
+    // 有利+攻撃は攻撃力増加まで足すので、리타 (10+90=100) が 앨리스 (50) の前に出る。
     root.querySelector<HTMLButtonElement>('[data-sort="elementAtk"]')!.click();
     const bySum = rosterNames(root);
     expect(bySum.indexOf('리타')).toBeLessThan(bySum.indexOf('앨리스'));
@@ -2760,28 +2760,28 @@ describe('calculator UI', () => {
     const sortChip = (key: string) =>
       root.querySelector<HTMLButtonElement>(`[data-sort="${key}"]`)!;
 
-    // 이름은 오름차순으로 시작한다.
+    // 名前は昇順で始まる。
     sortChip('name').click();
     expect(sortChip('name').dataset.sortDir).toBe('asc');
     expect(sortChip('name').textContent).toContain('▲');
     const asc = rosterNames(root);
 
-    // 같은 항목을 다시 누르면 뒤집힌다.
+    // 同じ項目をもう一度押すと反転する。
     sortChip('name').click();
     expect(sortChip('name').dataset.sortDir).toBe('desc');
     expect(sortChip('name').textContent).toContain('▼');
     expect(rosterNames(root)).toEqual([...asc].reverse());
 
-    // 수치 항목은 «높은 순»으로 시작한다 — 항목마다 자연스러운 방향이 다르다.
+    // 数値の項目は «高い順» で始まる — 項目ごとに自然な向きが違う。
     sortChip('element').click();
     expect(sortChip('element').dataset.sortDir).toBe('desc');
-    // 켜지지 않은 항목에는 삼각형이 없다.
+    // 点いていない項目には三角形が無い。
     expect(sortChip('name').textContent).not.toContain('▲');
     expect(sortChip('name').textContent).not.toContain('▼');
   });
 
   it('opens on combat power, standing by name until the engine answers', async () => {
-    // 전투력은 엔진이 계산해 온다. 그 사이에도 목록은 쓸 수 있어야 한다.
+    // 戦闘力はエンジンが計算して返してくる。その間も一覧は使えなければならない。
     let answer!: (power: Record<string, number>) => void;
     class PowerClient extends FakeClient {
       names: string[] = [];
@@ -2795,7 +2795,7 @@ describe('calculator UI', () => {
     const summary = () => root.querySelector<HTMLElement>('[data-filter-summary]')!.textContent;
 
     expect(root.querySelector<HTMLButtonElement>('[data-sort="power"]')!.dataset.sortDir).toBe('desc');
-    // 오는 동안은 이름순으로 서 있고, 요약이 기다리는 중임을 알린다.
+    // 届くまでは名前順に並んだままで、要約が計算待ちであることを知らせる。
     expect(summary()).toContain('戦闘力 計算中');
     expect(rosterNames(root)).toEqual([...rosterNames(root)].sort((a, b) => a.localeCompare(b, 'ko')));
 
@@ -2816,7 +2816,7 @@ describe('calculator UI', () => {
     const panel = root.querySelector<HTMLElement>('[data-filter-panel]')!;
     const scroll = root.querySelector<HTMLElement>('.picker-scroll')!;
 
-    // 판과 목록이 같은 자리 컨테이너에 나란히 있어야 판을 목록 «위에» 얹을 수 있다.
+    // パネルと一覧が同じ位置決めコンテナに並んでいてこそ、パネルを一覧の «上に» 載せられる。
     expect(panel.parentElement).toBe(scroll.parentElement);
     expect(panel.parentElement!.classList.contains('picker-body')).toBe(true);
 
@@ -2824,18 +2824,18 @@ describe('calculator UI', () => {
     open.click();
     expect(panel.hidden).toBe(false);
 
-    // 판 안과 판을 여는 줄은 «바깥»이 아니다 — 눌러도 닫히지 않는다.
+    // パネルの中と、パネルを開く列は «外» ではない — 押しても閉じない。
     panel.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
     root.querySelector<HTMLElement>('.picker-bar')!
       .dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
     expect(panel.hidden).toBe(false);
 
-    // 바깥을 누르면 닫힌다.
+    // 外を押すと閉じる。
     scroll.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
     expect(panel.hidden).toBe(true);
     expect(open.getAttribute('aria-expanded')).toBe('false');
 
-    // Esc로도 닫힌다.
+    // Esc でも閉じる。
     open.click();
     expect(panel.hidden).toBe(false);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -2847,10 +2847,10 @@ describe('calculator UI', () => {
     const bar = root.querySelector<HTMLElement>('.picker-bar')!;
     const burst = [...bar.querySelectorAll<HTMLButtonElement>('[data-burst-group] .filter-chip')];
     expect(burst.map((chipEl) => chipEl.textContent)).toEqual(['B1', 'B2', 'B3', 'BA']);
-    // 판 안에는 더 이상 버스트가 없다.
+    // パネルの中にはもうバーストが無い。
     expect(root.querySelector('[data-filter-groups] [data-filter-chip^="burst"]')).toBeNull();
 
-    // 판을 펼치지 않고 바로 걸린다.
+    // パネルを開かずにそのまま掛かる。
     expect(root.querySelector<HTMLElement>('[data-filter-panel]')!.hidden).toBe(true);
     const b3 = catalog.filter((meta) => meta.burstStage === '3').map((meta) => meta.name);
     chip(root, 'burst', '3').click();
@@ -2874,7 +2874,7 @@ describe('calculator UI', () => {
     const client = new FakeClient();
     mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
     const level = root.querySelector<HTMLInputElement>('#synchro-level')!;
-    // 기본은 엔진 기본 스펙과 같은 400이다.
+    // 既定はエンジンの基本スペックと同じ 400 だ。
     expect(level.value).toBe('400');
 
     level.value = '250';
@@ -2887,8 +2887,8 @@ describe('calculator UI', () => {
   });
 
   it('자세히 보기를 켜면 대미지를 1의 자리까지 적는다', async () => {
-    // 「1.24억」은 견주기에 좋지만 두 덱이 같은 글자로 보이는 일이 있다.
-    // 줄여 쓰기는 백만이 넘어야 시작되므로, 그 위의 수치를 내는 대역으로 잰다.
+    // 「1.24億」は見比べるには良いが、2つのデッキが同じ文字に見えることがある。
+    // 省略表記は百万を超えてから始まるので、その上の数値を出す代役で測る。
     const big: SimulationResult = {
       ...calculated,
       squadTotal: 124_381_927,
@@ -2908,8 +2908,8 @@ describe('calculator UI', () => {
     await flush();
     await flush();
 
-    // 이 대역의 총딜(123,456)은 줄여 쓰는 문턱 아래라 두 표기가 같다. 자세히 보기가
-    // 실제로 갈리는 자리는 억 단위가 넘는 캐릭터별 수치이므로 그쪽을 본다.
+    // この代役の総ダメージ (123,456) は省略表記の境目より下で、2つの表記が同じだ。「詳しく見る」が
+    // 実際に分かれる場所は億単位を超えるキャラごとの数値なので、そちらを見る。
     const rowTotal = () => root.querySelector<HTMLElement>('.result-row-total, .result-cards strong')?.textContent ?? '';
     const box = root.querySelector<HTMLInputElement>('[data-detail-damage]')!;
     expect(box.checked).toBe(false);
@@ -2921,7 +2921,7 @@ describe('calculator UI', () => {
     expect(exact).toMatch(/^[\d,]+$/);            // 쉼표만 든 정수 — 「億」이 붙지 않는다
     expect(Number(exact.replace(/,/g, ''))).toBeGreaterThan(0);
 
-    // 켠 상태는 남는다 — 다시 열어도 그 눈으로 본다.
+    // 点けた状態は残る — 開き直してもその目で見る。
     expect(localStorage.getItem('nikke-detail-damage-v1')).toBe('1');
     root.querySelector<HTMLInputElement>('[data-detail-damage]')!.click();
     expect(rowTotal()).toBe(short);
@@ -2934,20 +2934,20 @@ describe('calculator UI', () => {
     card.querySelector<HTMLInputElement>('[data-custom-toggle]')!.click();
     card.querySelector<HTMLButtonElement>('[data-control-open]')!.click();
 
-    // 컨트롤은 창으로 나가지 않는다 — 카드 안에서 펴진다.
+    // コントロールはモーダルへ出て行かない — カードの中で開く。
     expect(root.querySelector('[data-char-panel-body] [data-control-mode]')).toBeNull();
     const inCard = (selector: string) =>
       root.querySelector<HTMLInputElement>(`[data-slot-card="0"] ${selector}`);
     expect(inCard('[data-control-panel]')!.hidden).toBe(false);
-    // 처음엔 «추천 자동 적용»이라 체크박스가 잠겨 있다.
+    // 最初は «推奨を自動適用» なのでチェックボックスがロックされている。
     expect(inCard('[data-control="reload"]')!.disabled).toBe(true);
 
-    // «직접 설정»을 고르면 카드가 다시 그려진다 — 펴 둔 판은 그대로 살아 있어야 한다.
+    // «手動設定» を選ぶとカードが描き直される — 開いておいたパネルはそのまま生きていなければならない。
     inCard('[data-control-mode="manual"]')!.click();
     await Promise.resolve();
     expect(inCard('[data-control-panel]')!.hidden).toBe(false);
     expect(inCard('[data-control="reload"]')!.disabled).toBe(false);
-    // 그리고 그 체크박스가 실제로 먹는다.
+    // そしてそのチェックボックスが実際に効く。
     inCard('[data-control="reload"]')!.click();
     await Promise.resolve();
     expect(inCard('[data-control="reload"]')!.checked).toBe(true);
@@ -2956,7 +2956,7 @@ describe('calculator UI', () => {
   it('does not yank the page back to the squad when results arrive', async () => {
     const client = new FakeClient();
     mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
-    // jsdom에는 scrollIntoView가 없다 — 누가 불렀는지 보려고 심는다.
+    // jsdom には scrollIntoView が無い — 誰が呼んだか見るために植えておく。
     const pulled: string[] = [];
     const proto = Element.prototype as unknown as { scrollIntoView?: () => void };
     proto.scrollIntoView = function record(this: HTMLElement) {
@@ -2964,12 +2964,12 @@ describe('calculator UI', () => {
     };
     const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     try {
-      // 칸을 직접 누르면 끌어온다 — 좁은 화면에서 겨냥한 칸이 밖에 있을 수 있다.
+      // 枠を直接押すと引き寄せる — 狭い画面では狙った枠が外にあり得る。
       root.querySelector<HTMLButtonElement>('[data-slot-choose="2"]')!.click();
       await frame();
       expect(pulled).toContain('2');
 
-      // 결과가 도착해 편성이 다시 그려질 때는 끌어오지 않는다.
+      // 結果が届いて編成が描き直されるときは引き寄せない。
       pulled.length = 0;
       root.querySelector<HTMLFormElement>('form')!.requestSubmit();
       await flush();
@@ -2990,7 +2990,7 @@ describe('calculator UI', () => {
   });
 
   it('brings the deck you were viewing to deck 1 when five-deck mode is turned off', () => {
-    // 2~5덱 중 하나만 계산하려고 끄는 경우가 많다 — 그때마다 손으로 옮기지 않게 한다.
+    // 2〜5デッキのどれか1つだけ計算しようとオフにすることが多い — そのたびに手で移させない。
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     const mode = root.querySelector<HTMLInputElement>('#squad-mode')!;
     mode.checked = true;
@@ -3013,13 +3013,13 @@ describe('calculator UI', () => {
     const shown = () => [...root.querySelectorAll('[data-slot-choose] strong')].map((e) => e.textContent);
     const deck1 = shown();
 
-    // 1덱에서는 «앞으로»가 막혀 있다.
+    // 1デッキ目では «前へ» が塞がれている。
     expect(root.querySelector<HTMLButtonElement>('[data-deck-move="-1"]')!.disabled).toBe(true);
 
     root.querySelector<HTMLButtonElement>('[data-deck-tab="2"]')!.click();
     const deck2 = shown();
     root.querySelector<HTMLButtonElement>('[data-deck-move="-1"]')!.click();
-    // 내용만 맞바뀌고, 보던 편성을 따라간다.
+    // 中身だけが入れ替わり、見ていた編成に付いていく。
     expect(shown()).toEqual(deck2);
     root.querySelector<HTMLButtonElement>('[data-deck-tab="2"]')!.click();
     expect(shown()).toEqual(deck1);
@@ -3031,7 +3031,7 @@ describe('calculator UI', () => {
 
     expect(choosers).toHaveLength(5);
     expect(choosers.map((c) => c.querySelector('strong')!.textContent)).toEqual(names.slice(0, 5));
-    // 슬롯마다 있던 검색·드롭다운·교체 버튼은 판으로 옮겨 갔다.
+    // スロットごとにあった検索・ドロップダウン・入れ替えボタンはピッカーへ移って行った。
     expect(root.querySelectorAll('[data-character-filter]')).toHaveLength(0);
     expect(root.querySelectorAll('[data-squad-slot]')).toHaveLength(0);
     expect(root.querySelectorAll('[data-slot-pick]')).toHaveLength(0);
@@ -3047,13 +3047,13 @@ describe('calculator UI', () => {
     clearCharacterSlot(root, 2);
     expect(aimed()).toBe(2);
 
-    // 프리바티만 초기 편성 밖이라 눌린다 — 나머지는 중복이라 막혀 있다.
+    // 프리바티 だけが初期編成の外なので押せる — 残りは重複で塞がれている。
     searchRoster(root, '프리바티');
     root.querySelector<HTMLButtonElement>('[data-roster-cell="프리바티"]')!.click();
 
     const saved = JSON.parse(localStorage.getItem('nikke-state-v1')!);
     expect(saved.decks[0].squad[2]).toBe('프리바티');
-    // 다 찼으므로 방금 넣은 칸에 머문다.
+    // 全部埋まったので、いま入れた枠に留まる。
     expect(aimed()).toBe(2);
   });
 
@@ -3063,12 +3063,12 @@ describe('calculator UI', () => {
 
     expect(root.querySelector<HTMLButtonElement>('[data-roster-cell="리타"]')!.disabled).toBe(true);
 
-    // 리타가 앉아 있는 칸을 겨냥하면 그 칸에 한해 다시 고를 수 있다.
+    // 리타 が座っている枠を狙えば、その枠に限って選び直せる。
     focusSlot(root, 0);
     expect(root.querySelector<HTMLButtonElement>('[data-roster-cell="리타"]')!.disabled).toBe(false);
   });
 
-  // 곁가지(속성·무기·클래스·기업)로 걸린 것끼리는 짧은 이름이 앞이다.
+  // 枝葉 (属性・武器・クラス・企業) で引っ掛かったもの同士は、短い名前が先だ。
   it.each([
     ['B2', ['나가', '크라운']],
     ['수냉', ['앨리스', '프리바티']],
@@ -3086,7 +3086,7 @@ describe('calculator UI', () => {
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
 
     searchRoster(root, 'ㄹㅍ');
-    // 「라피 : 레드 후드」와 「리타」가 함께 걸려도 이름 첫머리가 앞선다.
+    // 「라피 : 레드 후드」と「리타」が一緒に引っ掛かっても、名前の頭での一致が先に立つ。
     expect(rosterNames(root)[0]).toBe('라피 : 레드 후드');
 
     searchRoster(root, '라피레드');
@@ -3135,14 +3135,14 @@ describe('calculator UI', () => {
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     const moved = root.querySelector<HTMLButtonElement>('[data-slot-choose="0"]')!
       .querySelector('strong')!.textContent!;
-    // 0번 캐릭터에 개별 설정을 준다.
+    // 0番のキャラに個別設定を与える。
     const toggle = root.querySelector<HTMLInputElement>('[data-slot-card="0"] [data-custom-toggle]')!;
     toggle.checked = true;
     toggle.dispatchEvent(new Event('change', { bubbles: true }));
 
     root.querySelector<HTMLButtonElement>('[data-slot-move="0:1"]')!.click();
 
-    // 설정은 이름에 매여 있으므로 자리를 옮겨도 그 캐릭터를 따라간다.
+    // 設定は名前に紐づいているので、位置を移してもそのキャラに付いていく。
     const saved = JSON.parse(localStorage.getItem('nikke-state-v1')!);
     expect(saved.decks[0].squad[1]).toBe(moved);
     expect(saved.decks[0].characters[moved]).toBeDefined();
@@ -3154,7 +3154,7 @@ describe('calculator UI', () => {
     mode.checked = true;
     mode.dispatchEvent(new Event('change'));
 
-    // 덱 2는 미리 채워 둔다 — 덮어쓰기 대상은 기본 선택되지 않아야 한다.
+    // デッキ2はあらかじめ埋めておく — 上書きになる相手は既定で選ばれていてはいけない。
     root.querySelector<HTMLButtonElement>('[data-deck-tab="2"]')!.click();
     chooseCharacter(root, 0, '앨리스');
     root.querySelector<HTMLButtonElement>('[data-deck-tab="1"]')!.click();
@@ -3165,7 +3165,7 @@ describe('calculator UI', () => {
     expect(targets[0]!.checked).toBe(false);
     expect(targets.slice(1).every((box) => box.checked)).toBe(true);
 
-    // 이미 짜둔 덱 2까지 명시적으로 골라 덮어쓴다.
+    // すでに組んであるデッキ2まで明示的に選んで上書きする。
     targets[0]!.checked = true;
     const deckOne = [...root.querySelectorAll<HTMLSelectElement>('[data-squad-slot]')].map((slot) => slot.value);
     root.querySelector<HTMLButtonElement>('[data-deck-copy-apply]')!.click();
@@ -3201,7 +3201,7 @@ describe('calculator UI', () => {
     expect(trust.textContent).not.toContain('AI 없음');
     expect(trust.textContent).not.toContain('서버 전송 없음');
     expect(trust.textContent).toContain(`${catalog.length}名対応`);
-    // 판이 늘 펼쳐져 있으니 열 버튼이 없다.
+    // ピッカーは常に開いているので、開くボタンが無い。
     expect(root.querySelector('[data-roster-open]')).toBeNull();
   });
 
@@ -3211,7 +3211,7 @@ describe('calculator UI', () => {
 
     expect(credit.textContent).toBe('原作 nikke-calc に感謝');
     expect(credit.href).toBe('https://github.com/Jgaram/nikke-calc');
-    // 새 탭으로 열되 opener를 넘기지 않는다.
+    // 新しいタブで開くが、opener は渡さない。
     expect(credit.target).toBe('_blank');
     expect(credit.rel).toContain('noopener');
   });
@@ -3253,7 +3253,7 @@ describe('calculator UI', () => {
       catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
       reload: () => { reloads += 1; },
     });
-    // 편성 상태를 남겨 초기화 대상이 실제로 존재하게 한다.
+    // 編成の状態を残し、初期化の対象が実際に存在するようにする。
     chooseCharacter(root, 0, '프리바티');
     expect(localStorage.getItem('nikke-state-v1')).not.toBeNull();
 
@@ -3261,7 +3261,7 @@ describe('calculator UI', () => {
     root.querySelector<HTMLButtonElement>('[data-reset-all]')!.click();
     expect(modal.hidden).toBe(false);
 
-    // 취소하면 아무것도 지우지 않는다.
+    // キャンセルすれば何も消さない。
     root.querySelector<HTMLButtonElement>('[data-reset-cancel]')!.click();
     expect(modal.hidden).toBe(true);
     expect(reloads).toBe(0);
@@ -3311,8 +3311,8 @@ describe('calculator UI', () => {
   });
 
   it('lays the console out in the in-game order', () => {
-    // 인게임·블라블라링크가 «공통 → 기업 → 클래스» 순으로 보여준다. 화면을 그대로
-    // 훑으며 옮겨 적을 수 있어야 하므로 순서 자체가 뜻을 갖는다.
+    // インゲームと Blablalink は «共通 → 企業 → クラス» の順で見せる。画面をそのまま
+    // なぞりながら書き写せなければならないので、順序そのものが意味を持つ。
     mountCalculator(root, { catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage });
     const order = [...root.querySelectorAll<HTMLInputElement>('[data-console-bucket]')]
       .map((input) => input.dataset.consoleBucket);
@@ -3321,7 +3321,7 @@ describe('calculator UI', () => {
       'company:엘리시온', 'company:테트라', 'company:미실리스', 'company:필그림', 'company:어브노말',
       'class:화력형', 'class:방어형', 'class:지원형',
     ]);
-    // 공통은 맨 앞이다.
+    // 共通が先頭だ。
     const groups = [...root.querySelectorAll('.console-group h4')].map((h) => h.textContent);
     expect(groups).toEqual(['共通', '企業', 'クラス']);
   });
@@ -3330,7 +3330,7 @@ describe('calculator UI', () => {
     const client = new FakeClient();
     mountCalculator(root, { catalog, settings, version: 'v1', client, storage: localStorage });
 
-    // 클래스 3개 · 기업 5개가 각각 칸을 갖는다 — 엔진이 빠진 소속을 에러로 끊는다.
+    // クラス3つ・企業5つがそれぞれ欄を持つ — エンジンは欠けた所属をエラーで断ち切る。
     const bucketInput = (axis: 'class' | 'company', bucket: string) =>
       root.querySelector<HTMLInputElement>(`[data-console-bucket="${axis}:${bucket}"]`)!;
     expect(root.querySelectorAll('[data-console-bucket^="class:"]')).toHaveLength(3);
@@ -3344,7 +3344,7 @@ describe('calculator UI', () => {
       엘리시온: 100, 미실리스: 100, 테트라: 100, 필그림: 100, 어브노말: 100,
     });
 
-    // 한 소속만 올려도 그 소속만 바뀐다.
+    // 1つの所属だけ上げても、その所属だけが変わる。
     const tetra = bucketInput('company', '테트라');
     tetra.value = '250';
     tetra.dispatchEvent(new Event('change', { bubbles: true }));
@@ -3415,9 +3415,9 @@ describe('calculator UI', () => {
     await flush();
 
     const splits = [...root.querySelectorAll<HTMLElement>('[data-dmg-split]')];
-    // 분해 정보를 준 캐릭터에만 붙는다.
+    // 内訳を渡したキャラにだけ付く。
     expect(splits).toHaveLength(1);
-    // 접힌 줄에는 비율, 펼치면 실제 대미지가 보인다 — 카드가 좁아 둘을 나눠 담는다.
+    // 畳んだ行には割合、開くと実ダメージが見える — カードが狭いので2つに分けて収める。
     expect(splits[0]!.querySelector<HTMLElement>('summary')!.textContent).toContain('通常攻撃 75%');
     expect(splits[0]!.querySelector<HTMLElement>('summary')!.textContent).toContain('スキル 25%');
     const legend = splits[0]!.querySelector<HTMLElement>('.split-legend')!.textContent!;
@@ -3679,12 +3679,12 @@ describe('calculator UI', () => {
     expect(client.requests[1]?.characters?.리타?.skillLevels?.['1']).toBe(7);
     expect(client.requests[0]?.characters?.리타?.growthStage).toBe(1);
     expect(client.requests[1]?.characters?.리타?.growthStage).toBe(7);
-    // 덱이 둘 이상이면 탭으로 갈라 한 번에 하나만 편다. 탭은 **덱 번호 순서 그대로**다.
+    // デッキが2つ以上ならタブで分けて、一度に1つだけ開く。タブは**デッキ番号の順そのまま**だ。
     const deckTabs = [...root.querySelectorAll<HTMLButtonElement>('[data-deck-result-tab]')];
     expect(deckTabs.map((tab) => tab.dataset.deckResultTab)).toEqual(['1', '2']);
     expect(root.querySelectorAll('[data-deck-result]')).toHaveLength(1);
     expect(root.querySelector<HTMLElement>('[data-deck-result]')!.dataset.deckResult).toBe('1');
-    // 딜 순위는 자리를 옮기지 않고 표시로만 붙는다.
+    // ダメージ順位は位置を動かさず、表示としてだけ付く。
     expect(deckTabs.map((tab) => tab.dataset.deckRank)).toEqual(['1', '2']);
 
     deckTabs[1]!.click();

@@ -1,9 +1,9 @@
 import type { BurstSequence } from './burst-order';
 
 export type ElementCode = '' | '풍압' | '수냉' | '작열' | '전격' | '철갑';
-// 큐브 종류의 정본은 `data/base_stat_tables/cube.json`이며 게임 업데이트로 계속
-// 늘어난다. 목록을 여기 박아두면 데이터가 앞서갈 때 조용히 어긋나므로, 이름은
-// 문자열로 두고 실제 선택지는 `SettingsCatalog.cubes`의 키에서 얻는다.
+// キューブ種別の正本は `data/base_stat_tables/cube.json` で、ゲームの更新で増え
+// 続ける。一覧をここに焼き込むとデータが先行したとき静かにずれるので、名前は
+// 文字列のままにし、実際の選択肢は `SettingsCatalog.cubes` のキーから得る。
 export type CubeName = string;
 
 export interface CubeSelection {
@@ -33,19 +33,19 @@ export interface CharacterControl {
   };
 }
 
-// 버스트 운용 배정. auto는 이 필드 자체를 두지 않는다(엔진 기본 순서).
-// priority = n의 배수 사이클마다 우선 사용(every=n), skip = 가급적 안 씀.
+// バースト運用の割り当て。auto はこのフィールド自体を置かない (エンジン既定の順序)。
+// priority = n の倍数サイクルごとに優先使用 (every=n)、skip = なるべく使わない。
 export type BurstAssignment =
   | { mode: 'priority'; every: number }
-  /** 남은 시간이 `seconds`초 미만이면 누구보다 먼저 쓴다. 그 전에는 평소 순서. */
+  /** 残り時間が `seconds`秒未満なら誰よりも先に使う。それまでは平常の順序。 */
   | { mode: 'endgame'; seconds: number }
   | { mode: 'skip' };
 export type EquipPart = '머리' | '몸통' | '팔' | '다리';
 export type EquipTier = '없음' | 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'T6' | 'T7' | 'T8' | 'T9';
 export type EquipSetting = number | EquipTier;
 
-// 소장품과 애장품은 같은 슬롯이다. favorite이 1~3이면 애장품을 낀 것이고
-// 그때 stage는 SR15로 고정된다(스탯이 SR15와 같다).
+// コレクションとお気に入りは同じスロットだ。favorite が 1~3 ならお気に入りを装着していて、
+// そのとき stage は SR15 に固定される (ステータスが SR15 と同じ)。
 export interface CollectionSelection {
   stage: string;
   favorite: number;
@@ -60,9 +60,9 @@ export interface CharacterOverrides {
   control?: CharacterControl;
   manualStats?: Record<string, number>;
   burst?: BurstAssignment;
-  /** 부위별 장비. 숫자 0~5 = 기업·오버로드 강화 단계, 문자열 = 등급('없음' · 'T1'~'T9'). */
+  /** 部位別の装備。数字 0~5 = 企業・オーバーロード強化段階、文字列 = 等級 ('없음' · 'T1'~'T9')。 */
   equipLevels?: Partial<Record<EquipPart, EquipSetting>>;
-  /** 전투 시작 후 이 시각부터 수동 재장전 기반 무기 모드 전환을 시도한다. */
+  /** 戦闘開始後、この時刻から手動リロードによる武器モード切り替えを試みる。 */
   weaponModeSwapAt?: number;
 }
 
@@ -78,10 +78,10 @@ export interface CustomCharacter {
   skills: unknown[];
 }
 
-// 계정 콘솔(전초기지 재활용 연구실). 캐릭터가 아니라 계정 속성이라 요청 최상위에
-// 두고 스쿼드 전원에게 같이 적용된다.
-// `공통`은 전체 하나, `클래스`·`기업`은 소속별로 따로 큰다 — 인게임 재활용
-// 연구실이 그렇게 생겼고, 엔진도 빠진 소속을 에러로 끊는다.
+// アカウントのコンソール (前哨基地リサイクルルーム)。キャラクターではなくアカウント属性なので
+// リクエストの最上位に置き、スクワッド全員にまとめて適用される。
+// 「共通」は全体で一つ、「クラス」・「企業」は所属ごとに別々に育つ — インゲームのリサイクル
+// ルームがそういう作りで、エンジンも欠けた所属をエラーで弾く。
 export interface ConsoleLevels {
   common_level: number;
   class_level: Record<string, number>;
@@ -98,46 +98,46 @@ export interface SimulationRequest {
   corePx: number;
   hasParts: boolean;
   seed: number;
-  // 적정거리로 둘 무기군. 그 무기군의 **일반 공격**에만 ③ 보너스 +30%.
+  // 適正距離に置く武器種。その武器種の**通常攻撃**にだけ ③ ボーナス +30%。
   optimalRangeWeapons?: string[];
-  // 보스 페이즈 — 족자(평타 빗나감)와 속저(우월 코드만 통과).
+  // ボスフェーズ — 回避区間 (通常攻撃が外れる) と属性制限 (有利コードだけ通過)。
   immuneWindows?: PhaseWindow[];
   elementWindows?: ElementWindow[];
   rngMode?: RngMode;
-  /** 손으로 정한 버스트 순서. 안 주면 계산기가 평소 순서로 고른다. */
+  /** 手で決めたバースト順序。渡さなければ計算機が平常の順序で選ぶ。 */
   burstSequence?: BurstSequence;
   /**
-   * 「정밀 분석」 표(0.1초 칸)를 함께 받을지. 대미지는 원래부터 히트마다 정수로
-   * 정확히 세므로 **수치가 정밀해지는 게 아니라** 보이는 칸이 잘아진다.
-   * 늘 받으면 저장되는 결과가 열 배로 무거워져, 내보낼 때만 켠다.
+   * 「精密分析」の表 (0.1秒刻み) を一緒に受け取るか。ダメージは元からヒットごとに整数で
+   * 正確に数えているので、**数値が精密になるのではなく**見える刻みが細かくなる。
+   * 常に受け取ると保存される結果が十倍重くなるため、書き出すときだけオンにする。
    */
   fineTimeline?: boolean;
-  /** 족자 중에는 버스트 게이지도 안 찬다고 볼지. */
+  /** 回避区間の間はバーストゲージも溜まらないと見なすか。 */
   immuneBlocksBurst?: boolean;
-  // 무기군별 평타 계수. 실전에서 탄퍼짐으로 빗나가는 탄을 보정한다 — 평타에만 붙고
-  // 스킬·버스트와 변신 모드 사격에는 붙지 않는다. 안 주면 데이터 기본값을 쓴다.
+  // 武器種別の通常攻撃係数。実戦で弾のばらつきにより外れる弾を補正する — 通常攻撃にだけ掛かり、
+  // スキル・バーストと変身モード射撃には掛からない。渡さなければデータの既定値を使う。
   normalHitCoeff?: Record<string, number>;
   console?: ConsoleLevels;
-  /** 싱크로 레벨. 안 주면 엔진 기본 스펙 레벨(400)을 쓴다. */
+  /** シンクロレベル。渡さなければエンジン既定のスペックレベル (400) を使う。 */
   synchroLevel?: number;
-  // 버스트 게이지 충전 시간(초). 게이지 누적 대신 쓰는 고정 시간이다.
+  // バーストゲージ充填時間 (秒)。ゲージ蓄積の代わりに使う固定時間だ。
   burstRegenTime?: number;
-  /** 버스트 반응속도(초). 안 주면 엔진 기본값(0.05)을 쓴다. */
+  /** バースト反応速度 (秒)。渡さなければエンジン既定値 (0.05) を使う。 */
   burstReaction?: number;
 }
 
-/** 보스 페이즈 구간. `[from, to)` 반개구간이다. */
+/** ボスフェーズの区間。`[from, to)` の半開区間だ。 */
 export interface PhaseWindow { from: number; to: number }
-/** 속저 — 그 구간 동안 이 코드에 **우월한** 캐릭터의 딜만 들어간다. */
+/** 属性制限 — その区間の間、このコードに**有利な**キャラクターのダメージだけが入る。 */
 export interface ElementWindow extends PhaseWindow { code: ElementCode }
-/** 난수 처리. random = 인게임과 같은 분산, expected = 기대값(결정론적). */
+/** 乱数処理。random = インゲームと同じ分散、expected = 期待値 (決定論的)。 */
 export type RngMode = 'random' | 'expected';
 
 export interface BattleSettings {
   duration: number;
   /**
-   * 싱크로 디바이스 레벨. 소대에 넣은 니케는 전원이 이 레벨이 되므로 캐릭터 설정이
-   * 아니라 전투 조건에 둔다. 계정 육성 상태라 **공유 코드에는 담기지 않는다**(콘솔과 같다).
+   * シンクロデバイスのレベル。部隊に入れたニケは全員このレベルになるので、キャラクター設定では
+   * なく戦闘条件に置く。アカウントの育成状態なので**共有コードには載らない** (コンソールと同じ)。
    */
   synchroLevel: number;
   enemyDef: number;
@@ -148,23 +148,23 @@ export interface BattleSettings {
   seed: number;
   optimalRangeWeapons: string[];
   normalHitCoeff: Record<string, number>;
-  /** 족자 — 그 구간 동안 평타가 적중하지 않는다. */
+  /** 回避区間 — その区間の間、通常攻撃が命中しない。 */
   immuneWindows: PhaseWindow[];
-  /** 속저 — 그 구간 동안 우월 코드만 통과한다. */
+  /** 属性制限 — その区間の間、有利コードだけが通る。 */
   elementWindows: ElementWindow[];
   rngMode: RngMode;
   immuneBlocksBurst: boolean;
   console: ConsoleLevels;
   burstRegenTime: number;
   /**
-   * 덱마다 다른 버스트 게이지 충전 시간(초). 덱 번호 → 초.
-   * 비어 있으면 모든 덱이 `burstRegenTime` 하나를 함께 쓴다 — 버스트 쿨이 밀리는 덱만
-   * 따로 잡으려고 두는 값이다.
+   * デッキごとに違うバーストゲージ充填時間 (秒)。デッキ番号 → 秒。
+   * 空ならすべてのデッキが `burstRegenTime` 一つを共用する — バーストクールが遅れるデッキだけ
+   * 個別に合わせるために置く値だ。
    */
   burstRegenPerDeck?: Record<number, number>;
   /**
-   * 버스트 반응속도(초). 조건이 갖춰진 뒤 실제로 누르기까지 걸리는 시간이며,
-   * **버스트 하나하나마다** 더해진다 — 3단계까지 쓰면 그 세 배만큼 늦어진다.
+   * バースト反応速度 (秒)。条件が揃ってから実際に押すまでにかかる時間で、
+   * **バースト1つごとに**加算される — 3段階まで使うとその3倍だけ遅れる。
    */
   burstReaction: number;
 }
@@ -174,8 +174,8 @@ export interface DeckState {
   squad: string[];
   characters: Record<string, CharacterOverrides>;
   /**
-   * 손으로 정한 버스트 순서. 사이클마다 단계별로 누구를 쓸지 적는다.
-   * **덱마다 따로다** — 편성이 다르면 쓸 수 있는 사람도 다르다.
+   * 手で決めたバースト順序。サイクルごとに段階別で誰を使うかを書く。
+   * **デッキごとに別々だ** — 編成が違えば使える人も違う。
    */
   burstSequence?: BurstSequence;
 }
@@ -189,16 +189,16 @@ export interface CharacterMeta {
   manufacturer: string;
   preview: boolean;
   image: string | null;
-  // 블라블라링크 API가 이 캐릭터를 부르는 번호. 사전에 없으면 null이고, 그러면
-  // 프로필 동기화가 이 캐릭터를 알아보지 못한다(`data/name_codes.json`).
+  // Blablalink API がこのキャラクターを呼ぶ番号。辞書に無ければ null で、その場合
+  // プロフィール同期はこのキャラクターを見分けられない (`data/name_codes.json`)。
   nameCode: number | null;
-  // enikk이 캐릭터를 부르는 번호(`resource_id`). 우리 스크랩 데이터의 `id`와 같다.
+  // enikk がキャラクターを呼ぶ番号 (`resource_id`)。自前のスクレイプデータの `id` と同じだ。
   resourceId: number | null;
   // 日本語表示名 (しりすこスクワッド)。正本は data/name-map-ja.json。内部キーは name (韓国語) のまま、
   // 画面に出すときは display-name.ts の labelFor() を通す
   displayName?: string;
-  // 유저가 부르는 별칭(`수니스`·`세이렌`). 정본은 `context/ALIASES.md`의 별칭 표다.
-  // **찾을 때만 쓴다** — 화면에 나오는 이름은 언제나 정식 명칭이다.
+  // ユーザーが呼ぶ別名 (`수니스`·`세이렌`)。正本は `context/ALIASES.md` の別名表だ。
+  // **探すときだけ使う** — 画面に出る名前はいつも正式名称だ。
   aliases: string[];
 }
 
@@ -213,26 +213,26 @@ export interface BattleTimeline {
   damage: Record<string, number[]>;
   bursts: Record<string, BurstCast[]>;
   fullBurst: [number, number][];
-  /** 버프가 걸려 있던 구간. 구버전 캐시에는 없다. */
+  /** バフが掛かっていた区間。旧版のキャッシュには無い。 */
   buffs?: BuffTrack[];
 }
 
 /**
- * 버프 한 줄 — «누가 건 무슨 버프»가 하나. 받는 사람이 여럿이면 한 줄에 모은다.
- * 같은 버프가 여러 번 걸리면 `spans`에 그만큼 쌓이고, **중첩이 바뀔 때마다 끊긴다**
- * (언제부터 몇 겹이었는지가 타임라인의 핵심이다).
+ * バフ1行 — «誰が掛けた何のバフ» が一つ。受け手が複数なら1行にまとめる。
+ * 同じバフが何度も掛かると `spans` にその分積み上がり、**スタックが変わるたびに切れる**
+ * (いつから何重だったかがタイムラインの核心だ)。
  */
 /**
- * 한 구간 — `[시작(초), 끝(초), 중첩]`, 그리고 **대상이 구간마다 갈릴 때만** 네 번째로
- * 그 구간을 받은 사람들(`targets` 안의 자리 번호).
+ * 一区間 — `[開始(秒), 終了(秒), スタック]`、そして**対象が区間ごとに分かれるときだけ**4番目に
+ * その区間を受けた人たち (`targets` 内の位置番号)。
  *
- * 리버렐리오 「차분한 수심 4」처럼 발동마다 공격력 순위로 대상이 갈리는 버프가 있다.
- * 줄 하나에 뭉쳐 두면 «둘 다 받는다»로 읽히므로 그런 줄만 구간에 대상을 붙인다 —
- * 늘 붙이면 다섯 명짜리 버프에서 결과가 몇 배로 무거워진다.
+ * 리버렐리오 「차분한 수심 4」のように、発動ごとに攻撃力順位で対象が分かれるバフがある。
+ * 1行にまとめると «両方受ける» と読めてしまうので、そういう行だけ区間に対象を付ける —
+ * 常に付けると5人向けのバフで結果が何倍にも重くなる。
  */
 export type BuffSpan = [number, number, number] | [number, number, number, number[]];
 
-/** 이 구간을 실제로 받은 사람들. 구간에 적혀 있지 않으면 줄 전체의 대상이 곧 답이다. */
+/** この区間を実際に受けた人たち。区間に書かれていなければ、行全体の対象がそのまま答えだ。 */
 export const spanTargets = (track: BuffTrack, span: BuffSpan): string[] => {
   const picked = span[3];
   return picked ? picked.map((index) => track.targets[index] ?? '').filter(Boolean) : track.targets;
@@ -240,19 +240,19 @@ export const spanTargets = (track: BuffTrack, span: BuffSpan): string[] => {
 
 export interface BuffTrack {
   name: string;
-  /** 건 사람 — 막대 색이 이 사람의 색이다. */
+  /** 掛けた人 — バーの色はこの人の色だ。 */
   caster: string;
-  /** 받는 사람들. */
+  /** 受け手たち。 */
   targets: string[];
   stat?: string | null;
   value?: number | null;
-  /** 그 버프가 쌓을 수 있는 최대 중첩. 1이면 스택형이 아니다. */
+  /** そのバフが積める最大スタック。1ならスタック型ではない。 */
   maxStack: number;
-  /** `[시작, 끝, 그 구간의 중첩]`. */
+  /** `[開始, 終了, その区間のスタック]`。 */
   spans: BuffSpan[];
 }
 
-// 캐릭터 한 명의 딜을 일반공격(평타)과 스킬로 나눈 내역.
+// キャラクター1人のダメージを通常攻撃とスキルに分けた内訳。
 export interface CharacterDamageBreakdown {
   normal: number;
   normalHits: number;
@@ -266,27 +266,27 @@ export interface SimulationResult {
   duration: number;
   hitCount: number;
   charTotals: Record<string, number>;
-  // 구버전 캐시에 저장된 결과에는 없을 수 있다.
+  // 旧版のキャッシュに保存された結果には無いことがある。
   charBreakdown?: Record<string, CharacterDamageBreakdown>;
   previewNote: string;
   deviations: string;
   timeline?: BattleTimeline;
-  /** 감시 대상 버프의 실제 수령자 — `{시전자: [...]}`. 구버전 캐시에는 없다. */
+  /** 監視対象バフの実際の受け手 — `{掛けた人: [...]}`。旧版のキャッシュには無い。 */
   buffTargets?: Record<string, BuffTargetRow[]>;
-  /** 0.1초 칸으로 나눈 같은 결과. `fineTimeline`을 켠 요청에만 실려 온다. */
+  /** 0.1秒刻みに分けた同じ結果。`fineTimeline` をオンにしたリクエストにだけ載ってくる。 */
   fineTimeline?: BattleTimeline;
 }
 
-/** 「누가 이 버프를 받았나」 한 줄. 대상이 공격력 순위로 갈려 편성만으로는 알 수 없다. */
+/** 「誰がこのバフを受けたか」の1行。対象が攻撃力順位で分かれ、編成だけでは分からない。 */
 export interface BuffTargetRow {
   label: string;
   buff: string;
-  /** 처음 받은 순서대로 중복 없이. 둘 이상이면 전투 중 대상이 갈린 특이케이스다. */
+  /** 初めて受けた順で重複なし。2人以上なら戦闘中に対象が分かれた特異ケースだ。 */
   targets: string[];
-  /** 발동마다 누가 받았는지 시간순. 「순서보기」가 이걸 그린다. */
+  /** 発動ごとに誰が受けたかを時間順で。「順序を見る」がこれを描く。 */
   sequence?: Array<{ t: number; target: string }>;
   count: number;
-  /** 배경에서 대상을 계산하는 중 — 화면에는 `[계산중]`으로 나온다. */
+  /** 背景で対象を計算している最中 — 画面には `[計算中]` と出る。 */
   pending?: boolean;
 }
 
@@ -312,13 +312,13 @@ export interface CubeLevelMeta {
 
 export interface CubeMeta {
   label: string;
-  // 게임 내부 id — 블라블라링크 응답의 `harmony_cube_tid`와 맞춘다.
+  // ゲーム内部の id — Blablalink 応答の `harmony_cube_tid` に合わせる。
   id: number;
   stat: string;
   template: string;
   levels: Record<string, CubeLevelMeta>;
-  // 계산기가 이 큐브의 고유 스킬을 아직 처리하지 못할 때의 사유. 공격력·방어력·
-  // 체력과 공통 우월 코드 효과는 그대로 붙고 고유 스킬만 빠진다.
+  // 計算機がこのキューブの固有スキルをまだ処理できないときの理由。攻撃力・防御力・
+  // 体力と共通の有利コード効果はそのまま付き、固有スキルだけが抜ける。
   unsupported?: string;
 }
 
@@ -327,14 +327,14 @@ export interface CharacterSettingsDefaults {
   recommendedControl: CharacterControl;
   hasConditionalControl: boolean;
   /**
-   * 조합 조건부 컨트롤 중 «누가 함께 있는가»만 보는 규칙. 스쿼드만 있으면 화면이
-   * 스스로 판정할 수 있어, 계산 전에도 지금 걸리는 컨트롤을 적을 수 있다.
-   * 다른 조건을 쓰는 규칙은 내려오지 않는다 — `hasConditionalControl`로만 알린다.
+   * 組み合わせ条件付きコントロールのうち «誰が一緒にいるか» だけを見る規則。スクワッドさえあれば
+   * 画面が自力で判定できるので、計算前でもいま掛かるコントロールを書ける。
+   * 別の条件を使う規則は下りてこない — `hasConditionalControl` でだけ知らせる。
    */
   conditionalControl?: Array<{
     withMembers: string[];
     control: CharacterControl;
-    /** 왜 이 컨트롤이 붙는지 — 화면에 그대로 보인다. */
+    /** なぜこのコントロールが付くのか — 画面にそのまま見える。 */
     help?: string;
   }>;
   favoriteItem?: { name: string; stage: 3 };
@@ -355,20 +355,20 @@ export interface SettingsCatalog {
   collectionStages: string[];
   weaponTypes: string[];
   /**
-   * 적정거리를 가진 무기군. 런처는 인게임에 적정 사거리가 없어 빠진다 —
-   * 정본은 `data/weapon_mechanics.json`의 `optimal_range`다. 옛 설정에는 없을 수
-   * 있어, 없으면 무기군 전부로 본다(예전 화면과 같게).
+   * 適正距離を持つ武器種。ランチャーはインゲームに適正射程が無いため外れる —
+   * 正本は `data/weapon_mechanics.json` の `optimal_range` だ。古い設定には無いことが
+   * あり、無ければ武器種すべてと見なす (以前の画面と同じに)。
    */
   optimalRangeWeapons?: string[];
-  /** 「누가 이 버프를 받았나」를 카드에 띄울 버프 — 정본은 `calculator.customization`. */
+  /** 「誰がこのバフを受けたか」をカードに出すバフ — 正本は `calculator.customization`。 */
   buffTargetWatch: Record<string, Array<{ buff: string; label: string }>>;
-  // 무기군별 평타 계수 기본값 (`data/weapon_mechanics.json`).
+  // 武器種別の通常攻撃係数の既定値 (`data/weapon_mechanics.json`)。
   normalHitCoeff: Record<string, number>;
   consoleClasses: string[];
   consoleCompanies: string[];
   overloadFields: Record<string, NumericFieldMeta>;
   manualStats: Record<string, NumericFieldMeta>;
-  // 소장품 id → 등급('R'|'SR'|'SSR'). SSR이면 애장품이라 레벨을 단계로 읽는다.
+  // コレクション id → 等級 ('R'|'SR'|'SSR')。SSR ならお気に入りなので、レベルを段階として読む。
   favoriteItems: Record<string, string>;
 }
 
@@ -383,7 +383,7 @@ export interface BatchResult {
   decks: DeckResultEntry[];
 }
 
-/** 전투력은 목록 정렬용이라 딜 계산과 별개로 돈다 — 훨씬 가볍다. */
+/** 戦闘力は一覧の並べ替え用なので、ダメージ計算とは別に回る — ずっと軽い。 */
 export interface CombatPowerRequest {
   names: string[];
   characters?: Record<string, CharacterOverrides>;

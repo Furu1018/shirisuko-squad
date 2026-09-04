@@ -19,40 +19,40 @@ from calculator.customization import (
     normalize_optimal_range,
     normalize_synchro_level,
 )
-# `_is_normal`은 히트 태그로 일반공격을 가려내는 엔진 정본이다. 포크에서 다시
-# 구현하면 태그가 늘어날 때 조용히 어긋나므로 그대로 빌려 쓴다 (이름이 바뀌면
-# ImportError로 즉시 드러난다).
+# `_is_normal` はヒットのタグで通常攻撃を見分けるエンジン側の正本である。フォークで
+# 作り直すとタグが増えたときに静かにずれるので、そのまま借りて使う (名前が変われば
+# ImportError で即座に発覚する)。
 from calculator.sim_result import _is_normal
 from calculator.timeline import simulate
 from context import spec as char_spec
 
 
-# 타임라인 버킷 크기(초). 0.1초까지 쪼개 봤지만 선이 잘게 떨려 오히려 읽기 어려웠다 —
-# 1초로 되돌린다. 이 값은 응답에 실려 나가고 화면이 그것으로 «몇 번째 칸이 몇 초인지»를
-# 환산하므로, 여기만 바꾸면 그림·눈금·툴팁이 모두 따라온다.
+# タイムラインのバケット幅 (秒)。0.1秒まで刻んでみたが線が細かく震えてかえって読みにくかった —
+# 1秒に戻す。この値は応答に載って出ていき、画面がそれで «何番目の枠が何秒か» を
+# 換算するので、ここだけ変えれば絵・目盛り・ツールチップが全部ついてくる。
 TIMELINE_BUCKET = 1
 
-# 「정밀 분석」에서 쓰는 칸 크기(초). 대미지는 원래부터 히트마다 정수로 정확히 세므로
-# 이 값이 **정확도를 바꾸지는 않는다** — 얼마나 잘게 나눠 보여 줄지만 정한다.
+# 「精密分析」で使う枠の幅 (秒)。ダメージはもともとヒットごとに整数で正確に数えているので
+# この値が **精度を変えることはない** — どれだけ細かく分けて見せるかだけを決める。
 FINE_BUCKET = 0.1
 
 
 def _build_timeline(result, names: list[str], bucket: float = TIMELINE_BUCKET) -> dict:
-    """캐릭터별 대미지 · 버스트 시각 · 풀버스트 구간을 `TIMELINE_BUCKET` 단위로 요약한다.
+    """キャラクター別ダメージ・バースト時刻・フルバースト区間を `TIMELINE_BUCKET` 単位に要約する。
 
-    브라우저 타임라인 시각화용. 대미지는 result.hits(항상 채워짐)에서,
-    버스트·풀버스트 구간은 verbose 로그(result.log)에서 만든다.
-    버킷 크기는 응답에 함께 실어 보낸다 — 화면이 «몇 번째 칸이 몇 초인지»를
-    그 값으로 환산하므로, 1초 버킷으로 저장된 옛 결과도 그대로 그려진다.
+    ブラウザのタイムライン可視化用。ダメージは result.hits (常に埋まっている) から、
+    バースト・フルバースト区間は verbose ログ (result.log) から作る。
+    バケット幅は応答に一緒に載せて送る — 画面が «何番目の枠が何秒か» を
+    その値で換算するので、1秒バケットで保存された昔の結果もそのまま描かれる。
     """
     buckets = int(math.ceil(result.duration / bucket)) if result.duration > 0 else 0
     damage = {name: [0] * buckets for name in names}
     for hit in result.hits:
-        # 부동소수 나눗셈이 0.3/0.1 = 2.9999…로 떨어져 앞 칸에 붙는 일이 있다 — 보정한다.
+        # 浮動小数の割り算が 0.3/0.1 = 2.9999… に落ちて前の枠に付くことがある — 補正する。
         index = int((hit.t + 1e-9) / bucket)
-        # 그 보정 때문에 마지막 순간(t = 29.999999999999577처럼 duration에 붙은 값)의
-        # 히트가 칸 밖으로 밀려난다. 버리면 버킷 합이 캐릭터 총딜과 어긋나므로
-        # 마지막 칸에 넣는다 — 실제로 그 칸에서 일어난 히트다.
+        # その補正のせいで最後の瞬間 (t = 29.999999999999577 のように duration に張り付いた値) の
+        # ヒットが枠の外へ押し出される。捨てるとバケットの合計がキャラクターの総ダメージと食い違うので
+        # 最後の枠に入れる — 実際にその枠で起きたヒットである。
         if index == buckets:
             index = buckets - 1
         if 0 <= index < buckets:
@@ -86,8 +86,8 @@ def _build_timeline(result, names: list[str], bucket: float = TIMELINE_BUCKET) -
     }
 
 
-# 늘 걸려 있는 것들 — 소장품·큐브·장비 옵션은 전투 내내 그대로라 타임라인에 그려도
-# 「언제 무엇이 걸렸나」를 말해 주지 않는다. 막대만 차지하므로 뺀다.
+# 常時掛かっているもの — 소장품・큐브・장비 옵션 (コレクション・キューブ・装備オプション) は
+# 戦闘中ずっとそのままで、タイムラインに描いても「いつ何が掛かったか」を語ってくれない。棒を占めるだけなので外す。
 ALWAYS_ON_PREFIXES = ("소장품", "큐브", "장비 옵션")
 
 
@@ -95,23 +95,23 @@ def _is_always_on(name: str) -> bool:
     return any(name.startswith(prefix) for prefix in ALWAYS_ON_PREFIXES)
 
 
-# 화면에 실어 보낼 버프 줄 상한. 5인 180초에서 실측 22줄이라 넉넉하다.
+# 画面に載せて送るバフ行数の上限。5人180秒の実測で22行なので十分に足りる。
 BUFF_TRACK_LIMIT = 60
-# 이보다 짧은 버프는 막대로 그려도 한 픽셀이라 뺀다 (즉시 발동에 가까운 것들).
+# これより短いバフは棒に描いても1ピクセルなので外す (ほぼ即時発動のもの)。
 BUFF_MIN_SPAN = 0.2
 
 
 def _build_buff_spans(result, names: list[str]) -> list[dict]:
-    """버프 활성/만료 이벤트 → 화면에 그릴 «버프별 구간 묶음».
+    """バフの発動/失効イベント → 画面に描く «バフごとの区間の束»。
 
-    한 버프(이름·시전자·대상)가 한 줄이고, 그 안에 걸려 있던 구간들이 들어간다. 같은
-    버프가 200번 다시 걸려도 이름·대상·stat을 한 번만 싣는다 — 구간마다 다 실으면
-    5인 180초에서 140KB가 넘어 결과 저장이 감당하지 못한다(실측).
+    1つのバフ (名前・発動者・対象) が1行で、その中に掛かっていた区間が入る。同じ
+    バフが200回掛け直されても名前・対象・stat は一度しか載せない — 区間ごとに全部載せると
+    5人180秒で 140KB を超え、結果の保存が持たない (実測)。
 
-    **중첩이 바뀌면 구간을 끊는다.** 언제부터 몇 겹이었는지가 타임라인의 핵심이라
-    한 막대에 최대치만 적으면 그 정보가 사라진다.
+    **重ね掛け数が変わったら区間を切る。** いつから何段だったかがタイムラインの核心で、
+    1本の棒に最大値だけ書くとその情報が消える。
 
-    만료 이벤트가 없는 버프(전투가 끝날 때까지 살아 있던 것)는 전투 끝에서 닫는다.
+    失効イベントが無いバフ (戦闘が終わるまで生きていたもの) は戦闘の終わりで閉じる。
     """
     if result.log is None:
         return []
@@ -120,8 +120,8 @@ def _build_buff_spans(result, names: list[str]) -> list[dict]:
     tracks: dict[tuple, dict] = {}
 
     def track_for(event) -> dict:
-        # 한 줄은 «누가 건 무슨 버프»다. 받는 사람이 여럿이면 한 줄에 모으고 대상만
-        # 늘린다 — 대상마다 줄을 따로 내면 같은 버프가 다섯 줄로 흩어진다.
+        # 1行は «誰が掛けた何のバフ» である。受ける側が複数なら1行にまとめて対象だけ
+        # 増やす — 対象ごとに行を分けると同じバフが5行に散らばる。
         key = (event.name, event.caster)
         found = tracks.get(key)
         if found is None:
@@ -129,8 +129,8 @@ def _build_buff_spans(result, names: list[str]) -> list[dict]:
                 "name": event.name, "caster": event.caster, "targets": [],
                 "stat": event.stat, "value": event.value,
                 "maxStack": int(event.max_stack) if event.max_stack else 1,
-                # 구간 → 그 구간을 받은 사람들. 같은 구간이 사람 수만큼 들어오므로
-                # 시각으로 묶는다 — 목록이 아니라 사전이라 중복이 저절로 합쳐진다.
+                # 区間 → その区間を受けた人たち。同じ区間が人数ぶん入ってくるので
+                # 時刻でまとめる — リストではなく辞書なので重複が勝手に束ねられる。
                 "_spans": {},
             }
         if event.target and event.target not in found["targets"]:
@@ -145,8 +145,8 @@ def _build_buff_spans(result, names: list[str]) -> list[dict]:
         if at - start < BUFF_MIN_SPAN:
             return
         row = (round(start, 2), round(at, 2), span["stack"])
-        # **누가 받았는지는 구간마다 다를 수 있다.** 리버렐리오 `차분한 수심 4`는
-        # 발동마다 공격력 순위로 대상이 갈려, 한 줄에 뭉치면 «둘 다 받는다»로 보인다.
+        # **誰が受けたかは区間ごとに違い得る。** 리버렐리오 の `차분한 수심 4` は
+        # 発動のたびに攻撃力の順位で対象が割れるので、1行に潰すと «両方が受ける» ように見える。
         who = span["track"]["_spans"].setdefault(row, [])
         if span["target"] and span["target"] not in who:
             who.append(span["target"])
@@ -184,8 +184,8 @@ def _build_buff_spans(result, names: list[str]) -> list[dict]:
         rows = sorted(track.pop("_spans").items())
         if not rows:
             continue
-        # 구간마다 대상이 같으면 줄 하나에 한 번만 적는다. 갈릴 때만 구간에 붙인다 —
-        # 다섯 명에게 걸리는 버프까지 구간마다 이름을 실으면 결과가 몇 배로 무거워진다.
+        # 区間ごとの対象が同じなら行に一度だけ書く。割れるときだけ区間に付ける —
+        # 5人に掛かるバフまで区間ごとに名前を載せると結果が何倍にも重くなる。
         sets = [frozenset(who) for _, who in rows]
         varies = len(set(sets)) > 1
         spans = []
@@ -197,16 +197,16 @@ def _build_buff_spans(result, names: list[str]) -> list[dict]:
                 spans.append([start, end, stack])
         track["spans"] = spans
         kept.append(track)
-    # 처음 걸린 순서대로 세운다 — 화면이 위에서 아래로 그 순서로 읽는다.
+    # 最初に掛かった順に並べる — 画面は上から下へその順で読む。
     kept.sort(key=lambda track: (track["spans"][0][0], track["name"]))
     return kept[:BUFF_TRACK_LIMIT]
 
 
 def _build_breakdown(result, names: list[str]) -> dict:
-    """캐릭터별 일반공격/스킬 딜 분해와 스킬별 내역.
+    """キャラクター別の通常攻撃/スキルのダメージ分解とスキルごとの内訳。
 
-    `SimResult.dmg_breakdown()`이 콘솔용으로 하는 집계와 같은 기준이며, 브라우저가
-    비율을 그릴 수 있도록 수치만 구조화해 넘긴다.
+    `SimResult.dmg_breakdown()` がコンソール向けに行う集計と同じ基準で、ブラウザが
+    比率を描けるように数値だけを構造化して渡す。
     """
     breakdown = {}
     for name in names:
@@ -247,10 +247,10 @@ _REQUIRED_NIKKE_FIELDS = (
 
 
 def _inject_custom_characters(custom: dict) -> None:
-    """브라우저에서 넘어온 커스텀 니케를 엔진 전역에 병합한다.
+    """ブラウザから渡ってきたカスタムニケをエンジンのグローバルへ併合する。
 
-    서버·정본 데이터는 건드리지 않는다 — Pyodide 워커 프로세스의 인메모리
-    전역(parsed_nikke·parsed_skills 사본)에만 얹으며, 새로고침하면 사라진다.
+    サーバー・正本データには触れない — Pyodide ワーカープロセスのインメモリな
+    グローバル (parsed_nikke・parsed_skills の写し) にだけ載せ、リロードすれば消える。
     """
     if not custom:
         return
@@ -259,8 +259,8 @@ def _inject_custom_characters(custom: dict) -> None:
     import calculator.buff_manager as _bm
     from context import growth as _growth
 
-    char_spec._nikke()  # spec의 지연 캐시를 먼저 로드
-    # parsed_nikke·parsed_skills 사본은 여러 모듈이 각자 들고 있다. 전부에 얹는다.
+    char_spec._nikke()  # spec の遅延キャッシュを先にロードする
+    # parsed_nikke・parsed_skills の写しは複数のモジュールがそれぞれ持っている。全部に載せる。
     nikke_stores = (_tl._NIKKE, _bs._NIKKE, _bm._NIKKE, _growth._NIKKE, char_spec._NIKKE_CACHE)
     skill_stores = (_tl._PARSED_SKILLS, _bm._PARSED_SKILLS)
     for name, data in custom.items():
@@ -280,10 +280,10 @@ def _inject_custom_characters(custom: dict) -> None:
 
 
 def _build_buff_targets(result, names: list[str]) -> dict:
-    """편성된 캐릭터 중 감시 대상 버프의 실제 수령자.
+    """編成したキャラクターのうち、監視対象バフの実際の受け手。
 
-    `{시전자: [{"label": ..., "buff": ..., "targets": [이름...], "count": N}]}`.
-    수령자가 전투 중 갈리면 여러 명이 담긴다 — 그대로 보여 주는 게 맞다.
+    `{発動者: [{"label": ..., "buff": ..., "targets": [名前...], "count": N}]}` を返す。
+    受け手が戦闘中に割れれば複数人が入る — そのまま見せるのが正しい。
     """
     log = getattr(result, "log", None)
     if log is None:
@@ -299,13 +299,13 @@ def _build_buff_targets(result, names: list[str]) -> dict:
             for ev in log.buff_events:
                 if ev.kind != "activate" or ev.caster != caster:
                     continue
-                # 같은 스킬의 판본(애장품 등)이 이름 뒤에 붙어 오는 경우가 있다.
+                # 同じスキルの別版 (애장품 など) が名前の後ろに付いて来ることがある。
                 if ev.name != buff_name and not ev.name.startswith(f"{buff_name} ("):
                     continue
                 if ev.target in names:
                     sequence.append({"t": round(ev.t, 2), "target": ev.target})
-            # 처음 받은 순서대로 중복을 없앤다. 둘 이상이면 대상이 전투 중 갈린
-            # **특이케이스**이고, 그때는 순서 자체가 정보라 그대로 넘긴다.
+            # 最初に受けた順で重複を除く。2人以上いるなら対象が戦闘中に割れた
+            # **特異ケース**で、そのときは順序そのものが情報なのでそのまま渡す。
             order: list[str] = []
             for item in sequence:
                 if item["target"] not in order:
@@ -323,11 +323,11 @@ def _build_buff_targets(result, names: list[str]) -> dict:
 
 
 def run_combat_power(raw: str) -> str:
-    """캐릭터별 인게임 전투력. 목록 정렬에만 쓰고 딜 계산과는 무관하다.
+    """キャラクター別のゲーム内戦闘力。一覧の並べ替えにだけ使い、ダメージ計算とは無関係である。
 
-    `{"characters": {이름: 오버라이드}}` 를 받아 `{이름: 전투력}` 을 준다.
-    오버라이드가 없는 캐릭터는 기본 스펙으로 잰다 — 안 가진 니케도 목록에는 있어야
-    하고, 그때는 «만렙이면 이 정도»가 가장 덜 틀린 값이다.
+    `{"characters": {名前: オーバーライド}}` を受けて `{名前: 戦闘力}` を返す。
+    オーバーライドが無いキャラクターは既定スペックで測る — 持っていないニケも一覧には
+    要るし、そのときは «カンストならこのくらい» が最も外れの少ない値である。
     """
     payload = json.loads(raw)
     _inject_custom_characters(payload.get("customCharacters") or {})
@@ -345,7 +345,7 @@ def run_combat_power(raw: str) -> str:
             char = char_spec.build_squad([name], overrides)[0]
             out[name] = round(combat_power(char), 2)
         except Exception:
-            # 한 명이 걸려도 목록 전체가 죽으면 안 된다 — 그 캐릭터만 뺀다.
+            # 1人が引っかかっても一覧全体が死んではいけない — そのキャラクターだけ外す。
             continue
     return json.dumps(out, ensure_ascii=False, separators=(",", ":"))
 
@@ -367,8 +367,8 @@ def run_request(raw: str) -> str:
         for name in names
         if name in raw_characters
     }
-    # 콘솔은 계정 속성이라 요청 최상위로 온다 — 스쿼드 전원에게 똑같이 얹는다.
-    # 기본 스펙에 이미 콘솔이 있으므로, 준 항목만 덮어쓴다.
+    # コンソールはアカウント属性なのでリクエストの最上位で来る — 編成の全員に同じものを載せる。
+    # 既定スペックにすでにコンソールがあるので、与えられた項目だけ上書きする。
     console = normalize_console(payload.get("console"))
     if console:
         for name in names:
@@ -376,21 +376,21 @@ def run_request(raw: str) -> str:
             overrides["console"] = {
                 **char_spec.DEFAULT_CHAR["console"], **console,
             }
-    # 싱크로 레벨도 계정 속성이다 — 소대에 넣은 니케는 전원이 같은 레벨이 된다.
-    # 공유 코드에는 담기지 않으므로 남의 조건을 받아도 내 레벨 그대로 계산한다.
+    # シンクロレベルもアカウント属性である — 部隊に入れたニケは全員が同じレベルになる。
+    # 共有コードには載せないので、他人の条件を受け取っても自分のレベルのまま計算する。
     synchro = normalize_synchro_level(payload.get("synchroLevel"))
     if synchro is not None:
         for name in names:
             characters.setdefault(name, {})["level"] = synchro
-    # 버스트 게이지 충전 시간도 계정/전투 단위다 — 전원에게 같은 값을 얹는다.
+    # バーストゲージの充填時間もアカウント/戦闘の単位である — 全員に同じ値を載せる。
     burst_regen = normalize_burst_regen(payload.get("burstRegenTime"))
     if burst_regen is not None:
         for name in names:
             characters.setdefault(name, {})["burst_regen_time"] = burst_regen
     squad = char_spec.build_squad(names, characters)
     config_in: dict = {"duration": int(payload["duration"])}
-    # 버스트 운용 배정 → config["burst_pattern"]. solo는 매 사이클 우선(전담),
-    # skip은 가급적 안 씀. build_config는 여기서 준 값을 그대로 살린다(caller 우선).
+    # バースト運用の割り当て → config["burst_pattern"]。solo は毎サイクル優先 (専任)、
+    # skip は極力使わない。build_config はここで与えた値をそのまま生かす (caller 優先)。
     burst_pattern: dict = {}
     no_burst: list[str] = []
     for name, overrides in characters.items():
@@ -400,40 +400,40 @@ def run_request(raw: str) -> str:
         if assignment.get("mode") == "priority":
             burst_pattern[name] = f"every:{int(assignment.get('every', 1))}"
         elif assignment.get("mode") == "endgame":
-            # 남은 시간이 N초 미만이면 최우선. 그 전에는 평소 순서다.
+            # 残り時間が N 秒を切ったら最優先。それまでは普段の順序である。
             burst_pattern[name] = f"last:{float(assignment.get('seconds', 20.0))}"
         elif assignment.get("mode") == "skip":
-            # 「안 씀」은 뒤로 미는 게 아니라 후보에서 빼는 것이다 — 앞사람이 전부
-            # 쿨이어도 나가지 않는다.
+            # 「使わない」は後ろへ回すのではなく候補から外すことである — 前の全員が
+            # クールタイム中でも撃たない。
             no_burst.append(name)
     if burst_pattern:
         config_in["burst_pattern"] = burst_pattern
     if no_burst:
         config_in["no_burst_chars"] = no_burst
-    # 손으로 정한 버스트 순서 → config["burst_sequence"]. 적어 둔 사이클까지만 따르고,
-    # 전투가 더 길면 그 뒤는 평소 순서로 돌아간다.
+    # 手で決めたバースト順 → config["burst_sequence"]。書いてあるサイクルまでだけ従い、
+    # 戦闘がそれより長ければその先は普段の順序に戻る。
     sequence = normalize_burst_sequence(payload.get("burstSequence"), names)
     if sequence is not None:
         config_in["burst_sequence"] = sequence
-    # 버스트 반응속도 — 조건이 갖춰진 뒤 누르기까지. 전투 조건이라 config에 둔다.
+    # バースト反応速度 — 条件が揃ってから押すまで。戦闘の条件なので config に置く。
     reaction = normalize_burst_reaction(payload.get("burstReaction"))
     if reaction is not None:
         config_in["burst_reaction"] = reaction
-    # 난수 처리: "random"(인게임과 같은 분산) / "expected"(기대값, 결정론적).
+    # 乱数の扱い: "random" (ゲーム内と同じ分散) / "expected" (期待値・決定論的)。
     #
-    # 안 주면 **기대값**이다 — 이 브리지가 받드는 화면의 기본값이다. 엔진 라이브러리
-    # 기본값(`timeline.DEFAULT_CONFIG`)은 난수지만 그것을 여기까지 끌고 오면 안 된다:
-    # 화면은 기대값을 뜻하고 여기서는 난수로 읽어, 기대값으로 둔 사람들이 내내 난수로
-    # 계산하고 시드를 바꿀 때마다 결과가 흔들리고 있었다.
+    # 与えられなければ **期待値** である — このブリッジが仕える画面の既定値だ。エンジンライブラリの
+    # 既定値 (`timeline.DEFAULT_CONFIG`) は乱数だが、それをここまで引きずって来てはいけない:
+    # 画面では期待値の意味なのにここでは乱数と読まれ、期待値にした人たちがずっと乱数で
+    # 計算し、シードを変えるたびに結果が揺れていた。
     rng_mode = str(payload.get("rngMode") or "expected")
     if rng_mode not in ("random", "expected"):
         raise ValueError('난수 모드는 random 또는 expected여야 합니다')
     config_in["rng_mode"] = rng_mode
-    # 족자 중 버스트 게이지 정지 여부. 안 주면 켠 것으로 본다(인게임 기준).
+    # 回避区間中にバーストゲージを止めるかどうか。与えられなければオンと見なす (ゲーム内基準)。
     blocks = payload.get("immuneBlocksBurst")
     config_in["immune_blocks_burst"] = True if blocks is None else bool(blocks)
     config = char_spec.build_config(squad, config_in)
-    # 평타 계수는 적이 아니라 **우리 쪽 명중**의 문제라 config에 둔다.
+    # 通常攻撃係数は敵ではなく **こちら側の命中** の問題なので config に置く。
     hit_coeff = normalize_normal_hit_coeff(payload.get("normalHitCoeff"))
     if hit_coeff:
         config["normal_hit_coeff"] = hit_coeff
@@ -443,11 +443,11 @@ def run_request(raw: str) -> str:
         "code": str(payload.get("enemyCode") or ""),
         "core_px": float(payload.get("corePx") or 0),
         "has_parts": bool(payload.get("hasParts")),
-        # 적정거리는 무기군 단위로 켜진다 — 그 무기군의 일반 공격에만 ③ +30%.
+        # 適正距離は武器種の単位でオンになる — その武器種の通常攻撃にだけ ③ +30%。
         "optimal_range_weapons": normalize_optimal_range(
             payload.get("optimalRangeWeapons")
         ),
-        # 보스 페이즈 — 족자(딜 차단)와 속저(우월 코드만 통과).
+        # ボスのフェーズ — 回避区間 (족자: ダメージ遮断) と属性制限 (속저: 優越コードだけ通す)。
         "immune_windows": normalize_immune_windows(payload.get("immuneWindows")),
         "element_windows": normalize_element_windows(payload.get("elementWindows")),
     }
@@ -469,9 +469,9 @@ def run_request(raw: str) -> str:
         "timeline": _build_timeline(result, names),
         "buffTargets": _build_buff_targets(result, names),
     }
-    # 「정밀 분석」 — 같은 결과를 더 잘게 나눈 표를 하나 더 싣는다. 대미지는 원래부터
-    # 히트마다 정수로 정확히 세므로 **수치가 정밀해지는 게 아니라** 보이는 칸이 잘아진다.
-    # 그림은 1초 칸 그대로 쓴다(잘게 떨면 읽기 어렵다) — 이건 내보내기용이다.
+    # 「精密分析」 — 同じ結果をより細かく刻んだ表をもう1つ載せる。ダメージはもともと
+    # ヒットごとに整数で正確に数えているので **数値が精密になるのではなく** 見える枠が細かくなるだけだ。
+    # 絵は1秒の枠のまま使う (細かく震えると読みにくい) — こちらは書き出し用である。
     if bool(payload.get("fineTimeline")):
         response["fineTimeline"] = _build_timeline(result, names, FINE_BUCKET)
     return json.dumps(response, ensure_ascii=False, separators=(",", ":"))

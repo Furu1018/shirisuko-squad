@@ -11,18 +11,18 @@ import type {
   SkillLevels,
 } from './types';
 
-// 톡톡이를 직접 켤 때 채워지는 발사 속도(발/초) — 44톡톡이. 유저 지정값이다.
-// 220ms(≈4.5발/초)는 게임이 강제하는 하한이라 그 위는 사람이 낼 수 없다
-// (`context/CONTROL.md` §톡톡이).
+// タップ撃ちを手動でオンにしたとき入る発射速度 (発/秒) — «44톡톡이»。ユーザー指定値である。
+// 220ms (≈4.5発/秒) はゲームが強制する下限で、それより上は人間には出せない
+// (`context/CONTROL.md` §톡톡이)。
 //
-// 참고: 엔진의 캐릭터별 «추천 자동» 컨트롤은 `data/char_defaults.json`에서 3.6을 쓰고
-// CONTROL.md는 실질 범위를 3.0~4.2로 적는다. 여기는 직접 켤 때의 출발값이라 별개다.
+// 参考: エンジンのキャラ別 «推奨自動» コントロールは `data/char_defaults.json` で 3.6 を使い、
+// CONTROL.md は実質範囲を 3.0〜4.2 と書く。ここは手動でオンにするときの出発値なので別物だ。
 const TAP_FIRE_DEFAULT = 4.4;
 const TAP_FIRE_HARD_LIMIT = 4.5;
 const WEAPON_MODE_SWAP_DEFAULT = 6;
 
 const EQUIP_PARTS: EquipPart[] = ['머리', '몸통', '팔', '다리'];
-// 내부 부위 키는 '팔'이지만 UI·CSV 표기는 '장갑'이다.
+// 内部の部位キーは '팔' だが、CSV の表記は '장갑' (UI では「腕」) である。
 const EQUIP_PART_LABELS: Record<EquipPart, string> = {
   머리: '頭', 몸통: '胴', 팔: '腕', 다리: '脚',
 };
@@ -102,8 +102,8 @@ function summaryText(name: string, catalog: SettingsCatalog, value?: CharacterOv
 }
 
 /**
- * 컨트롤 키의 한글 이름. 판의 체크박스에 적히는 말과 **같은 말**을 쓴다 —
- * 추천 줄에서 「tap_fire」라고 읽고 아래에서 「톡톡이」를 찾으면 같은 것인 줄 모른다.
+ * コントロールキーの表示名。盤のチェックボックスに書かれる言葉と**同じ言葉**を使う —
+ * 推奨行で「tap_fire」と読み、下で「タップ撃ち」を探し当てても同じものだとは分からない。
  */
 export const CONTROL_NAMES: Record<string, string> = {
   tap_fire: 'タップ撃ち',
@@ -112,18 +112,18 @@ export const CONTROL_NAMES: Record<string, string> = {
   cover: 'バースト遮蔽コントロール',
 };
 
-/** 컨트롤 키 → 한글. 모르는 키는 그대로 둔다(새 컨트롤이 생겨도 빈칸이 되지 않는다). */
+/** コントロールキー → 表示名。知らないキーはそのまま返す (新しいコントロールが増えても空欄にならない)。 */
 export const controlName = (key: string): string => CONTROL_NAMES[key] ?? key;
 
 /**
- * 「지금 이 조합에서 실제로 걸리는 컨트롤」 문구.
+ * 「いまこの編成で実際に掛かるコントロール」の文言。
  *
- * 캐릭터별 기본 컨트롤에는 **조합 조건부**가 있다(아인은 에이다와 함께일 때 홀드가
- * 붙는다). 예전에는 조건 없는 것만 적고 「조합에 따라 추가됩니다」로 얼버무려,
- * 실제로 걸려 있는 홀드를 아무도 볼 수 없었다 — 그래서 «홀드를 켰는데 결과가
- * 그대로»라는 말이 나왔다. 이미 걸려 있었기 때문이다.
+ * キャラ別の基本コントロールには**編成条件付き**がある (아인は에이다と一緒のときホールドが
+ * 付く)。以前は条件なしのものだけ書いて「編成によって追加されます」と濁していたため、
+ * 実際に掛かっているホールドを誰も見られなかった — それで «ホールドをオンにしたのに
+ * 結果がそのまま» という声が出た。すでに掛かっていたからである。
  *
- * `squad`를 주지 않으면(이 모듈만 따로 그리는 곳) 조건 없는 것만 적는다.
+ * `squad` を渡さないとき (このモジュールだけ単体で描く場所) は条件なしのものだけ書く。
  */
 export function recommendedControlText(
   defaults: { recommendedControl: CharacterControl; hasConditionalControl: boolean;
@@ -145,30 +145,30 @@ export function recommendedControlText(
   return unresolved ? `${head} · スカッド編成によって推奨コントロールが追加されます。` : head;
 }
 
-/** 조합 조건부 컨트롤 한 줄 — 지금 걸렸는지와, 왜 걸리는지. */
+/** 編成条件付きコントロールの1行 — いま掛かっているかと、なぜ掛かるのか。 */
 export interface ControlRuleNote {
-  /** 지금 이 스쿼드에서 실제로 걸려 있는가. */
+  /** いまこのスカッドで実際に掛かっているか。 */
   active: boolean;
-  /** 「에이다와 함께라서 홀드 컨트롤이 걸려 있습니다」 같은 한 줄. */
+  /** 「에이다と一緒なのでホールドコントロールが適用されています」のような1行。 */
   headline: string;
-  /** 왜 그렇게 하는지. 데이터에 적힌 설명이 없으면 비어 있다. */
+  /** なぜそうするのか。データに説明が書かれていなければ空。 */
   help: string;
 }
 
 /**
- * 조합으로 붙는 컨트롤을 **왜 붙는지까지** 풀어 쓴다.
+ * 編成で付くコントロールを、**なぜ付くのかまで**書き下す。
  *
- * 이 컨트롤들은 아무도 켠 적이 없는데 걸린다 — 그래서 「홀드를 켰는데 결과가 그대로」,
- * 「추천에 없는 게 왜 도나」 같은 오해가 나온다. 걸린 것은 걸렸다고, 아직 아닌 것은
- * 무엇과 함께 두면 걸리는지 적어 둔다.
+ * これらのコントロールは誰もオンにしていないのに掛かる — だから「ホールドをオンにしたのに結果がそのまま」
+ * 「推奨に無いものがなぜ回るのか」といった誤解が出る。掛かっているものは掛かっていると、まだのものは
+ * 何と一緒に置けば掛かるのかを書いておく。
  *
- * 설명은 데이터가 들고 온다(`data/char_defaults.json`의 `_help`) — 화면이 지어내지 않는다.
+ * 説明はデータが持ってくる (`data/char_defaults.json` の `_help`) — 画面がでっち上げない。
  */
 /**
- * 받침에 맞춰 조사를 고른다 — 「홀드 컨트롤이」와 「톡톡이가」.
+ * パッチム (終声) に合わせて助詞を選ぶ — 「홀드 컨트롤이」と「톡톡이가」。
  *
- * 「이(가)」로 뭉개는 편이 짧지만, 카드 안에서 매번 읽히는 문장이라 그대로 두면
- * 눈에 걸린다. 한글이 아닌 글자로 끝나면(숫자·영문) 받침이 있는 쪽으로 본다.
+ * 「이(가)」で潰すほうが短いが、カードの中で毎回読まれる文なので、そのままだと
+ * 目に引っかかる。ハングル以外の文字で終わる場合 (数字・英字) はパッチムあり側とみなす。
  */
 export function withParticle(word: string, withFinal: string, without: string): string {
   const last = word.trim().slice(-1);
@@ -197,22 +197,22 @@ export function controlRuleNotes(
   });
 }
 
-/** 큐브를 끼지 않은 상태. 데이터가 아니라 화면이 만드는 선택지다. */
+/** キューブを着けていない状態。データではなく画面が作る選択肢である。 */
 export const NO_CUBE = '없음';
 
-/** 막바지 최우선의 기본 구간(초). 엔진 기본값(`calculator/customization.py`)과 같다. */
+/** 終盤最優先の既定区間 (秒)。エンジン既定値 (`calculator/customization.py`) と同じ。 */
 const ENDGAME_DEFAULT = 20;
 
-/** 창으로 여는 설정 뭉치의 종류. 컨트롤은 카드에서 그 자리에 펼친다. */
+/** 窓で開く設定の束の種類。コントロールはカードのその場で広げる。 */
 export type CharPanelKind = 'settings';
 
 /**
- * 컨트롤 칩에 적히는 한 줄. **열지 않아도 지금 상태를 읽을 수 있어야** 칩이 값을 한다 —
- * 대부분은 «추천 자동 · 버스트 자동»이라 열어 볼 일이 없다.
+ * コントロールチップに書かれる1行。**開かなくてもいまの状態が読めて**こそチップの値打ちがある —
+ * ほとんどは «推奨自動 · バースト自動» なので、開いて見ることがない。
  */
 export function controlChipText(value?: CharacterOverrides): string {
   const picked = value?.control === undefined ? -1 : Object.keys(value.control).length;
-  // 하나도 안 고른 «직접»은 «직접 0개»가 아니라 그냥 직접이다 — 0을 세어 보일 이유가 없다.
+  // 一つも選んでいない «手動» は «手動0件» ではなくただの手動設定 — 0を数えて見せる理由がない。
   const control = picked < 0 ? '推奨自動' : picked === 0 ? '手動設定' : `手動${picked}件`;
   const burst = value?.burst;
   const burstText = burst === undefined ? 'バースト自動'
@@ -223,9 +223,9 @@ export function controlChipText(value?: CharacterOverrides): string {
 }
 
 /**
- * 지난번에 그린 «창으로 여는» 뭉치들. 창으로 띄우면 그 뭉치는 카드 밖(모달)으로
- * 옮겨 가므로, 다시 그릴 때 카드만 뒤져서는 펼침 상태를 찾을 수 없다 — 고급 모드를
- * 켜 둔 채 «수치 추가»를 누르면 고급 모드가 꺼져 보이던 게 그 탓이다.
+ * 前回描いた «窓で開く» 束たち。窓に出すとその束はカードの外 (モーダル) へ
+ * 移るので、描き直すときにカードだけ探しても開閉状態が見つからない — 上級モードを
+ * オンにしたまま «数値を追加» を押すと上級モードが切れて見えたのは、それが原因だ。
  */
 const lastPanels = new WeakMap<HTMLElement, HTMLElement[]>();
 
@@ -238,17 +238,17 @@ export function renderCharacterSettings(
   buffTargets?: BuffTargetRow[],
   onShowOrder?: (row: BuffTargetRow) => void,
   /**
-   * 설정 뭉치를 **창으로** 여는 자리. 안 주면 그 자리에서 펼친다 —
-   * 이 모듈만 따로 그리는 곳(테스트·미리보기)에서도 쓸 수 있어야 한다.
+   * 設定の束を**窓で**開く先。渡さなければその場で広げる —
+   * このモジュールだけ単体で描く場所 (テスト・プレビュー) でも使えないといけない。
    */
   onOpenPanel?: (kind: CharPanelKind, panel: HTMLElement, label: string) => void,
   /**
-   * 지금 편성된 스쿼드 전원. **조합 조건부 컨트롤을 판정하는 데만** 쓴다 —
-   * 안 주면 조건 없는 추천만 적고 예전처럼 «조합에 따라 추가됩니다»로 알린다.
+   * いま編成されているスカッド全員。**編成条件付きコントロールの判定にだけ**使う —
+   * 渡さなければ条件なしの推奨だけ書き、以前のように «編成によって追加されます» と知らせる。
    */
   squad?: string[],
 ): void {
-  // 지난번 화면을 찾는다. 카드 안이 먼저고, 없으면 창으로 옮겨 간 뭉치까지 뒤진다.
+  // 前回の画面を探す。カードの中が先で、無ければ窓へ移った束まで探す。
   const previous = <T extends Element>(selector: string): T | null => {
     const inCard = container.querySelector<T>(selector);
     if (inCard) return inCard;
@@ -260,15 +260,15 @@ export function renderCharacterSettings(
   };
   const advancedWasOpen = previous<HTMLInputElement>('[data-advanced-toggle]')?.checked ?? false;
   const searchWas = previous<HTMLInputElement>('[data-manual-search]')?.value ?? '';
-  // 펼침 상태는 다시 그려도 유지한다. 값을 하나 바꿀 때마다 접히면 쓸 수 없다.
-  // 기본값은 **접힘**이다 — 카드 다섯 장이 한 화면에 서니, 켜 두기만 한 설정까지
-  // 늘 펼쳐져 있으면 편성 자체가 안 보인다.
+  // 開閉状態は描き直しても保つ。値を一つ変えるたびに畳まれては使いものにならない。
+  // 既定は**畳んだ状態**である — カード5枚が1画面に並ぶので、オンにしただけの設定まで
+  // いつも開いていると、編成そのものが見えない。
   const wasOpen = (flag: string): boolean =>
     previous<HTMLElement>(`[${flag}]`)?.getAttribute('aria-expanded') === 'true';
   const summaryWasOpen = wasOpen('data-loadout-open');
   const controlWasOpen = wasOpen('data-control-open');
-  // 접이판 상태는 **카드를 비우기 전에** 읽어 둔다. 아래에서 다시 그릴 때는 옛 화면이
-  // 이미 지워져 있어, 그때 찾아서는 늘 «접힘»만 나온다.
+  // 折りたたみの状態は**カードを空にする前に**読んでおく。下で描き直す時点では旧画面が
+  // すでに消えていて、そこで探してもいつも «畳まれている» としか出ない。
   const openNotes = new Set(
     [...container.querySelectorAll<HTMLDetailsElement>('[data-note-fold]')]
       .filter((fold) => fold.open)
@@ -276,8 +276,8 @@ export function renderCharacterSettings(
   );
 
   /**
-   * 눌러서 여는 설정 뭉치. 카드가 좁아 그 자리에서 펼치면 다섯 장이 서로를 밀어낸다 —
-   * 필터 판처럼 창으로 띄운다. 창을 못 여는 자리에서는 제자리 펼치기로 물러난다.
+   * 押して開く設定の束。カードが狭く、その場で広げると5枚が互いを押しのける —
+   * フィルター盤のように窓に出す。窓を開けない場所ではその場開きに退く。
    */
   const panelOpener = (label: string, kind: CharPanelKind, short = label) => {
     const head = document.createElement('button');
@@ -285,8 +285,8 @@ export function renderCharacterSettings(
     head.className = 'char-panel-open';
     head.dataset.charPanelOpen = kind;
     head.setAttribute('aria-expanded', 'false');
-    // 카드에는 짧은 이름을, 창 제목에는 온전한 이름을 쓴다 — 좁은 칸에서 라벨이
-    // 줄줄이 깨지면 무엇을 여는 단추인지부터 읽히지 않는다.
+    // カードには短い名前を、窓のタイトルには完全な名前を使う — 狭い枠でラベルが
+    // 何行にも折れて崩れると、何を開くボタンなのかから読めなくなる。
     const title = document.createElement('span');
     title.className = 'disclosure-label';
     title.textContent = short;
@@ -318,8 +318,8 @@ export function renderCharacterSettings(
       container, name, catalog, next, onChange, buffTargets, onShowOrder, onOpenPanel, squad);
   };
 
-  // 카드가 좁아졌다 — 요약(«1돌 · 호감도 20 · 스킬 10…»)과 버프 수령자는 접어 두고
-  // 필요한 사람만 펼친다. 편성 화면에서 늘 읽는 줄은 아니다.
+  // カードが狭くなった — 要約 («1凸 · 好感度 20 · スキル 10…») とバフ受領者は畳んでおき、
+  // 必要な人だけ開く。編成画面でいつも読む行ではない。
   const summaryFold = document.createElement('button');
   summaryFold.type = 'button';
   summaryFold.className = 'loadout-open';
@@ -351,13 +351,13 @@ export function renderCharacterSettings(
   summary.textContent = summaryText(name, catalog, value);
   summaryBox.append(summary);
 
-  // 「누가 이 버프를 받았나」. 대상이 공격력 순위로 갈려 편성만 보고는 알 수 없고
-  // 전투 중에 바뀌기도 해서, 추정하지 않고 **실제 발동 로그**의 수령자를 띄운다.
-  // 계산을 돌리기 전에는 아직 알 수 없으므로 빈 괄호로 자리만 잡는다.
+  // 「誰がこのバフを受けたか」。対象は攻撃力の順位で分かれ、編成を見ただけでは分からず、
+  // 戦闘中に入れ替わりもするので、推定せずに**実際の発動ログ**の受領者を載せる。
+  // 計算を回す前はまだ分からないので、空の括弧で場所だけ取っておく。
   //
-  // 접이(개별값) **밖**에 세운다. 리버렐리오·미란다처럼 대상이 갈리는 버프는
-  // 결과를 읽는 데 필요한 정보이지 내 육성값이 아니다 — 펴 보지 않으면 못 보는
-  // 자리에 두면 있는 줄도 모른다.
+  // 折りたたみ (個別値) の**外**に立てる。리버렐리오·미란다のように対象が分かれるバフは
+  // 結果を読むのに要る情報であって、自分の育成値ではない — 開かないと見えない
+  // 場所に置くと、あることにも気づかれない。
   const buffTargetList = document.createElement('div');
   buffTargetList.className = 'buff-target-list';
   for (const row of buffTargets ?? []) {
@@ -368,11 +368,11 @@ export function renderCharacterSettings(
     label.textContent = `${row.label} : `;
     box.append(label);
     const who = document.createElement('b');
-    // 대상이 전투 중 갈리면 이름을 나열해도 읽히지 않는다 — 특이케이스로 접고
-    // 실제 순서는 「순서보기」로 넘긴다.
+    // 対象が戦闘中に分かれると、名前を並べても読めない — 特殊ケースとして畳んで
+    // 実際の順序は「順序を見る」に回す。
     const special = row.targets.length > 1;
-    // 미리 계산은 배경에서 돈다. 빈 괄호만 보이면 기능이 꺼진 것처럼 보이므로
-    // 도는 동안은 그렇다고 적는다.
+    // 先読み計算は背景で回る。空の括弧だけ見えると機能が切れているように見えるので、
+    // 回っている間はそうと書く。
     who.textContent = row.pending ? '[計算中]'
       : special ? '[特殊ケース]'
         : `[${row.targets.map(labelFor).join(', ')}]`;
@@ -386,7 +386,7 @@ export function renderCharacterSettings(
           ? `${row.buff} — ${row.count}回発動 · 対象が${row.targets.length}人の間で分かれます`
           : `${row.buff} — ${row.count}回発動`;
 
-    // 순서보기는 대상이 갈릴 때만 — 고정 대상은 이름만으로 충분하다.
+    // 「順序を見る」は対象が分かれるときだけ — 固定対象なら名前だけで十分だ。
     if (onShowOrder && special && (row.sequence?.length ?? 0) > 0) {
       const open = document.createElement('button');
       open.type = 'button';
@@ -424,13 +424,13 @@ export function renderCharacterSettings(
   current.cube ??= { ...defaults.cube };
   current.collection ??= { ...defaults.collection };
   current.manualStats ??= {};
-  /** 컨트롤 칩의 글을 지금 값으로 고쳐 쓴다. 칩이 만들어진 뒤에 채워진다. */
+  /** コントロールチップの文をいまの値に書き直す。チップが作られた後に埋められる。 */
   let paintControlChip: () => void = () => undefined;
 
   /**
-   * 긴 안내문을 접어 둔다. 카드 폭(약 130px)에서는 네 문장이 열 줄을 넘겨,
-   * 정작 만지러 온 체크박스가 화면 밖으로 밀린다. 읽고 싶을 때만 편다 —
-   * 펼침 상태는 다시 그려도 남는다.
+   * 長い案内文を畳んでおく。カード幅 (約130px) では4文が10行を超え、
+   * 肝心の触りに来たチェックボックスが画面の外へ押し出される。読みたいときだけ開く —
+   * 開閉状態は描き直しても残る。
    */
   const foldedNote = (label: string, note: HTMLElement, key: string): HTMLElement => {
     const fold = document.createElement('details');
@@ -447,7 +447,7 @@ export function renderCharacterSettings(
     current = cloneOverrides(next);
     onChange(current);
     summary.textContent = summaryText(name, catalog, current);
-    // 버스트를 바꾸면 카드를 다시 그리지 않는다 — 칩에 적힌 글은 여기서 따라간다.
+    // バーストを変えてもカードは描き直さない — チップに書かれた文はここで追随する。
     paintControlChip();
   };
 
@@ -555,7 +555,7 @@ export function renderCharacterSettings(
   everyText.textContent = 'の倍数サイクルごと';
   everyWrap.append(everyInput, everyText);
 
-  // 막바지 최우선 — 큰 한 방을 전투 끝에 맞추려는 운용이다.
+  // 終盤最優先 — 大きな一発を戦闘の終わりに合わせるための運用である。
   const lastWrap = document.createElement('label');
   lastWrap.className = 'burst-every';
   lastWrap.hidden = burstMode !== 'endgame';
@@ -607,8 +607,8 @@ export function renderCharacterSettings(
     + '「使わない」はこのキャラがバーストを一切使いません — 同段階の仲間が全員クールでも撃たないため、'
     + 'その段階を担う仲間がいないとバーストサイクル自体が止まります。';
   burstEditor.append(burstHeading, burstRow, foldedNote('バースト運用の説明', burstNote, 'burst'));
-  // `body`가 아니라 아래 «컨트롤 · 버스트» 접이판에 넣는다 — 버스트 운용도 결국
-  // 조작 방식이라 컨트롤과 한자리에 있는 편이 찾기 쉽다.
+  // `body` ではなく下の «コントロール · バースト» 折りたたみに入れる — バースト運用も結局は
+  // 操作方式なので、コントロールと同じ場所にあるほうが見つけやすい。
 
   const equipEditor = document.createElement('section');
   equipEditor.className = 'equip-editor';
@@ -622,27 +622,27 @@ export function renderCharacterSettings(
     partText.textContent = EQUIP_PART_LABELS[part];
     const partSelect = document.createElement('select');
     partSelect.dataset.equipLevel = part;
-    // 장비는 세 갈래다 — 미장착 / 일반 T1~T9(강화 없음) / 오버로드 강화 0~5.
-    // 고를 수 있는 건 미장착과 오버로드 0~5강뿐이고, 일반 등급은 옛 설정·계정
-    // 가져오기로 들어온 값일 때만 목록에 남는다.
-    // 미장착을 «강화 0»으로 적으면 안 낀 부위가 플랫 스탯을 얻어 딜이 부푼다.
-    // 스킬 레벨과 같은 방향(낮은 값이 위)으로 둔다 — 한 패널 안에서 정렬이
-    // 엇갈리면 고를 때마다 방향을 다시 읽어야 한다.
+    // 装備は三通り — 未装着 / 一般 T1〜T9 (強化なし) / オーバーロード強化0〜5。
+    // 選べるのは未装着とオーバーロード0〜5強だけで、一般等級は旧設定・アカウント
+    // 取り込みで入ってきた値のときだけ一覧に残る。
+    // 未装着を «強化0» と書くと、着けていない部位がフラットステータスを得てダメージが膨らむ。
+    // スキルレベルと同じ方向 (低い値が上) に並べる — 一つのパネルの中で並び順が
+    // 食い違うと、選ぶたびに方向を読み直すはめになる。
     const addOption = (value: string, label: string) => {
       const option = document.createElement('option');
       option.value = value;
       option.textContent = label;
       partSelect.append(option);
     };
-    // 실전에서 쓰는 것만 남긴다 — 일반 T1~T9는 골라 봐야 쓸 일이 없어 아예 뺐다.
-    // 강화 0단계는 「T9 기업」이 아니라 인게임 표기대로 「오버로드 0강」으로 적는다:
-    // 계산도 그쪽(오버로드 강화 0)으로 하고 있었으므로 이름이 계산을 따라간 것이다.
+    // 実戦で使うものだけ残す — 一般 T1〜T9 は選べたところで使い道がなく、丸ごと外した。
+    // 強化0段階は「T9企業」ではなくゲーム内表記どおり「オーバーロード強化0」と書く:
+    // 計算も元からそちら (オーバーロード強化0) で行っていたので、名前が計算に従った形である。
     addOption('없음', '未装着');
     addOption('0', 'オーバーロード強化0');
     for (let lv = 1; lv <= 5; lv += 1) addOption(String(lv), `オーバーロード強化${lv}`);
     const currentEquip = String(current.equipLevels?.[part] ?? 5);
-    // 옛 설정이나 계정 가져오기가 일반 T1~T9를 가리키면 그 값도 목록에 남겨 둔다 —
-    // 조용히 바뀌면 안 된다. 계산은 그대로 일반 장비 표로 한다.
+    // 旧設定やアカウント取り込みが一般 T1〜T9 を指すなら、その値も一覧に残しておく —
+    // 黙って変わってはいけない。計算はそのまま一般装備の表で行う。
     if (![...partSelect.options].some((option) => option.value === currentEquip)) {
       addOption(currentEquip, `${currentEquip} (旧設定)`);
     }
@@ -667,8 +667,8 @@ export function renderCharacterSettings(
   equipEditor.append(equipHeading, equipGrid, equipNote);
   body.append(equipEditor);
 
-  // 소장품 / 애장품 — 같은 슬롯이라 한 목록에서 고른다. 애장품이 있는 캐릭터만
-  // 애장품 단계가 선택지에 나온다.
+  // コレクション / お気に入り — 同じスロットなので一つの一覧から選ぶ。お気に入りがある
+  // キャラだけ、お気に入りの段階が選択肢に出る。
   const collectionEditor = document.createElement('section');
   collectionEditor.className = 'collection-editor';
   const collectionHeading = document.createElement('h4');
@@ -744,9 +744,9 @@ export function renderCharacterSettings(
   cubeControls.className = 'cube-controls';
   const cubeSelect = document.createElement('select');
   cubeSelect.dataset.cubeName = '';
-  // 선택지는 카탈로그(=cube.json)에서 그대로 온다. 새 큐브가 추가돼도 코드는 그대로다.
-  // 맨 앞의 «없음»만 데이터가 아니라 화면이 만든다 — 큐브 효과가 오히려 손해인 조합
-  // (미란다 버프 등)을 재려면 안 낀 상태도 고를 수 있어야 한다.
+  // 選択肢はカタログ (=cube.json) からそのまま来る。新しいキューブが追加されてもコードはそのままだ。
+  // 先頭の «없음» だけはデータではなく画面が作る — キューブ効果がかえって損になる編成
+  // (미란다バフなど) を測るには、着けていない状態も選べないといけない。
   const noneOption = document.createElement('option');
   noneOption.value = NO_CUBE;
   noneOption.textContent = 'なし (キューブ未装着)';
@@ -757,8 +757,8 @@ export function renderCharacterSettings(
     option.textContent = labelForCube(cubeName);
     cubeSelect.append(option);
   }
-  // 저장된 편성이 지금 카탈로그에 없는 큐브를 가리킬 수 있다(데이터 갱신·구버전 상태).
-  // 그때는 목록의 첫 큐브로 되돌려 UI가 통째로 죽지 않게 한다.
+  // 保存された編成が、いまのカタログに無いキューブを指していることがある (データ更新・旧版の状態)。
+  // そのときは一覧の先頭のキューブへ戻し、UI が丸ごと死なないようにする。
   const cubeNames = Object.keys(catalog.cubes);
   const noCube = current.cube.name === NO_CUBE;
   const cubeName = noCube ? NO_CUBE
@@ -780,7 +780,7 @@ export function renderCharacterSettings(
   cubeSelect.addEventListener('change', () => {
     const next = cloneOverrides(current);
     if (cubeSelect.value === NO_CUBE) {
-      // 안 낀 상태에는 레벨이 없다 — 0으로 못 박아 엔진과 같은 뜻으로 보낸다.
+      // 着けていない状態にレベルは無い — 0 に固定して、エンジンと同じ意味で送る。
       next.cube = { name: NO_CUBE, level: 0 };
       commit(next);
       return;
@@ -809,8 +809,8 @@ export function renderCharacterSettings(
       + `HP ${level.hp.toLocaleString('en-US')} · ${effect} · 有利コード ${level.commonElement}%`;
   }
   cubeBox.append(cubeHeading, cubeControls, cubeSummary);
-  // 고유 스킬이 계산에 안 들어가는 큐브는 그 사실을 숨기지 않는다. 스탯은 붙으므로
-  // 선택 자체는 의미가 있고, 표시된 효과 수치만 결과에 반영되지 않는다.
+  // 固有スキルが計算に入らないキューブは、その事実を隠さない。ステータスは付くので
+  // 選ぶこと自体に意味はあり、表示された効果数値だけが結果に反映されない。
   if (!noCube && cubeMeta.unsupported) {
     const note = document.createElement('p');
     note.className = 'cube-unsupported-note';
@@ -850,7 +850,7 @@ export function renderCharacterSettings(
   recommendation.className = 'field-note';
   recommendation.textContent = recommendedControlText(defaults, squad);
 
-  // 조합으로 붙는 컨트롤은 아무도 켠 적이 없는데 걸린다 — 왜 걸리는지 바로 아래 적는다.
+  // 編成で付くコントロールは誰もオンにしていないのに掛かる — なぜ掛かるのかをすぐ下に書く。
   const ruleNotes = document.createElement('div');
   ruleNotes.className = 'control-rules';
   for (const note of controlRuleNotes(defaults, squad)) {
@@ -901,8 +901,8 @@ export function renderCharacterSettings(
 
   if (defaults.weaponType === 'SR' || defaults.weaponType === 'RL') {
     const tapLabel = addControlToggle('tap_fire', 'タップ撃ち', { rate: TAP_FIRE_DEFAULT, release: 0.03 });
-    // 발사 속도는 사람마다 다르다. 커뮤니티는 10초당 발수(«N톡톡이»)로 부르므로
-    // 입력은 발/초로 받되 환산값을 같이 보여준다.
+    // 発射速度は人によって違う。コミュニティは10秒あたりの発数 («N톡톡이») で呼ぶので、
+    // 入力は発/秒で受けつつ、換算値を並べて見せる。
     const tapRate = document.createElement('input');
     tapRate.type = 'number';
     tapRate.dataset.tapRate = '';
@@ -916,7 +916,7 @@ export function renderCharacterSettings(
     tapHint.dataset.tapHint = '';
     const paintHint = (rate: number) => {
       if (!Number.isFinite(rate) || rate <= 0) { tapHint.textContent = ''; return; }
-      // 10초에 N발이면 사이클은 10/(N-1)초다 (CONTROL.md §톡톡이).
+      // 10秒にN発ならサイクルは 10/(N-1) 秒 (CONTROL.md §톡톡이)。
       tapHint.textContent = `≈ 10秒${Math.round(rate * 10)}発`
         + (rate > TAP_FIRE_HARD_LIMIT ? ' · ゲーム下限(220ms)を超える値です' : '');
       tapHint.classList.toggle('is-warning', rate > TAP_FIRE_HARD_LIMIT);
@@ -1020,9 +1020,9 @@ export function renderCharacterSettings(
   const controlWarning = document.createElement('p');
   controlWarning.className = 'field-note warning';
   controlWarning.textContent = '複数キャラの同時コントロールは、実際に1人を操作するより有利な上限になり得ます。';
-  // 컨트롤은 창으로 띄우지 않고 **카드에서 그 자리에 펼친다**. 창을 열면 편성이
-  // 가려지는데, 컨트롤은 옆 사람 것을 보며 정하는 설정이라 그 대가가 크다.
-  // 대신 접힌 칩에 지금 상태를 적어 두어, 열지 않고도 읽히게 한다.
+  // コントロールは窓に出さず、**カードのその場で広げる**。窓を開くと編成が
+  // 隠れるが、コントロールは隣の人のものを見ながら決める設定なので、その代償が大きい。
+  // 代わりに畳んだチップにいまの状態を書いておき、開かなくても読めるようにする。
   const controlChip = document.createElement('button');
   controlChip.type = 'button';
   controlChip.className = 'control-chip';
@@ -1057,8 +1057,8 @@ export function renderCharacterSettings(
     chipCaret.textContent = next ? '▴' : '▾';
   });
   controlEditor.append(controlChip, controlPanel);
-  // 컨트롤은 돌파·스킬·오버로드·큐브와 **형제**로 둔다. 그 안에 넣으면 컨트롤만
-  // 보려 해도 설정 뭉치를 먼저 펼쳐야 한다 — 두 뭉치는 만지는 이유가 다르다.
+  // コントロールは限界突破・スキル・オーバーロード・キューブと**兄弟**に置く。その中に入れると
+  // コントロールだけ見たくても設定の束を先に開くことになる — 二つの束は触る理由が違う。
 
   const advancedLabel = document.createElement('label');
   advancedLabel.className = 'inline-check advanced-toggle';
@@ -1080,7 +1080,7 @@ export function renderCharacterSettings(
   search.type = 'search';
   search.placeholder = '追加数値を検索';
   search.dataset.manualSearch = '';
-  // 하나 추가했다고 검색어까지 지우면 둘째 줄부터 매번 다시 쳐야 한다.
+  // 一つ追加したからといって検索語まで消すと、2行目からは毎回打ち直しになる。
   search.value = searchWas;
   const manualSelect = document.createElement('select');
   manualSelect.dataset.manualSelect = '';

@@ -20,28 +20,28 @@ export function blablaServerLabel(area: number): string {
   return BLABLA_SERVERS.find((server) => server.area === area)?.label ?? `サーバー ${area}`;
 }
 
-// 블라블라링크 프로필 응답 → 캐릭터별 override.
+// Blablalink プロフィール応答 → キャラクター別 override。
 //
-// 응답은 프록시(`worker/`)가 그대로 넘겨준 원시 JSON이다. 여기서 우리 용어로 옮기며,
-// 규칙은 렛츠도로 CSV 임포트(`csv-import.ts`)와 같은 자리에 떨어지도록 맞춘다 — 두
-// 경로가 같은 계정에 대해 다른 스펙을 만들면 어느 쪽이 맞는지 알 수 없게 된다.
+// 応答はプロキシ (`worker/`) がそのまま渡してきた生の JSON である。ここでこちらの用語に移し替えるが、
+// 規則はレッツドロ CSV 取り込み (`csv-import.ts`) と同じ場所に落ちるように合わせる — 二つの
+// 経路が同じアカウントに別々のスペックを作ると、どちらが正しいのか分からなくなる。
 //
-// CSV와 다른 점은 이쪽이 **큐브와 소장품 실물**까지 준다는 것이다. 대신 호감도는
-// 계산기가 돌파 단계에서 끌어내므로(`context/growth.growth_options`) 응답의
-// `attractive_lv`는 쓰지 않는다 — 그 축을 새로 만들면 CSV 쪽과 어긋난다.
+// CSV と違うのは、こちらが**キューブとコレクションの実物**までくれることである。ただし好感度は
+// 計算機が突破段階から引き出すので (`context/growth.growth_options`)、応答の
+// `attractive_lv` は使わない — その軸を新しく作ると CSV 側と食い違う。
 
-/** 프록시가 돌려주는 지역 하나치 원시 응답. 필요한 필드만 좁게 적는다. */
+/** プロキシが返してくるサーバー1つ分の生応答。必要なフィールドだけ狭く書く。 */
 export interface RawArea {
   area: number;
   characters: Array<{ name_code: number; grade?: number; core?: number; lv?: number }>;
   details: Array<Record<string, number>>;
   stateEffects: Array<{
-    // 옵션 id는 여기서 **문자열**로 오고 장비 슬롯에서는 숫자로 온다(실측 2026-08-23).
-    // 그대로 맞대면 하나도 안 맞아 오버로드가 통째로 0이 된다.
+    // オプション id はここでは**文字列**で来て、装備スロットでは数値で来る (実測 2026-08-23)。
+    // そのまま突き合わせると一つも一致せず、オーバーロードが丸ごと 0 になる。
     id: number | string;
     function_details?: Array<{ function_type?: string; function_value?: number }>;
   }>;
-  // 재활용 연구실 레벨 필드는 `lv`다(`level`이 아니다 — 실측 2026-08-23).
+  // リサイクルルームのレベルのフィールドは `lv` である (`level` ではない — 実測 2026-08-23)。
   // synchro_level はアカウントのシンクロレベル (前哨基地が非公開なら outpost ごと null)
   outpost: {
     recycle_room_researches?: Array<{ tid: number; lv: number }>;
@@ -57,14 +57,14 @@ export interface RawProfile {
 export interface ProfileImport {
   overrides: Record<string, CharacterOverrides>;
   matched: string[];
-  /** 사전에 없는 name_code — 계산기가 아직 안 다루는 캐릭터다. */
+  /** 辞書に無い name_code — 計算機がまだ扱っていないニケである。 */
   unmatched: number[];
-  /** 사람에게 보여 줄 주의사항. */
+  /** 人に見せる注意書き。 */
   notes: string[];
 }
 
-// 게임 내부 옵션 이름 → 우리 오버로드 키. `scraper/profile_fetch.py` FUNC_TO_EQUIP와
-// 같은 표다. 저쪽이 정본이니 바뀌면 함께 고친다.
+// ゲーム内部のオプション名 → こちらのオーバーロードキー。`scraper/profile_fetch.py` FUNC_TO_EQUIP と
+// 同じ表である。あちらが正本なので、変わったら一緒に直す。
 const FUNCTION_TO_OVERLOAD: Record<string, string> = {
   StatAtk: 'atk_pct',
   IncElementDmg: 'element_bonus',
@@ -78,7 +78,7 @@ const FUNCTION_TO_OVERLOAD: Record<string, string> = {
   StatDef: 'def_pct',
 };
 
-// 응답의 부위 접두사 → 우리 부위명. 몸통이 `torso`, 장갑이 `arm`이다.
+// 応答の部位接頭辞 → こちらの部位名。胴体が `torso`、手袋が `arm` である。
 const PARTS: Array<[string, EquipPart]> = [
   ['head', '머리'],
   ['torso', '몸통'],
@@ -86,13 +86,13 @@ const PARTS: Array<[string, EquipPart]> = [
   ['leg', '다리'],
 ];
 
-// equip_tier 10 = 기업 장비(강화 0~5). 1~9는 일반 T1~T9라 강화 자체가 없고, 0은 미장착이다.
-// 우리 설정은 부위당 강화 레벨 하나만 받으므로 그 둘은 0으로 접힌다.
+// equip_tier 10 = 企業装備 (強化 0〜5)。1〜9 は一般 T1〜T9 で強化自体が無く、0 は未装着である。
+// こちらの設定は部位ごとに強化レベルを一つしか受け取らないので、その二つは 0 に畳まれる。
 const CORP_TIER = 10;
 
 const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
 
-/** 붙여넣은 값이 블라블라링크 프로필 URL로 보이는가. 프록시가 최종 판단을 한다. */
+/** 貼り付けた値が Blablalink プロフィール URL に見えるか。最終判断はプロキシがする。 */
 export function looksLikeProfileUrl(text: string): boolean {
   const trimmed = text.trim();
   if (trimmed === '') return false;
@@ -105,24 +105,24 @@ export function looksLikeProfileUrl(text: string): boolean {
   }
 }
 
-/** state_effects → {옵션 id: [오버로드 키, 퍼센트]}. */
+/** state_effects → {オプション id: [オーバーロードキー, パーセント]}。 */
 function buildOptionMap(effects: RawArea['stateEffects']): Map<number, [string, number]> {
   const map = new Map<number, [string, number]>();
   for (const effect of effects) {
     const id = Number(effect.id);
     if (!Number.isFinite(id)) continue;
-    // 상세를 배치로 나눠 받으므로 같은 옵션이 여러 번 온다. 먼저 온 것만 쓰면 된다.
+    // 詳細をバッチに分けて受け取るので、同じオプションが何度も来る。先に来たものだけ使えばよい。
     if (map.has(id)) continue;
     const detail = effect.function_details?.[0];
     const key = detail?.function_type ? FUNCTION_TO_OVERLOAD[detail.function_type] : undefined;
     if (!key) continue;
-    // 차지 시간 감소만 음수로 오고 나머지는 양수다. 우리 표는 전부 양수 퍼센트다.
+    // チャージ時間の短縮だけ負で来て、残りは正。こちらの表は全部正のパーセントで揃えている。
     map.set(id, [key, Math.abs(Number(detail?.function_value ?? 0)) / 100]);
   }
   return map;
 }
 
-/** 오버로드 12슬롯 합산. state_effects는 중복 제거돼 오므로 슬롯을 직접 순회한다. */
+/** オーバーロード12スロットの合算。state_effects は重複除去されて来るので、スロットの側を直接辿る。 */
 function overloadOf(
   detail: Record<string, number>,
   options: Map<number, [string, number]>,
@@ -146,9 +146,9 @@ function equipLevelsOf(detail: Record<string, number>): Partial<Record<EquipPart
   const levels: Partial<Record<EquipPart, EquipSetting>> = {};
   for (const [prefix, part] of PARTS) {
     const tier = detail[`${prefix}_equip_tier`] ?? 0;
-    // 셋을 구분해 넘긴다. 예전에는 기업이 아니면 전부 «강화 0»으로 적었는데,
-    // 강화 0에도 플랫 스탯이 붙어 미장착·일반 장비가 공격력을 그냥 얻었다
-    // (4부위 미장착 기준 약 1만). `scraper/profile_fetch.py`가 하는 구분과 같다.
+    // 三つを区別して渡す。かつては企業でなければ全部 «強化 0» と書いていたが、
+    // 強化 0 にもフラットステータスが付いていて、未装着・一般装備がそのまま攻撃力を得ていた
+    // (4部位未装着で約1万)。`scraper/profile_fetch.py` がしている区別と同じである。
     levels[part] = tier >= CORP_TIER
       ? clamp(detail[`${prefix}_equip_lv`] ?? 0, 0, 5)
       : tier >= 1 ? (`T${tier}` as EquipSetting) : '없음';
@@ -157,10 +157,10 @@ function equipLevelsOf(detail: Record<string, number>): Partial<Record<EquipPart
 }
 
 /**
- * 소장품 슬롯 → 우리 설정. 슬롯 하나를 소장품(R·SR)과 애장품(SSR)이 나눠 쓴다.
+ * コレクションスロット → こちらの設定。一つのスロットをコレクション (R・SR) とお気に入り (SSR) が分け合う。
  *
- * 애장품은 스탯이 SR15와 같으므로 등급은 SR15로 적고, 단계만 따로 넘긴다 — 단계가
- * 바꾸는 것은 스탯이 아니라 스킬 판본이다.
+ * お気に入りはステータスが SR15 と同じなので、等級は SR15 と書いて段階だけ別に渡す — 段階が
+ * 変えるのはステータスではなくスキルの版である。
  */
 function collectionOf(
   detail: Record<string, number>,
@@ -188,10 +188,10 @@ function cubeOf(
 }
 
 /**
- * 지역 하나치 원시 응답을 캐릭터별 override로 옮긴다.
+ * サーバー1つ分の生応答をキャラクター別 override に移し替える。
  *
- * `characters`(보유 목록)와 `details`(육성 상세)는 서로 다른 것을 준다. 돌파·코강은
- * 동기화가 반영된 보유 목록 쪽이 맞고, 스킬·장비·소장품은 상세 쪽에만 있다.
+ * `characters` (所持一覧) と `details` (育成詳細) は互いに別のものをくれる。突破・コア強化は
+ * シンクロが反映された所持一覧の側が正しく、スキル・装備・コレクションは詳細の側にしか無い。
  */
 export function areaToOverrides(
   area: RawArea,
@@ -277,10 +277,10 @@ export function areaToOverrides(
 }
 
 /**
- * 지역이 여럿이면 니케를 가장 많이 가진 지역을 쓴다.
+ * サーバーが複数あれば、ニケを一番多く持つサーバーを使う。
  *
- * 한 계정에 한섭·일섭이 같이 걸리기도 하는데, 둘을 합치면 같은 니케의 육성 상태가
- * 뒤섞인다. 주로 쓰는 계정이 니케가 더 많다는 게 가장 덜 틀리는 추정이다.
+ * 一つのアカウントに韓国サーバーと日本サーバーが同時にぶら下がることもあるが、二つを合わせると同じニケの
+ * 育成状態が混ざってしまう。主に使うアカウントの方がニケが多い、というのが一番外れにくい推定である。
  */
 export function pickArea(profile: RawProfile, preferredArea?: number): RawArea | null {
   if (preferredArea !== undefined) {
@@ -293,7 +293,7 @@ export function pickArea(profile: RawProfile, preferredArea?: number): RawArea |
   return best;
 }
 
-/** 콘솔(재활용 연구실) tid → 계산기 콘솔 설정 자리. `profile_fetch.py` CONSOLE_TIDS와 같다. */
+/** コンソール (リサイクルルーム) tid → 計算機のコンソール設定の置き場。`profile_fetch.py` CONSOLE_TIDS と同じ。 */
 const CONSOLE_TIDS: Record<number, ['common' | 'class' | 'company', string]> = {
   1001: ['common', ''],
   1101: ['class', '화력형'], 1102: ['class', '방어형'], 1103: ['class', '지원형'],
@@ -308,8 +308,8 @@ export interface ConsoleImport {
 }
 
 /**
- * 아무것도 안 올린 콘솔. **자리는 다 있고 값만 0**이다 — 엔진은 빠진 소속을 거절하므로
- * «모른다»를 «0으로 친다»로 바꿔 적어야 계산이 돈다(전초기지가 비공개일 때 쓴다).
+ * 何も上げていないコンソール。**枠は全部あって値だけ 0** である — エンジンは欠けた所属を拒むので、
+ * «分からない» を «0 とみなす» に書き換えて初めて計算が回る (前哨基地が非公開のときに使う)。
  */
 export function emptyConsole(): ConsoleImport {
   const out: ConsoleImport = { common_level: 0, class_level: {}, company_level: {} };
@@ -336,11 +336,11 @@ export function synchroFrom(area: RawArea): number | null {
 }
 
 /**
- * 전초기지 응답 → 콘솔 레벨. 전초기지가 비공개면 안 오므로 null이 정상이다.
+ * 前哨基地の応答 → コンソールレベル。前哨基地が非公開だと来ないので、null が正常である。
  *
- * 안 올린 연구실은 응답에 아예 **없다**. 그 자리를 비운 채 넘기면 엔진이
- * «클래스 콘솔에 빠진 소속이 있다»로 거절한다(빠진 소속이 조용히 0이 되는 걸
- * 막는 장치다). 여기서 0으로 채워 «안 올렸다»는 뜻을 분명히 적어 보낸다.
+ * 上げていない研究は応答にそもそも**無い**。その枠を空のまま渡すとエンジンが
+ * «クラスコンソールに欠けた所属がある» と拒む (欠けた所属が黙って 0 になるのを
+ * 防ぐ仕掛けである)。ここで 0 で埋め、«上げていない» という意味をはっきり書いて送る。
  */
 export function consoleFrom(area: RawArea): ConsoleImport | null {
   const researches = area.outpost?.recycle_room_researches;

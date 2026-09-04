@@ -210,8 +210,8 @@ describe('character settings editor', () => {
 
     const head = root.querySelector<HTMLSelectElement>('[data-equip-level="머리"]')!;
     const arm = root.querySelector<HTMLSelectElement>('[data-equip-level="팔"]')!;
-    // 실전에서 쓰는 것만 남긴다 — 미장착 / 오버로드 0~5강.
-    // 강화 레벨은 스킬 레벨과 같은 방향(오름차순)으로 통일했다.
+    // 実戦で使うものだけ残す — 未装着 / オーバーロード強化0〜5。
+    // 強化レベルはスキルレベルと同じ向き (昇順) に統一した。
     expect([...head.options].map((option) => option.value)).toEqual(
       ['없음', '0', '1', '2', '3', '4', '5'],
     );
@@ -226,14 +226,14 @@ describe('character settings editor', () => {
     arm.dispatchEvent(new Event('change'));
     expect(value?.equipLevels).toEqual({ 머리: 5, 몸통: 5, 팔: 2, 다리: 5 });
 
-    // 등급을 고르면 숫자가 아니라 등급 그대로 실린다 — 미장착을 강화0으로
-    // 적으면 안 낀 부위가 플랫 스탯을 얻는다.
+    // 等級を選ぶと、数字ではなく等級がそのまま載る — 未装着を強化0と
+    // 書くと、着けていない部位がフラットステータスを得てしまう。
     arm.value = '없음';
     arm.dispatchEvent(new Event('change'));
     expect(value?.equipLevels?.팔).toBe('없음');
 
-    // 고를 수 있는 건 미장착과 오버로드 0~5강뿐이다 — 일반 T1~T9는 뺐고,
-    // 강화 0단계는 계산 그대로 「오버로드 0강」이라 적는다.
+    // 選べるのは未装着とオーバーロード強化0〜5だけ — 一般のT1〜T9は外し、
+    // 強化0段階は計算のとおり「オーバーロード強化0」と表記する。
     expect([...arm.options].map((option) => option.textContent)).toEqual([
       '未装着', 'オーバーロード強化0', 'オーバーロード強化1', 'オーバーロード強化2',
       'オーバーロード強化3', 'オーバーロード強化4', 'オーバーロード強化5',
@@ -328,12 +328,12 @@ describe('character settings editor', () => {
 
     expect(root.textContent).toContain('기념 열쇠고리');
     const select = root.querySelector<HTMLSelectElement>('[data-collection]')!;
-    // 애장품 단계가 먼저 오고, 그 뒤로 소장품 단계가 이어진다.
+    // お気に入りの段階が先に来て、その後ろにコレクションの段階が続く。
     expect([...select.options].slice(0, 3).map((option) => option.textContent))
       .toEqual(['お気に入り ★★★', 'お気に入り ★★☆', 'お気に入り ★☆☆']);
     expect(select.value).toBe('favorite:3');
 
-    // 실제로는 애장품이 없고 소장품 SR5만 낀 경우.
+    // 実際にはお気に入りが無く、コレクションSR5だけを着けている場合。
     select.value = 'stage:SR5';
     select.dispatchEvent(new Event('change'));
     expect(value?.collection).toEqual({ stage: 'SR5', favorite: 0 });
@@ -363,17 +363,17 @@ describe('character settings editor', () => {
     const stats = root.querySelector<HTMLElement>('[data-char-panel-open="settings"]')!;
     const control = root.querySelector<HTMLElement>('[data-control-open]')!;
 
-    // 둘 다 닫힌 채로 시작한다 — 개별 설정을 켜는 것과 여는 것은 별개다.
+    // どちらも閉じたまま始まる — 個別設定を入れることと開くことは別物だ。
     expect(stats.getAttribute('aria-expanded')).toBe('false');
     expect(control.getAttribute('aria-expanded')).toBe('false');
 
-    // 컨트롤은 수치 뭉치 **안**에 있으면 안 된다. 만지는 이유가 다른 두 뭉치다.
+    // コントロールは数値の塊の**中**にあってはいけない。触る理由が違う2つの塊だ。
     const statsPanel = stats.nextElementSibling!;
     expect(statsPanel.contains(control)).toBe(false);
-    // 그리고 그 아래에 온다.
+    // そしてその下に来る。
     expect(statsPanel.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // 컨트롤은 창으로 가지 않고 그 자리에서 펴진다 — 수치 설정은 그대로 닫혀 있다.
+    // コントロールは窓へは行かず、その場で開く — 数値設定は閉じたままだ。
     control.click();
     expect(control.getAttribute('aria-expanded')).toBe('true');
     expect(root.querySelector<HTMLElement>('[data-control-panel]')!.hidden).toBe(false);
@@ -381,7 +381,7 @@ describe('character settings editor', () => {
   });
 
   it('추천 컨트롤을 영어 키가 아니라 한글로 적는다', () => {
-    // 「tap_fire」라고 적어 두면 아래 체크박스의 「톡톡이」와 같은 것인 줄 모른다.
+    // 「tap_fire」と書いておくと、下のチェックボックスの「タップ撃ち」と同じものだと分からない。
     expect(recommendedControlText(
       { recommendedControl: { tap_fire: { rate: 3.6, release: 0.03 } }, hasConditionalControl: false },
     )).toBe('現在の基本推奨: タップ撃ち');
@@ -390,8 +390,8 @@ describe('character settings editor', () => {
   });
 
   it('조합으로 붙는 컨트롤을 누구 때문인지까지 적는다', () => {
-    // 아인은 에이다와 함께일 때 홀드가 붙는다. 예전에는 그 사실이 화면에 없어서
-    // 「홀드를 켰는데 결과가 그대로」로 보였다 — 이미 걸려 있었기 때문이다.
+    // 아인は에이다と一緒のときホールドが付く。以前はその事実が画面に無く、
+    // 「ホールドを入れたのに結果がそのまま」に見えた — すでに掛かっていたからだ。
     const defaults = {
       recommendedControl: { tap_fire: { rate: 3.6, release: 0.03 } },
       hasConditionalControl: true,
@@ -399,20 +399,20 @@ describe('character settings editor', () => {
     };
     expect(recommendedControlText(defaults, ['아인', '에이다', '미란다']))
       .toBe('現在の基本推奨: タップ撃ち · ホールドコントロール(에이다と一緒のため)');
-    // 그 사람이 빠지면 다시 조건 없는 것만 남는다 — 얼버무리는 말도 붙지 않는다.
+    // その人が抜けると、また条件なしのものだけが残る — 濁す文言も付かない。
     expect(recommendedControlText(defaults, ['아인', '홍련']))
       .toBe('現在の基本推奨: タップ撃ち');
   });
 
   it('화면이 판정할 수 없는 조건은 예전처럼 알리기만 한다', () => {
-    // 같은 단계·자리 번호를 보는 규칙은 내려오지 않는다. 흉내 내면 틀린 값을 적게 된다.
+    // 同じ段階・枠番号を見る規則は画面には降りてこない。真似ると間違った値を書くことになる。
     expect(recommendedControlText(
       { recommendedControl: {}, hasConditionalControl: true }, ['아인'],
     )).toBe('現在の基本推奨: 自動射撃 · スカッド編成によって推奨コントロールが追加されます。');
   });
 
   it('조합으로 붙는 컨트롤은 왜 붙는지까지 적는다', () => {
-    // 아무도 켠 적이 없는데 걸리는 컨트롤이라, 걸린 사실만으로는 오해가 남는다.
+    // 誰も入れていないのに掛かるコントロールなので、掛かった事実だけでは誤解が残る。
     const defaults = {
       conditionalControl: [{
         withMembers: ['에이다'],
@@ -425,7 +425,7 @@ describe('character settings editor', () => {
     expect(on!.headline).toBe('에이다と一緒なのでホールドコントロールが適用されています。');
     expect(on!.help).toBe('에이다와 같은 운용을 함께 씁니다.');
 
-    // 아직 아니면 «무엇과 함께 두면 걸리는지»를 알려 준다.
+    // まだ掛かっていなければ «何と一緒に置けば掛かるか» を教える。
     const [off] = controlRuleNotes(defaults, ['아인', '홍련']);
     expect(off!.active).toBe(false);
     expect(off!.headline).toBe('에이다と一緒に編成するとホールドコントロールが自動で付きます。');
@@ -436,12 +436,12 @@ describe('character settings editor', () => {
     expect(withParticle('톡톡이', '이', '가')).toBe('톡톡이가');
     expect(withParticle('홍련', '과', '와')).toBe('홍련과');
     expect(withParticle('에이다', '과', '와')).toBe('에이다와');
-    // 한글이 아닌 끝글자는 받침이 있는 쪽으로 본다.
+    // ハングルでない末尾の文字は、パッチムがある側として扱う。
     expect(withParticle('MG', '이', '가')).toBe('MG이');
   });
 
   it('설명이 없는 규칙은 한 줄만 적는다', () => {
-    // 설명은 데이터가 들고 온다 — 화면이 지어내지 않는다.
+    // 説明はデータが持ってくる — 画面がでっち上げない。
     const [note] = controlRuleNotes(
       { conditionalControl: [{ withMembers: ['미란다'], control: { cover: { policy: 'own_full_burst' as const } } }] },
       ['미하라 : 본딩 체인', '미란다'],
@@ -462,7 +462,7 @@ describe('character settings editor', () => {
     expect(chipText()).toBe('推奨自動 · バースト自動');
 
     setToggle('[data-control-mode="manual"]', true);
-    expect(chipText()).toBe('手動設定 · バースト自動');   // 0개라고 세어 보이지 않는다
+    expect(chipText()).toBe('手動設定 · バースト自動');   // 0件と数えては見せない
     setToggle('[data-control="reload"]', true);
     expect(chipText()).toBe('手動1件 · バースト自動');
 
@@ -477,7 +477,7 @@ describe('character settings editor', () => {
   });
 
   it('컨트롤 판 안의 긴 설명도 펴 둔 채로 남는다', () => {
-    // 접이판 상태를 카드가 비워진 뒤에 찾으면 늘 «접힘»만 나온다.
+    // 折りたたみの開閉をカードを空にした後で調べると、いつも «畳まれている» しか出ない。
     characterName = '라피';
     render();
     setToggle('[data-custom-toggle]', true);
@@ -487,12 +487,12 @@ describe('character settings editor', () => {
     note().open = true;
     setToggle('[data-control-mode="manual"]', true);
     expect(note().open).toBe(true);
-    // 다른 접이판까지 덩달아 펴지지는 않는다.
+    // 他の折りたたみまでつられて開きはしない。
     expect(root.querySelector<HTMLDetailsElement>('[data-note-fold="control-warning"]')!.open).toBe(false);
   });
 
   it('컨트롤을 펴 둔 채로 값을 바꿔도 접히지 않는다', () => {
-    // 체크 하나 누를 때마다 카드가 다시 그려진다 — 그때 접히면 둘째 항목을 못 켠다.
+    // チェックを1つ押すたびにカードが描き直される — そこで畳まれると2つ目の項目を入れられない。
     characterName = '라피';
     render();
     setToggle('[data-custom-toggle]', true);
@@ -516,7 +516,7 @@ describe('character settings editor', () => {
     setToggle('[data-control-mode="manual"]', true);
     expect(value?.control).toEqual({});
     setToggle('[data-control="tap_fire"]', true);
-    // 직접 켤 때 채워지는 출발값. 엔진의 «추천 자동»(3.6)과는 별개다.
+    // 自分で入れたときに埋まる出発値。エンジンの «推奨自動» (3.6) とは別物だ。
     expect(value?.control?.tap_fire).toEqual({ rate: 4.4, release: 0.03 });
 
     setToggle('[data-control-mode="auto"]', true);
@@ -529,7 +529,7 @@ describe('character settings editor', () => {
     setToggle('[data-custom-toggle]', true);
     setToggle('[data-control-mode="manual"]', true);
 
-    // 켜기 전에는 속도를 만질 수 없다.
+    // 入れる前は速度をいじれない。
     expect(root.querySelector<HTMLInputElement>('[data-tap-rate]')?.disabled).toBe(true);
     setToggle('[data-control="tap_fire"]', true);
 
@@ -543,7 +543,7 @@ describe('character settings editor', () => {
     expect(value?.control?.tap_fire).toEqual({ rate: 4, release: 0.03 });
     expect(root.querySelector('[data-tap-hint]')?.textContent).toContain('10秒40発');
 
-    // 게임이 강제하는 하한(220ms ≈ 4.5발/초)을 넘으면 그 사실을 알린다.
+    // ゲームが強制する下限 (220ms ≈ 4.5発/秒) を超えたらその事実を知らせる。
     rate.value = '6';
     rate.dispatchEvent(new Event('input', { bubbles: true }));
     expect(value?.control?.tap_fire?.rate).toBe(6);
@@ -621,19 +621,19 @@ describe('character settings editor', () => {
   });
 
   it('shows who receives a watched buff, outside the collapsed 개별값 fold', () => {
-    // 대상이 공격력 순위로 갈려 편성만 보고는 알 수 없다 — 계산 전에는 빈 괄호로
-    // 자리만 잡고, 결과가 오면 실제 수령자가 채워진다.
+    // 対象は攻撃力の順位で分かれ、編成を見ただけでは分からない — 計算前は空の括弧で
+    // 場所だけ取り、結果が来たら実際の受け手で埋まる。
     renderCharacterSettings(root, characterName, settings, value, (next) => { value = next; },
       [{ label: '크확 대상', buff: '웨이크업! 4', targets: [], count: 0 }]);
     let row = root.querySelector<HTMLElement>('[data-buff-target]')!;
     expect(row.textContent).toBe('크확 대상 : []');
-    // 접이 **밖**에 선다 — 펴 보지 않아도 보여야 하는 정보다.
+    // 折りたたみの**外**に立つ — 開いてみなくても見えるべき情報だ。
     expect(row.closest('[data-loadout-fold]')).toBeNull();
     const fold = root.querySelector<HTMLElement>('[data-loadout-fold]')!;
-    expect(fold.hidden).toBe(true);                    // 접힌 채로도
+    expect(fold.hidden).toBe(true);                    // 畳まれたままでも
     expect(row.getClientRects).toBeDefined();
     expect(fold.contains(row)).toBe(false);
-    // 접이 바로 다음 자리다 — 요약과 개별 설정 사이.
+    // 折りたたみのすぐ次の場所だ — 要約と個別設定の間。
     expect(fold.nextElementSibling!.contains(row)).toBe(true);
 
     renderCharacterSettings(root, characterName, settings, value, (next) => { value = next; },
@@ -644,7 +644,7 @@ describe('character settings editor', () => {
   });
 
   it('folds a switching target into 특이케이스 and offers the order', () => {
-    // 대상이 갈리면 이름을 나열해도 읽히지 않는다 — 접고 순서는 버튼으로 넘긴다.
+    // 対象が分かれると名前を並べても読めない — 畳んで、順序はボタンに任せる。
     let opened: BuffTargetRow | undefined;
     const row: BuffTargetRow = {
       label: '차분한 수심 대상', buff: '차분한 수심 4', count: 4,
@@ -669,7 +669,7 @@ describe('character settings editor', () => {
   });
 
   it('shows just the name when the target never changes, with no order button', () => {
-    // 대상이 고정이면 이름 하나로 충분하다 — 「순서보기」는 갈릴 때만 붙인다.
+    // 対象が固定なら名前1つで足りる — 「順序を見る」は分かれるときだけ付ける。
     renderCharacterSettings(root, characterName, settings, value, (next) => { value = next; },
       [{ label: '크확 대상', buff: '웨이크업! 4', targets: ['리버렐리오'], count: 3,
          sequence: [{ t: 3.25, target: '리버렐리오' }] }], () => {});
@@ -679,7 +679,7 @@ describe('character settings editor', () => {
   });
 
   it('says 계산중 while the background run is in flight', () => {
-    // 빈 괄호만 보이면 기능이 꺼진 것처럼 보인다 — 도는 동안은 그렇다고 적는다.
+    // 空の括弧だけ見えると機能が切れているように見える — 回っている間はそうだと書いておく。
     renderCharacterSettings(root, characterName, settings, value, (next) => { value = next; },
       [{ label: '크확 대상', buff: '웨이크업! 4', targets: [], count: 0, pending: true }]);
     const box = root.querySelector<HTMLElement>('[data-buff-target]')!;
@@ -689,7 +689,7 @@ describe('character settings editor', () => {
   });
 
   it('hands the panel to whoever can show it in a window', () => {
-    // 창을 열 수 있는 자리(계산기 화면)에서는 그 자리에서 펼치지 않고 넘긴다.
+    // 窓を開ける場所 (計算機の画面) では、その場で開かずに渡す。
     const opened: Array<{ kind: string; label: string; hasBurst: boolean }> = [];
     renderCharacterSettings(
       root, characterName, settings, value, (next) => { value = next; }, undefined, undefined,
@@ -700,17 +700,17 @@ describe('character settings editor', () => {
     setToggle('[data-custom-toggle]', true);
     root.querySelector<HTMLButtonElement>('[data-char-panel-open="settings"]')!.click();
     expect(opened).toEqual([{ kind: 'settings', label: '限界突破 · スキル · オーバーロード · キューブ', hasBurst: false }]);
-    // 넘겼으면 제자리에서 펼치지는 않는다 — 같은 것이 두 곳에 보이면 안 된다.
+    // 渡したならその場では開かない — 同じものが2か所に見えてはいけない。
     expect(root.querySelector<HTMLElement>('[data-char-panel="settings"]')!.hidden).toBe(true);
-    // 컨트롤은 애초에 창으로 넘기지 않는다 — 카드에서 그 자리에 펴진다.
+    // コントロールはそもそも窓へは渡さない — カードのその場で開く。
     root.querySelector<HTMLButtonElement>('[data-control-open]')!.click();
     expect(opened).toHaveLength(1);
     expect(root.querySelector<HTMLElement>('[data-control-panel]')!.hidden).toBe(false);
   });
 
   it('keeps advanced mode on while the panel lives in a window', () => {
-    // 창(모달)으로 띄우면 뭉치가 카드 밖으로 나간다. 그 상태로 «수치 추가»를 누르면
-    // 카드만 뒤져 펼침 상태를 찾던 탓에 고급 모드가 저 혼자 꺼졌다.
+    // 窓 (モーダル) に出すと塊がカードの外へ出る。その状態で «数値を追加» を押すと、
+    // カードだけを探して開閉状態を見ていたせいで、上級モードが勝手に切れていた。
     const window = document.createElement('div');
     document.body.append(window);
     const show = (_kind: string, panel: HTMLElement) => {
@@ -743,7 +743,7 @@ describe('character settings editor', () => {
     expect(drawn.querySelector<HTMLInputElement>('[data-advanced-toggle]')!.checked).toBe(true);
     expect(drawn.querySelector<HTMLElement>('.advanced-editor')!.hidden).toBe(false);
     expect(drawn.querySelectorAll('[data-manual-row]')).toHaveLength(1);
-    // 검색어도 남는다 — 둘째 줄부터 매번 다시 치게 만들지 않는다.
+    // 検索語も残る — 2行目から毎回打ち直させない。
     expect(drawn.querySelector<HTMLInputElement>('[data-manual-search]')!.value).toBe('분배');
     window.remove();
   });
@@ -757,7 +757,7 @@ describe('character settings editor', () => {
 
     open.click();
     expect(fold.hidden).toBe(false);
-    // 다시 그려도 펼친 채로 남는다 — 값 하나 바꿀 때마다 접히면 못 쓴다.
+    // 描き直しても開いたまま残る — 値を1つ変えるたびに畳まれては使いものにならない。
     setToggle('[data-custom-toggle]', true);
     expect(root.querySelector<HTMLElement>('[data-loadout-fold]')!.hidden).toBe(false);
   });
@@ -771,19 +771,19 @@ describe('character settings editor', () => {
     select.value = 'skip';
     select.dispatchEvent(new Event('change', { bubbles: true }));
     expect(value?.burst).toEqual({ mode: 'skip' });
-    // 설명도 «가급적»이 아니라 아예 안 쓴다고 적는다.
+    // 説明も «なるべく» ではなく、一切使わないと書く。
     expect(root.querySelector('.burst-editor .field-note')!.textContent)
       .toContain('バーストを一切使いません');
   });
 
   it('carries an overload-0 setting through to the engine request', () => {
-    // «0강이 인식 안 된다»는 제보가 있었다 — 0은 흔히 falsy로 걸러지는 값이라
-    // 화면→저장→요청 어느 칸에서 새도 조용하다. 그 경로를 못 박는다.
+    // «強化0が認識されない» という報告があった — 0は falsy としてよく弾かれる値で、
+    // 画面→保存→要求のどこで漏れても静かだ。その経路をここで固定しておく。
     value = { equipLevels: { 머리: 0, 몸통: 0, 팔: 0, 다리: 0 } };
     render();
     const head = root.querySelector<HTMLSelectElement>('[data-equip-level="머리"]')!;
     expect(head.value).toBe('0');
-    // 계산기가 0강 아래를 구분하지 못한다는 사실을 화면에 적어 둔다.
+    // 計算機が強化0より下を区別できないという事実を画面に書いておく。
     expect(root.querySelector('.equip-editor .field-note')!.textContent)
       .toContain('強化0以下(T9企業含む)はすべてオーバーロード強化0として計算します');
 
@@ -794,8 +794,8 @@ describe('character settings editor', () => {
   });
 
   it('keeps an older plain-tier setting selectable instead of silently moving it', () => {
-    // 목록에서 뺀 일반 등급이라도, 이미 그렇게 적혀 있거나 계정 가져오기가 넣었으면
-    // 그대로 남겨 둔다 — 조용히 오버로드로 바뀌면 없던 스탯이 생긴다.
+    // 一覧から外した一般等級でも、すでにそう記録されているか、アカウント取り込みが
+    // 入れたものならそのまま残す — 黙ってオーバーロードに変わると、なかったステータスが生まれる。
     value = { equipLevels: { 머리: 'T3', 몸통: 'T9', 팔: 5, 다리: 5 } };
     render();
     const head = root.querySelector<HTMLSelectElement>('[data-equip-level="머리"]')!;
@@ -813,13 +813,13 @@ describe('character settings editor', () => {
 
     cube.value = '없음';
     cube.dispatchEvent(new Event('change'));
-    // 레벨은 뜻이 없으므로 0으로 못 박고, 레벨 칸도 잠근다.
+    // レベルには意味が無いので0に固定し、レベル欄もロックする。
     expect(value?.cube).toEqual({ name: '없음', level: 0 });
     expect(root.querySelector<HTMLSelectElement>('[data-cube-level]')!.disabled).toBe(true);
     expect(root.querySelector('.cube-summary')!.textContent).toContain('キューブを装着しません');
     expect(root.querySelector('[data-loadout-summary]')!.textContent).toContain('キューブなし');
 
-    // 다시 큐브를 고르면 레벨이 되살아난다.
+    // もう一度キューブを選ぶとレベルは生き返る。
     const first = root.querySelector<HTMLSelectElement>('[data-cube-name]')!.options[1]!.value;
     const back = root.querySelector<HTMLSelectElement>('[data-cube-name]')!;
     back.value = first;
@@ -834,7 +834,7 @@ describe('character settings editor', () => {
       .toEqual(['auto', 'priority', 'endgame', 'skip']);
 
     const window = () => root.querySelector<HTMLInputElement>('[data-burst-last]')!;
-    // 고르기 전에는 칸이 숨어 있다.
+    // 選ぶ前は欄が隠れている。
     expect(window().closest('label')!.hidden).toBe(true);
 
     select.value = 'endgame';
@@ -848,8 +848,8 @@ describe('character settings editor', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     expect(value?.burst).toEqual({ mode: 'endgame', seconds: 12 });
 
-    // 비우거나 0을 넣으면 기본값으로 돌아가고, 상한을 넘으면 잘라 담는다 —
-    // 엔진이 거절하는 값을 보내지 않는다.
+    // 空にするか0を入れると既定値に戻り、上限を超えると切り詰めて収める —
+    // エンジンが拒む値は送らない。
     input.value = '0';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     expect(value?.burst).toEqual({ mode: 'endgame', seconds: 20 });
@@ -866,7 +866,7 @@ describe('character settings editor', () => {
   it('keeps 버스트 운용 inside the 컨트롤 · 버스트 fold', () => {
     setToggle('[data-custom-toggle]', true);
     const fold = root.querySelector<HTMLElement>('[data-control-open]')!;
-    // 접이판 안에 있고, 본문(돌파·스킬·오버로드·큐브)에는 남아 있지 않다.
+    // 折りたたみの中にあり、本文 (限界突破・スキル・オーバーロード・キューブ) には残っていない。
     expect(fold.nextElementSibling!.querySelector('.burst-editor')).not.toBeNull();
     expect(root.querySelector('.character-settings-body .burst-editor')).toBeNull();
     expect(root.querySelector('[data-burst-assignment]')).not.toBeNull();

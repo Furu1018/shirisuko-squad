@@ -86,22 +86,22 @@ a:focus-visible {
 .step { margin: 0 0 12px; color: var(--cyan); font-size: 11px; font-weight: 800; letter-spacing: .2em; }
 .trust-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .trust-row span { border: 1px solid var(--line); padding: 7px 11px; color: var(--ink-2); background: rgb(var(--surface-rgb) / .55); font-size: 12px; }
-/* 원본 저장소로 보내는 감사 문구. 지원 수와 같은 칩 모양으로 나란히 선다. */
+/* 本家リポジトリへ送る謝辞。対応数と同じチップの形で並んで立つ。 */
 .trust-row .credit-link { border: 1px solid rgb(var(--accent-rgb) / .3); padding: 7px 11px; background: rgb(var(--accent-rgb) / .07); color: var(--ink); font-size: 12px; text-decoration: none; }
 .trust-row .credit-link:hover { background: rgb(var(--accent-rgb) / .16); border-color: var(--cyan); }
 .trust-row .credit-link:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
-/* 편성 → 조건 → 결과가 위에서 아래로 한 줄로 선다. 결과를 옆에 세우면 5덱을
-   가로로 늘어놓을 자리가 안 나온다. */
+/* 編成 → 条件 → 結果が上から下へ一列に並ぶ。結果を横に立てると、5 デッキを
+   横に並べる場所が取れない。 */
 .calculator-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 .panel { min-width: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
   box-shadow: 0 1px 2px rgb(var(--line-rgb) / .04), 0 12px 32px -20px rgb(var(--line-rgb) / .22); }
 .squad-panel { grid-column: 1 / -1; padding: 28px; }
-/* 스크롤을 따라다니지 않는다 — 결과와 같이 흘러야 어느 조건의 결과인지 헷갈리지 않는다. */
+/* スクロールに追従させない — 結果と一緒に流れてこそ、どの条件の結果か迷わない。 */
 .settings-panel { grid-column: 1 / -1; padding: 20px 28px; }
 .result-panel { grid-column: 1 / -1; min-height: 320px; padding: 28px; overflow: hidden; }
 
-/* 전투 조건 — 접힌 줄 */
+/* 戦闘条件 — 折りたたみ行 */
 .battle-open { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px;
   border: 1px solid rgb(var(--accent-rgb) / .32); border-radius: 8px; background: rgb(var(--accent-rgb) / .09);
   color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
@@ -114,11 +114,11 @@ a:focus-visible {
 .battle-first-note { margin: 8px 0 0; padding: 9px 12px; border-left: 3px solid var(--amber);
   background: rgb(var(--amber-rgb) / .08); color: var(--amber-soft); font-size: 12px; line-height: 1.6; }
 .battle-body { margin-top: 4px; }
-/* 조건 창 — 항목이 많아 공유 창보다 넓다. */
+/* 条件モーダル — 項目が多いので共有モーダルより広い。 */
 .custom-card.battle-card { width: min(860px, 100%); }
 
-/* 조건 줄 + 실행 단추 = 한 막대. 조건이 70%, 실행이 30%다 — 실행은 이 화면에서 가장
-   자주 누르는 단추라 손이 갈 자리를 넉넉히 준다. */
+/* 条件行 + 実行ボタン = ひとつのバー。条件が 70%、実行が 30% — 実行はこの画面で最も
+   よく押すボタンなので、手の行き先を広めに取ってある。 */
 .cond-bar { display: grid; grid-template-columns: 7fr 3fr; align-items: stretch; }
 .cond-bar .battle-open { min-width: 0; border-radius: 8px 0 0 8px; border-right: none; }
 .cond-bar .run-inline { width: 100%; min-height: 0; margin: 0; padding: 0 18px;
@@ -128,8 +128,8 @@ a:focus-visible {
 .settings-panel .status { margin: 10px 0 0; }
 .settings-panel .error-box { margin-top: 12px; }
 .section-heading { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px 24px; margin-bottom: 24px; }
-/* 제목은 짓눌리지 않는다. 도구가 여섯 개라 자리가 모자라면 제목이 먼저 한 글자씩
-   쪼개졌다(«편성 / 및 캐 / 릭터 / 설정»). 최소 폭을 주고 모자라면 도구를 아래로 접는다. */
+/* 見出しは押し潰さない。道具が 6 つあって場所が足りないと、見出しの方が先に 1 文字ずつ
+   割られていた («編成 / とキャ / ラクター / 設定»)。最小幅を与え、足りなければ道具を下へ折り返す。 */
 .section-heading > div:first-child { flex: 1 1 260px; min-width: 0; }
 .section-heading.compact { margin-bottom: 20px; }
 h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
@@ -140,8 +140,8 @@ h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
 .roster-import.danger { border-color: rgb(var(--danger-rgb) / .38); background: rgb(var(--danger-rgb) / .08); color: var(--danger-soft); }
 .roster-import.danger:hover { background: rgb(var(--danger-rgb) / .17); }
 
-/* 지원 니케 목록 모달 */
-/* 니케 고르기 판 — 창이 아니라 편성 바로 아래 늘 펼쳐져 있다. */
+/* 対応ニケ一覧モーダル */
+/* ニケ選択パネル — モーダルではなく、編成のすぐ下に常に開いている。 */
 .picker { margin-top: 14px; padding: 12px; border: 1px solid var(--line); background: rgb(var(--surface-rgb) / .5); }
 .picker-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
 .picker-head h3 { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .04em; }
@@ -160,14 +160,14 @@ h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
 .roster-cell span { color: var(--muted); font-size: 9px; line-height: 1.4; }
 .roster-empty { margin: 14px 0 0; color: var(--muted); font-size: 11px; }
 
-/* 완전 초기화 확인 */
+/* 完全初期化の確認 */
 .reset-card { width: min(460px, 100%); }
 .reset-list { margin: 12px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 11px; line-height: 1.75; }
 
-/* 보고서 이미지 */
+/* レポート画像 */
 .report-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center;
   gap: 8px; margin: 0 0 14px; }
-/* 자세히 보기 — 단추들과 같은 줄에 서되, 누르는 것이 아니라 켜 두는 것이라 결이 다르다. */
+/* 詳細表示 — ボタン群と同じ行に立つが、押すものではなく点けておくものなので毛色が違う。 */
 .detail-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px;
   border: 1px solid var(--line); border-radius: 7px; color: var(--muted);
   font-size: 12px; font-weight: 700; cursor: pointer; }
@@ -179,7 +179,7 @@ h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
 .deck-copy-actions .deck-copy-apply.danger { background: rgb(var(--danger-rgb) / .2); border-color: rgb(var(--danger-rgb) / .4); color: var(--danger-soft); }
 .roster-note { margin: 10px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
-/* 공유 모달은 목록 한 줄에 이름·설명·엄지·적용이 함께 서야 해서 더 넓다. */
+/* 共有モーダルは一覧の 1 行に名前・説明・投票・適用が並んで立つ必要があり、さらに広い。 */
 .custom-card.share-card { width: min(780px, 100%); }
 .custom-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--scrim); }
 .custom-card { width: min(560px, 100%); max-height: 88vh; overflow-y: auto; padding: 22px 24px; background: var(--panel-strong); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 30px 80px rgb(var(--line-rgb) / .10); }
@@ -210,7 +210,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .deck-tabs button.is-active { border-color: var(--amber-text); background: rgb(var(--amber-rgb) / .1); color: var(--amber-text); }
 .deck-note { margin: 0 0 16px; color: var(--muted); font-size: 11px; }
 
-/* 덱 복사 */
+/* デッキのコピー */
 .deck-copy { position: relative; margin-top: 10px; }
 .deck-copy-open { padding: 6px 10px; background: rgb(var(--accent-rgb) / .07); border: 1px solid rgb(var(--accent-rgb) / .22); color: var(--ink-2); font-size: 10px; cursor: pointer; }
 /* 塗りを濃くすると 10px の文字が基準を割るので、ホバーは枠線で示す */
@@ -224,29 +224,29 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .deck-copy-actions { display: flex; gap: 8px; margin-top: 12px; }
 .deck-copy-actions button { padding: 6px 12px; font-size: 10px; cursor: pointer; border: 1px solid rgb(var(--accent-rgb) / .22); background: rgb(var(--accent-rgb) / .07); color: var(--ink-2); }
 .deck-copy-actions .deck-copy-apply { background: rgb(var(--accent-rgb) / .18); color: var(--ink); }
-/* 칸을 줄이고 줄 전체를 가운데 세운다 — 카드가 작아진 만큼 목록과 결과가 같은
-   화면에 더 들어온다. 다만 고정 폭으로 조이면 한글 라벨이 줄줄이 깨져 오히려
-   답답해진다. 줄 전체에 상한을 두고 그 안에서 다섯이 고르게 나눠 갖는다. */
-/* 카드는 위를 맞춰 세운다. 이름이 두 줄인 카드 때문에 아래 줄이 어긋나던 문제는
-   이름 칸이 두 줄 자리를 늘 잡아 두는 것(`.slot-choose strong`)으로 이미 풀렸다.
-   늘리기(stretch)로 두면 컨트롤을 하나 펴는 순간 나머지 넷까지 그만큼 빈 상자로
-   늘어난다 — 편 카드만 길어지는 편이 낫다. */
+/* 枠を縮めて行全体を中央に立てる — カードが小さくなったぶん、一覧と結果が同じ
+   画面により多く入る。ただし固定幅で締めるとラベルが軒並み折り返されて、かえって
+   窮屈になる。行全体に上限を置き、その中で 5 枚が均等に分け合う。 */
+/* カードは上端を揃えて立てる。名前が 2 行のカードのせいで下の行がずれていた問題は、
+   名前欄が常に 2 行分の場所を確保しておくこと (`.slot-choose strong`) で既に解決した。
+   stretch にするとコントロールをひとつ開いた瞬間、残りの 4 枚までそのぶん空箱のまま
+   伸びる — 開いたカードだけが長くなる方がましだ。 */
 .squad-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
   width: min(100%, 940px); margin: 0 auto;
   gap: 10px; align-items: start; overflow-x: auto; padding-bottom: 6px; }
-/* 이름이 두 줄인 카드 때문에 아래 줄이 어긋나지 않게 — 카드는 서로 같은 높이다. */
+/* 名前が 2 行のカードのせいで下の行がずれないように — カードは互いに同じ高さだ。 */
 .squad-slot { display: flex; flex-direction: column; }
 .squad-slot .character-settings { margin-top: auto; }
 .squad-slot { position: relative; min-width: 0; padding: 9px 9px 12px; border: 1px solid rgb(var(--line-rgb) / .15); background: var(--surface-2); transition: transform .18s ease, border-color .18s ease; }
 .squad-slot:hover { transform: translateY(-3px); border-color: rgb(var(--amber-rgb) / .42); }
 .squad-slot > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-/* 초상화를 세로로 조금 늘린다 — 돌파 스테퍼가 얼굴(입 언저리)을 가리던 자리를
-   비우려는 것이다. 잘라내는 위치도 함께 올려 얼굴이 위쪽에 앉게 한다. */
+/* 立ち絵を縦に少し伸ばす — 凸ステッパーが顔 (口元) を隠していた場所を
+   空けるためだ。切り抜き位置も一緒に上げ、顔が上寄りに収まるようにする。 */
 .portrait-wrap { position: relative; aspect-ratio: 1 / 1.02; overflow: hidden; background: linear-gradient(135deg, var(--surface-2), var(--surface-3)); margin-bottom: 8px; }
 .portrait-wrap::after { content: ""; position: absolute; inset: auto 0 0; height: 42%; background: linear-gradient(transparent, rgb(var(--surface-rgb) / .86)); pointer-events: none; }
 .portrait-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; display: block; }
 .portrait-fallback { position: absolute; inset: 22%; border: 1px solid rgb(var(--accent-rgb) / .2); transform: rotate(45deg); }
-/* 속성(코드) 아이콘 — 육각 뱃지. 원본 63×73 비율을 지킨다. */
+/* 属性 (コード) アイコン — 六角バッジ。原本の 63×73 比率を守る。 */
 .element-icon { flex: none; width: 18px; height: 21px; background-repeat: no-repeat; background-size: contain; background-position: center; filter: drop-shadow(0 1px 2px rgb(var(--line-rgb) / .10)); }
 .element-icon.is-fire { background-image: url('./assets/icon-code-fire.png'); }
 .element-icon.is-water { background-image: url('./assets/icon-code-water.png'); }
@@ -254,15 +254,15 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .element-icon.is-electronic { background-image: url('./assets/icon-code-electronic.png'); }
 .element-icon.is-iron { background-image: url('./assets/icon-code-iron.png'); }
 
-/* 슬롯 번호 + 속성 아이콘 한 줄 — 초상화 좌상단 */
+/* スロット番号 + 属性アイコンの一行 — 立ち絵の左上 */
 .slot-tags { position: absolute; z-index: 2; top: 8px; left: 8px; display: flex; align-items: center; gap: 4px; }
 .slot-number { min-width: 27px; padding: 4px 5px; background: var(--amber); color: var(--amber-ink); font: 900 11px ui-monospace, monospace; }
-/* 자리 이동 — 슬롯 번호 맞은편 */
+/* 枠の移動 — スロット番号の向かい側 */
 .slot-moves { position: absolute; z-index: 2; top: 8px; right: 8px; display: flex; gap: 4px; }
 .slot-move { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(var(--line-rgb) / .28); background: rgb(var(--surface-rgb) / .72); color: var(--ink); font: 700 14px/1 ui-monospace, monospace; border-radius: 5px; cursor: pointer; }
 .slot-move:hover:not(:disabled) { background: rgb(var(--accent-rgb) / .22); border-color: var(--cyan); }
 .slot-move:disabled { opacity: .3; cursor: default; }
-/* 칸을 누르면 아래 판이 그 칸을 겨냥한다. 검색·드롭다운·교체 버튼은 판으로 옮겼다. */
+/* 枠を押すと下のパネルがその枠を狙う。検索・ドロップダウン・入れ替えボタンはパネルへ移した。 */
 .slot-identity { position: relative; }
 .slot-choose { display: grid; gap: 3px; width: 100%; min-height: 46px; padding: 8px 26px 8px 9px; border: 1px solid rgb(var(--line-rgb) / .22); background: rgb(var(--surface-rgb) / .72); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .slot-choose strong { min-height: 2.6em; font-size: 12px; font-weight: 800; line-height: 1.3; word-break: keep-all; }
@@ -273,33 +273,33 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .slot-clear { position: absolute; top: 7px; right: 6px; width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border: 0; background: none; color: var(--muted); font-size: 12px; line-height: 1; cursor: pointer; border-radius: 4px; }
 .slot-clear:hover { background: rgb(var(--danger-rgb) / .16); color: var(--danger); }
 .squad-slot.is-preview::after { content: "임시 · 창작 스킬"; position: absolute; top: 8px; right: 8px; z-index: 3; padding: 3px 5px; background: var(--danger); color: #fff; font-size: 8px; font-weight: 900; }
-/* 목록 칸의 (임시) 딱지 — 초상화 좌하단, 버스트 배지 맞은편. */
+/* 一覧セルの「仮」ラベル — 立ち絵の左下、バーストバッジの向かい側。 */
 .roster-temp { position: absolute; left: 4px; bottom: 4px; z-index: 2; padding: 2px 4px;
   background: var(--danger); color: #fff; font-size: 8px; font-style: normal; font-weight: 900;
   border-radius: 3px; }
-/* 돌파·코어 강화 스테퍼 — 초상화 우측하단. 별 + 진화 숫자로 명함~풀코를 보이고 −/+로 조절. */
+/* 凸・コア強化ステッパー — 立ち絵の右下。星 + 進化の数字で無凸〜フルコアを示し、−/+ で調節する。 */
 .growth-stepper { position: absolute; z-index: 2; right: 7px; bottom: 5px; display: flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 7px; background: rgb(var(--surface-rgb) / .78); backdrop-filter: blur(2px); }
-/* 버튼은 별 장식 위에 온다 — 아래 pointer-events와 짝이다. */
+/* ボタンは星の飾りの上に来る — 下の pointer-events と対になっている。 */
 .growth-step { position: relative; z-index: 1; width: 20px; height: 20px; padding: 0; display: grid; place-items: center; border: 1px solid rgb(var(--line-rgb) / .28); background: rgb(var(--surface-rgb) / .6); color: var(--ink); font: 800 13px/1 ui-monospace, monospace; border-radius: 5px; cursor: pointer; }
 .growth-step:hover:not(:disabled) { background: rgb(var(--accent-rgb) / .22); border-color: var(--cyan); }
 .growth-step:disabled { opacity: .28; cursor: default; }
-/* 별·진화는 그림일 뿐이라 클릭을 먹지 않는다. 아래에서 프레임을 칸보다 크게
-   그리는 탓에 그림이 −/+ 버튼 위로 넘치는데, 이게 없으면 버튼이 안 눌린다. */
+/* 星・進化はただの絵なのでクリックを受けない。下でフレームを枠より大きく
+   描く都合で絵が −/+ ボタンの上へはみ出すのだが、これが無いとボタンが押せない。 */
 .growth-stars, .growth-star, .growth-core { pointer-events: none; }
 .growth-stars { display: flex; align-items: center; gap: 2px; padding: 0 1px; }
-/* 별·진화 아이콘은 blablalink 도감 스프라이트를 그대로 쓴다.
-   두 스프라이트 모두 한 프레임이 120×120인데 그림 자체는 그 안에 작게 들어 있다
-   (별 25×24, 진화 38×38 — 나머지는 등장 애니메이션용 여백). 그래서 도감과 똑같이
-   **의사요소를 칸보다 크게 잡아 넘치게** 그린다. 프레임을 칸 크기로 우겨넣으면
-   그림이 1/4로 줄어 거의 안 보인다. 애니메이션은 쓰지 않고 정지 프레임만 고른다. */
+/* 星・進化アイコンは blablalink 図鑑のスプライトをそのまま使う。
+   どちらのスプライトも 1 フレームが 120×120 だが、絵そのものはその中に小さく入っている
+   (星 25×24、進化 38×38 — 残りは登場アニメーション用の余白)。そこで図鑑と同じく
+   **疑似要素を枠より大きく取ってはみ出させて** 描く。フレームを枠のサイズに押し込むと
+   絵が 1/4 に縮んでほとんど見えない。アニメーションは使わず、静止フレームだけを選ぶ。 */
 .growth-star { position: relative; width: 15px; height: 15px; }
 .growth-star::before {
   content: ""; position: absolute; top: -22px; left: -22px; width: 60px; height: 60px;
   background-image: url('./assets/upgrade-star.webp'); background-repeat: no-repeat;
-  background-size: 2500% 100%; background-position: 100% 0;   /* 빈 별 = 마지막 프레임 */
+  background-size: 2500% 100%; background-position: 100% 0;   /* 空の星 = 最後のフレーム */
 }
-.growth-star.is-on::before { background-position: 62.5% 0; }  /* 채워진 별 = 골드 프레임 */
-/* 진화(코강) — 별 옆 동그라미. 숫자는 아이콘 위에 얹는다. */
+.growth-star.is-on::before { background-position: 62.5% 0; }  /* 塗られた星 = ゴールドのフレーム */
+/* 進化 (コア強化) — 星の隣の丸。数字はアイコンの上に載せる。 */
 /* contrast-ignore: 下地は親のアイコン (星の枠) で、CSS からは辿れない */
 .growth-core { position: relative; display: grid; place-items: center; width: 16px; height: 16px; margin-left: 1px; color: #fff; font: 900 9px/1 ui-monospace, monospace; text-shadow: 0 1px 2px rgb(var(--line-rgb) / .10); }
 .growth-core::before {
@@ -310,18 +310,18 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .growth-core span { position: relative; }
 
 .character-settings { margin-top: 10px; border-top: 1px solid rgb(var(--line-rgb) / .12); padding-top: 9px; }
-/* 접이식 머리 — 개별 설정과 컨트롤은 기본이 접힘이고 여는 건 별도 동작이다. */
+/* 折りたたみの見出し — 個別設定とコントロールは畳んであるのが既定で、開くのは別の操作だ。 */
 .disclosure { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 8px; padding: 7px 9px; border: 1px solid rgb(var(--line-rgb) / .2); background: rgb(var(--surface-rgb) / .5); color: var(--ink); font: inherit; cursor: pointer; }
 .disclosure:hover { border-color: rgb(var(--accent-rgb) / .42); }
 .disclosure[aria-expanded="true"] { border-color: rgb(var(--accent-rgb) / .42); background: rgb(var(--accent-rgb) / .08); }
 .disclosure-label { font-size: 11px; font-weight: 800; letter-spacing: .03em; }
 .disclosure-hint { color: var(--muted); font: 700 9.5px ui-monospace, monospace; }
 .disclosure-panel[hidden] { display: none; }
-/* 「누가 이 버프를 받았나」 — 스탯 요약과 개별 설정 사이. 편성을 보고는 알 수 없는
-   정보라 노란 테두리로 눈에 걸리게 둔다. */
+/* 「誰がこのバフを受けたか」 — ステータス要約と個別設定の間。編成を見ただけでは
+   分からない情報なので、黄色い枠線で目に留まるように置く。 */
 .buff-target-list { display: grid; gap: 6px; margin-top: 8px; }
-/* 라벨을 윗줄에, 수령자와 「순서보기」를 아랫줄에 둔다. 한 줄로 흘리면 카드 폭에서
-   «크확 [특이케이스] / 대상:»처럼 라벨이 두 동강 난다. */
+/* ラベルを上の行に、受け手と「順番を見る」を下の行に置く。1 行に流すとカード幅では
+   «크확 [특이케이스] / 대상:» のようにラベルが真っ二つになる。 */
 .buff-target { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3px 6px;
   margin: 0; padding: 6px 8px; border: 1px solid var(--amber); border-radius: 6px;
   background: rgb(var(--amber-rgb) / .09); color: var(--amber-soft); font: 700 10px/1.4 ui-monospace, monospace;
@@ -329,9 +329,9 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .buff-target > span { grid-column: 1 / -1; }
 .buff-target b { min-width: 0; color: var(--amber-text); font-weight: 900; overflow-wrap: anywhere; }
 
-/* 정렬·필터 판 — 칩을 늘 깔아 두면 목록이 화면 밖으로 밀린다. 눌러서 펼친다. */
+/* 並べ替え・フィルタの盤 — チップを常に敷いておくと一覧が画面の外へ押し出される。押して開く。 */
 .picker-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 8px; }
-/* 버스트는 판 밖 — 가장 자주 거르는 축이라 여는 줄에서 바로 누른다. */
+/* バーストは盤の外 — いちばんよく絞る軸なので、開く行からそのまま押せる。 */
 .burst-chips { gap: 4px; }
 .burst-chips .filter-chip { padding: 8px 11px; }
 .burst-chips .filter-chip.is-on { border-color: var(--amber-text); background: rgb(var(--amber-rgb) / .14); color: var(--amber-text); }
@@ -347,8 +347,8 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .filter-reset[hidden] { display: none; }
 .filter-summary { color: var(--muted); font: 600 10px ui-monospace, monospace; }
 
-/* 목록 위에 얹히는 판. 칸을 다 차지하지 않고 «칩이 실제로 쓰는 만큼»만 넓고,
-   뒤가 살짝 비쳐 무엇을 가리고 있는지 보인다(글자는 blur로 지킨다). */
+/* 一覧の上に載る盤。欄いっぱいを占めず «チップが実際に使うぶん» だけ広く、
+   後ろがうっすら透けて、何を隠しているかが見える (文字は blur で守る)。 */
 .filter-panel { position: absolute; z-index: 20; top: 0; left: 0; width: max-content; max-width: 100%;
   max-height: 300px; overflow-y: auto; margin: 0; padding: 14px 16px 4px;
   border: 1px solid rgb(var(--accent-rgb) / .34); border-radius: 10px;
@@ -363,13 +363,13 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .filter-chip { padding: 7px 13px; border: 1px solid rgb(var(--line-rgb) / .22); border-radius: 7px; background: rgb(var(--surface-rgb) / .7); color: var(--muted); font: 700 10.5px ui-monospace, monospace; cursor: pointer; }
 .filter-chip:hover { border-color: rgb(var(--accent-rgb) / .5); color: var(--ink); }
 .filter-chip.is-on { border-color: var(--cyan); background: rgb(var(--accent-rgb) / .16); color: var(--ink); }
-/* 정렬은 하나만 고른다 — 켜진 칩을 앰버로 구분해 다중선택 필터와 헷갈리지 않게 한다. */
+/* 並べ替えはひとつだけ選ぶ — 点いたチップを琥珀色で分け、複数選択のフィルタと紛れないようにする。 */
 [data-sort-group] .filter-chip { display: inline-flex; align-items: center; gap: 5px; }
 .sort-caret { font-size: 8px; line-height: 1; }
 [data-sort-group] .filter-chip.is-on { border-color: var(--amber-text); background: rgb(var(--amber-rgb) / .14); color: var(--amber-text); }
 
-/* 덱 조작 한 줄 — 순서 바꾸기 · 비우기 · 복사.
-   화살표를 `.deck-tabs`(5열 그리드) 안에 넣으면 7번째 칸으로 밀려 줄이 깨진다. */
+/* デッキ操作の一行 — 並べ替え・空にする・コピー。
+   矢印を `.deck-tabs` (5 列グリッド) の中に入れると 7 番目のマスへ押し出され、行が崩れる。 */
 .deck-controls { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin: 0 0 14px; }
 .deck-controls .deck-copy { margin-top: 0; }
 .deck-moves { display: flex; gap: 4px; }
@@ -382,7 +382,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 
 .target-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
-/* 보스 페이즈 — 구간을 몇 개든 추가한다. */
+/* ボスフェーズ — 区間をいくつでも追加する。 */
 .phase-head { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .phase-add { padding: 6px 11px; border: 1px solid rgb(var(--accent-rgb) / .42); border-radius: 999px; background: rgb(var(--accent-rgb) / .1); color: var(--cyan); font: 800 10px ui-monospace, monospace; cursor: pointer; }
 .phase-add:hover { background: rgb(var(--accent-rgb) / .24); border-color: var(--cyan); }
@@ -403,7 +403,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .buff-target.is-pending b { color: var(--muted); font-weight: 700; }
 .buff-order-open { margin-left: auto; flex: none; padding: 2px 7px; border: 1px solid rgb(var(--amber-rgb) / .55); border-radius: 999px; background: rgb(var(--amber-rgb) / .14); color: var(--amber-text); font: 800 9px ui-monospace, monospace; cursor: pointer; }
 .buff-order-open:hover { background: rgb(var(--amber-rgb) / .28); border-color: var(--amber-text); }
-/* 순서보기 — 발동마다 누가 받았는지 초상화로 죽 편다. */
+/* 順番を見る — 発動のたびに誰が受けたかを立ち絵でずらりと並べる。 */
 .buff-order-card { max-width: 720px; }
 .buff-order-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 60vh; overflow-y: auto; padding: 2px; }
 .buff-order-step { position: relative; display: grid; gap: 3px; justify-items: center; width: 82px; padding: 7px 5px; border: 1px solid var(--line); border-radius: 8px; background: rgb(var(--surface-rgb) / .6); }
@@ -445,12 +445,12 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .cube-editor h4 { margin: 0 0 8px; font-size: 11px; color: var(--cyan); }
 .cube-controls { display: grid; grid-template-columns: 1fr .75fr; gap: 7px; }
 .cube-controls select { min-height: 36px; font-size: 11px; }
-/* 컨트롤은 이제 칩과 그 아래 판이 각자 테두리를 갖는다 — 바깥 상자까지 두르면 액자 속 액자다. */
+/* コントロールは今ではチップとその下のパネルがそれぞれ枠線を持つ — 外の箱まで囲うと額縁の中の額縁だ。 */
 .control-editor { padding: 0; border: 0; background: none; }
 .favorite-item-note p, .field-note { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
-/* 컨트롤 모드 — 카드 폭(약 130px)에서는 둘을 한 줄에 못 세운다. 위아래로 쌓는다.
-   라디오는 기본 input 규칙(min-height 44px)을 그대로 받으면 커다란 동그라미가 된다. */
-/* 조합으로 붙는 컨트롤 안내 — 걸린 것은 눈에 걸리게, 아직 아닌 것은 조용히. */
+/* コントロールモード — カード幅 (約 130px) では二つを 1 行に並べられない。上下に積む。
+   ラジオは既定の input 規則 (min-height 44px) をそのまま受けると巨大な丸になる。 */
+/* 組み合わせで付くコントロールの案内 — 掛かっているものは目に留まるように、まだのものは静かに。 */
 .control-rules { display: grid; gap: 5px; margin: 6px 0 0; }
 .control-rule { display: grid; gap: 2px; margin: 0; padding: 6px 7px; border-radius: 6px;
   border: 1px solid var(--line); background: rgb(var(--line-rgb) / .05);
@@ -468,10 +468,10 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .control-grid { display: grid; gap: 7px; margin-top: 9px; }
 .control-toggle { justify-content: flex-start; }
 .control-toggle select { margin-left: auto; min-height: 32px; font-size: 10px; }
-/* 톡톡이 발사 속도 직접 입력 */
+/* タップ撃ちの発射速度の直接入力 */
 .control-toggle .input-unit { margin-left: auto; width: 118px; flex: 0 0 auto; }
-/* 기본 .input-unit은 단위(em) 자리로 오른쪽 42px을 비워둔다. 폭을 채우지 않으면
-   number 입력의 기본 크기(56px)만 남아 글자가 패딩에 가려 보이지 않는다. */
+/* 既定の .input-unit は単位 (em) の場所として右 42px を空けておく。幅を埋めないと
+   number 入力の既定サイズ (56px) だけが残り、文字がパディングに隠れて見えない。 */
 .control-toggle .input-unit input { width: 100%; min-height: 32px; font-size: 10px; text-align: right; }
 .tap-rate-hint { flex-basis: 100%; margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .tap-rate-hint.is-warning { color: var(--amber-text); }
@@ -513,12 +513,12 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .calculate-button:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .calculate-button:disabled { cursor: wait; filter: grayscale(.6); transform: none; opacity: .72; }
 .calculate-button.is-running b { animation: pulse-arrow .7s ease-in-out infinite alternate; }
-/* 콘솔 — 계정 단위 설정 */
-/* 적정거리 — 무기군 여럿을 함께 켠다. 콘솔 묶음과 같은 테두리로 형제처럼 둔다. */
+/* コンソール — アカウント単位の設定 */
+/* 適正距離 — 武器種をいくつも一緒に点ける。コンソールの塊と同じ枠線で兄弟のように置く。 */
 .range-field { margin-top: 16px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: rgb(var(--surface-rgb) / .4); }
 .range-field legend { padding: 0 6px; font-size: 12px; font-weight: 800; color: var(--ink); }
 .range-options { display: flex; flex-wrap: wrap; gap: 8px; }
-/* 평타 계수 — 적정거리와 같은 줄 모양이되 값을 직접 넣는다. */
+/* 通常攻撃係数 — 適正距離と同じ行の形だが、値を直接入れる。 */
 .coeff-options { display: flex; flex-wrap: wrap; gap: 8px 10px; }
 .coeff-option { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); background: rgb(var(--surface-rgb) / .6); font-size: 11px; font-weight: 700; color: var(--muted); }
 .coeff-option input { width: 60px; min-height: 30px; padding-inline: 6px; font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -557,13 +557,13 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .total-block strong { color: var(--amber-text); font-size: clamp(30px, 4vw, 52px); line-height: 1.1; letter-spacing: -.05em; }
 .total-block small { color: var(--cyan); font-size: 11px; }
 .preview-warning { padding: 9px 12px; background: rgb(var(--danger-rgb) / .1); border-left: 3px solid var(--danger); color: var(--danger-soft); font-size: 11px; }
-/* 줄이 화면 끝까지 늘어나면 막대만 길어지고 읽히는 건 없다 — 폭을 묶어 가운데 세운다. */
+/* 行が画面の端まで伸びると棒だけが長くなり、読めるものは増えない — 幅を縛って中央に立てる。 */
 .result-rows { width: min(100%, 1120px); margin: 16px auto 0; display: grid; gap: 8px; }
 
-/* 캐릭터 결과 줄 — 초상화 오른쪽에 막대, 그 오른쪽 끝에 총딜.
-   덱을 갈아 가며 볼 때 쓰는 모양이라 짧고, 막대 길이가 곧 «누가 캐리했나»다. */
-/* 숫자 칸은 **고정 폭**이다. 자릿수에 따라 칸이 늘었다 줄었다 하면 막대가 끝나는
-   자리가 줄마다 달라져 길이를 견줄 수가 없다(그게 «들쭉날쭉»의 정체다). */
+/* キャラクター結果の行 — 立ち絵の右に棒、その右端に総ダメージ。
+   デッキを取り替えながら見るときの形なので短く、棒の長さがそのまま «誰がキャリーしたか» だ。 */
+/* 数字の欄は **固定幅** だ。桁数に合わせて欄が伸び縮みすると、棒の終わる
+   位置が行ごとに変わって長さを見比べられない (それが «がたつき» の正体だ)。 */
 .result-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 13ch; align-items: center;
   gap: 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px;
   background: rgb(var(--surface-rgb) / .5); }
@@ -578,8 +578,8 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .result-row-name b { font-size: 13px; }
 .result-row-name span { color: var(--muted); font: 600 10px ui-monospace, monospace; }
 .result-row .share-track { margin: 0; height: 6px; border-radius: 3px; }
-/* 막대는 한 가지 색으로 칠한다. 그러데이션을 막대마다 새로 그리면 짧은 막대는 청록,
-   긴 막대는 주황으로 끝나 «길이»가 아니라 색이 먼저 눈에 들어온다. */
+/* 棒は一色で塗る。グラデーションを棒ごとに描き直すと、短い棒は青緑で、
+   長い棒は橙で終わり、«長さ» ではなく色が先に目へ入ってしまう。 */
 .result-row .share-track i { border-radius: 3px; box-shadow: none;
   background: linear-gradient(90deg, rgb(var(--amber-rgb) / .75), var(--amber-hot)); }
 .result-row.is-first .share-track i { background: linear-gradient(90deg, var(--amber), var(--amber-hot)); }
@@ -589,7 +589,7 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .character-result { padding: 0 0 13px; border-bottom: 1px solid rgb(var(--line-rgb) / .1); }
 .share-track { height: 3px; margin-top: 9px; background: rgb(var(--line-rgb) / .12); overflow: hidden; }
 .share-track i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--amber)); box-shadow: 0 0 12px rgb(var(--accent-rgb) / .28); }
-/* 평타/스킬 딜 분해 */
+/* 通常攻撃/スキルのダメージ分解 */
 .dmg-split { margin-top: 10px; }
 .split-track { display: flex; height: 3px; background: rgb(var(--line-rgb) / .12); overflow: hidden; }
 .split-track i { display: block; height: 100%; }
@@ -606,10 +606,10 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .result-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .result-facts span { padding: 6px 8px; background: rgb(var(--accent-rgb) / .07); border: 1px solid rgb(var(--accent-rgb) / .13); color: var(--ink-2); font-size: 10px; }
 .deviations { margin: 14px 0 0; padding: 12px; max-height: 110px; overflow: auto; background: rgb(var(--surface-rgb) / .65); color: var(--ink-3); font: 10px/1.55 ui-monospace, monospace; white-space: pre-wrap; }
-/* 덱 탭 — 덱마다 하나, **덱 번호 순서 그대로** 선다. 딜 1·2위는 자리를 옮기지 않고
-   뱃지와 테두리로만 표시한다. 고른 덱만 아래에 자세히 편다. */
-/* 덱 탭이 곧 요약이다 — 다섯 덱의 순위와 총딜이 한 줄에 다 선다. 자리는 덱 번호 순
-   그대로이고, 딜 1·2위만 색으로 강조한다. */
+/* デッキタブ — デッキごとにひとつ、**デッキ番号の順のまま** 立つ。ダメージ 1・2 位は席を動かさず、
+   バッジと枠線だけで示す。選んだデッキだけを下に詳しく開く。 */
+/* デッキタブがそのまま要約だ — 5 デッキの順位と総ダメージが 1 行に全部立つ。席はデッキ番号順の
+   ままで、ダメージ 1・2 位だけを色で強調する。 */
 .deck-result-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .deck-result-tab { display: grid; gap: 3px; padding: 9px 16px; border: 1px solid var(--line);
   border-radius: 10px; background: rgb(var(--surface-rgb) / .6); color: var(--muted); cursor: pointer; text-align: left; }
@@ -625,8 +625,8 @@ input:hover, select:hover { border-color: rgb(var(--accent-rgb) / .5); }
 .deck-result-tab.is-second .deck-tab-rank { color: var(--ink-2); }
 .timeline-tabs { margin: 0 0 12px; }
 
-/* 캐릭터 결과 카드 — 편성 카드와 **같은 폭·같은 자리**로 다섯을 나란히. 폭을 안 묶으면
-   패널을 그대로 5등분해 초상화가 280px까지 커지고, 정작 읽어야 할 수치가 밑에 깔린다. */
+/* キャラクター結果カード — 編成カードと **同じ幅・同じ位置** で 5 枚を横並びに。幅を縛らないと
+   パネルをそのまま 5 等分して立ち絵が 280px まで育ち、肝心の読むべき数値が下に敷かれる。 */
 .result-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
   width: min(100%, 940px); margin: 16px auto 0; gap: 10px; }
 .result-card { padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: rgb(var(--surface-rgb) / .55); }
@@ -700,10 +700,10 @@ footer a { color: var(--accent); text-decoration: none; font-weight: 800; letter
 @media (max-width: 900px) {
   .site-shell { width: min(100% - 24px, 760px); padding-top: 24px; }
   .calculator-layout { grid-template-columns: 1fr; }
-  /* 좁아지면 다섯 칸을 옆으로 밀지 않고 접는다. 미는 쪽은 지금 겨냥한 칸이
-     화면 밖으로 나가기 쉬운데, 그 칸이 어디인지가 이 화면의 요점이다. */
+  /* 狭くなったら 5 枠を横に流さず折り返す。横に流す方は、いま狙っている枠が
+     画面の外へ出やすいのだが、その枠がどこかこそ、この画面の要点だ。 */
   .squad-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); overflow-x: visible; }
-  /* 한 줄에 제목과 도구를 같이 두기엔 좁다 — 도구를 통째로 아래로 내린다. */
+  /* 1 行に見出しと道具を同居させるには狭い — 道具を丸ごと下へ下ろす。 */
   .section-heading { align-items: stretch; }
   .squad-tools { width: 100%; }
   .panel { padding: 22px; }
@@ -718,9 +718,9 @@ footer a { color: var(--accent); text-decoration: none; font-weight: 800; letter
   .section-heading > div:first-child { flex: 0 0 auto; }
   .squad-tools { align-items: stretch; flex-direction: column; gap: 12px; }
   .deck-tabs { grid-template-columns: repeat(5, minmax(72px, 1fr)); overflow-x: auto; }
-  /* 폰에서는 슬롯을 가로로 밀지 않고 두 줄로 접는다. 밀어서 보면 지금 겨냥한 칸이
-     화면 밖에 있기 쉬운데, 그 칸이 어디인지가 이 화면의 전부다. 번호(01~05)가
-     카드에 찍혀 있어 순서는 접혀도 읽힌다. */
+  /* スマホではスロットを横に流さず 2 行に折り返す。流して見ると、いま狙っている枠が
+     画面の外にありがちで、その枠がどこかがこの画面のすべてだ。番号 (01〜05) が
+     カードに刻んであるので、折り返しても順番は読める。 */
   .squad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-x: visible; }
   .picker-scroll { max-height: 240px; }
   .filter-panel { max-height: 240px; }
@@ -736,9 +736,9 @@ footer a { color: var(--accent); text-decoration: none; font-weight: 800; letter
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
-/* 상단 안내 링크 */
+/* 上部の案内リンク */
 
-/* 렛츠도로 CSV 안내 */
+/* Letsdoro CSV の案内 */
 .roster-import-group { display: inline-flex; align-items: center; gap: 6px; }
 .roster-info { width: 22px; height: 22px; padding: 0; border: 1px solid rgb(var(--accent-rgb) / .35); background: rgb(var(--accent-rgb) / .08); color: var(--ink); font: 700 12px/1 ui-serif, Georgia, serif; border-radius: 50%; cursor: pointer; }
 .roster-info:hover { background: rgb(var(--accent-rgb) / .2); border-color: var(--cyan); }
@@ -747,7 +747,7 @@ footer a { color: var(--accent); text-decoration: none; font-weight: 800; letter
 .doro-link a { color: var(--cyan); }
 .doro-shot { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 
-/* 블라블라링크 연동 */
+/* Blablalink 連携 */
 .blabla-row { display: flex; gap: 8px; align-items: center; margin: 12px 0 4px; flex-wrap: wrap; }
 .blabla-server { flex: 0 1 260px; min-width: 210px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: rgb(var(--surface-rgb) / .6); color: inherit; font: inherit; }
 .blabla-server:focus { outline: none; border-color: var(--cyan); }
@@ -760,28 +760,28 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .slot-pick { margin-top: 6px; padding: 6px 8px; width: 100%; border: 1px solid rgb(var(--accent-rgb) / .28); background: rgb(var(--accent-rgb) / .08); color: var(--ink); font-size: 11px; font-weight: 700; border-radius: 6px; cursor: pointer; }
 .slot-pick:hover { background: rgb(var(--accent-rgb) / .18); border-color: var(--cyan); }
 
-/* 덱마다 다른 버스트 충전 — 켤 때만 다섯 칸이 나온다. 토글은 다른 토글과 같은
-   `.toggle-field` 규칙을 쓰고, 자리만 «버스트 게이지 충전» 바로 다음으로 고정한다. */
+/* デッキごとに違うバーストチャージ — 点けたときだけ 5 つの欄が出る。トグルは他のトグルと同じ
+   `.toggle-field` 規則を使い、位置だけ «バーストゲージチャージ» のすぐ次に固定する。 */
 .deck-regen-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px;
   margin-top: 10px; }
 .deck-regen-grid[hidden] { display: none; }
 .deck-regen-grid label { display: grid; gap: 4px; }
 .deck-regen-grid span { color: var(--muted); font: 700 10px ui-monospace, monospace; }
 
-/* 캐릭터 설정 — 카드에서 창으로 여는 뭉치 */
+/* キャラクター設定 — カードからモーダルで開く塊 */
 .char-panel-open { display: flex; align-items: center; justify-content: space-between; gap: 6px;
   width: 100%; margin-top: 5px; padding: 7px 8px; border: 1px solid rgb(var(--accent-rgb) / .24);
   border-radius: 7px; background: rgb(var(--accent-rgb) / .08); color: var(--ink); font: inherit;
   font-size: 10.5px; font-weight: 700; text-align: left; cursor: pointer; }
 .char-panel-open:hover { border-color: var(--cyan); background: rgb(var(--accent-rgb) / .18); }
-/* 라벨은 한 줄로 끝낸다 — 좁은 카드에서 «돌파 · 스킬 · 오 / 버로드 · 큐브»로 깨지면
-   무엇을 여는 단추인지부터 읽히지 않는다. */
+/* ラベルは 1 行で終わらせる — 狭いカードで «限界突破 · スキル · オー / バーロード · キューブ» と割れると、
+   何を開くボタンなのかから読めなくなる。 */
 .char-panel-open .disclosure-label { min-width: 0; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; }
 .char-panel-open .disclosure-hint { flex: none; color: var(--muted); font-weight: 700; font-size: 12px; }
 
-/* 컨트롤 · 버스트 — 창이 아니라 카드에서 그 자리에 펼친다. 접힌 칩에 지금 상태가
-   적혀 있어 대부분은 열 일이 없다. 수치 설정(청록)과 색을 갈라 두 뭉치를 구분한다. */
+/* コントロール・バースト — モーダルではなくカードのその場で開く。畳んだチップに今の状態が
+   書いてあるので、たいていは開くまでもない。数値設定 (青緑) と色を分け、二つの塊を区別する。 */
 .control-chip { display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 5px;
   padding: 7px 8px; border: 1px solid rgb(var(--amber-rgb) / .3); border-radius: 7px;
   background: rgb(var(--amber-rgb) / .08); color: var(--amber-soft); font: 700 10px ui-monospace, monospace;
@@ -796,7 +796,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
   border-radius: 7px; background: rgb(var(--amber-rgb) / .05); }
 .control-panel[hidden] { display: none; }
 .control-panel h4 { margin: 10px 0 6px; font-size: 11px; }
-/* 긴 안내문 — 좁은 카드에서는 접어 두고 필요할 때만 편다. */
+/* 長い説明文 — 狭いカードでは畳んでおき、必要なときだけ開く。 */
 .note-fold { margin-top: 6px; }
 .note-fold > summary { color: var(--muted); font: 700 9.5px ui-monospace, monospace; cursor: pointer;
   list-style: none; }
@@ -807,14 +807,14 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .note-fold .field-note { margin-top: 4px; }
 .control-panel .field-note { font-size: 9.5px; }
 
-/* 개별값·개별 설정은 한 줄에 나란히 — 줄 수를 줄이는 게 이 카드의 전부다. */
+/* 個別値・個別設定は 1 行に横並び — 行数を減らすことがこのカードのすべてだ。 */
 .character-settings .loadout-open { flex: 1; margin-top: 8px; }
 .settings-row { display: flex; align-items: center; gap: 8px; }
 .settings-row .inline-check { margin: 8px 0 0; white-space: nowrap; }
 .custom-card.char-panel-card { width: min(720px, 100%); }
 .char-panel-body .char-panel { display: block; }
 
-/* 개별값 요약 — 접어 두고 필요할 때 펼친다 */
+/* 個別値の要約 — 畳んでおいて、必要なときに開く */
 .loadout-open { display: flex; align-items: center; justify-content: space-between; width: 100%;
   margin-top: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
   background: rgb(var(--surface-rgb) / .5); color: var(--muted); font: 700 10px ui-monospace, monospace; cursor: pointer; }
@@ -827,11 +827,11 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .share-field label .req { color: var(--amber-text); }
 .share-field label .opt { color: var(--muted); font-weight: 600; }
 
-/* 덱 비교 · 계산 기록 */
+/* デッキ比較・計算履歴 */
 .deck-rank { margin: 6px 0 0; color: var(--muted); font-size: 11px; font-weight: 700; }
 .deck-rank.is-best { color: var(--amber-text); }
 
-/* ── 화면 전환 탭 ─────────────────────────────────────────────────────── */
+/* ── 画面切り替えタブ ──────────────────────────────────────────────────── */
 /* タブは移動手段であって主役ではない — 細い丸いチップに (入口の顔はブランド行と盤面) */
 .view-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; }
 .view-tab { flex: 0 1 auto; min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px;
@@ -840,7 +840,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .view-tab.is-on { border-color: var(--ink); background: var(--ink); color: #fff; }
 .view-tab:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
-/* 폰에서는 한 줄에 다 못 넣는다 — 초상화 줄과 숫자 줄로 접는다. */
+/* スマホでは 1 行に全部は入らない — 立ち絵の行と数字の行に折りたたむ。 */
 @media (max-width: 700px) {
   .view-tab { font-size: 11.5px; padding: 0 10px; }
 }
@@ -849,18 +849,18 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
   background: rgb(var(--amber-rgb) / .1); color: var(--amber-text); font: 800 9px/1 ui-monospace, monospace;
   vertical-align: middle; letter-spacing: .06em; }
 
-/* 보스 다섯 칸. 넓으면 둘씩 서고, 좁으면 한 줄로 접힌다. */
+/* ボス 5 枠。広ければ 2 つずつ立ち、狭ければ 1 列に折りたたまれる。 */
 .union-bosses { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin-top: 12px; }
 .union-boss { padding: 12px; border: 1px solid var(--line); background: rgb(var(--surface-rgb) / .55); }
 /* 中の入力やボタンは押せるまま。親を opacity で薄めると中の文字の濃さが読めなくなるので、
    «外してある» ことは枠線と下地で示す */
 .union-boss.is-off { border-style: dashed; background: rgb(var(--line-rgb) / .05); }
 
-/* 병렬 계산 — 계산이 얼마나 빨리 끝나는지를 정하는 설정이라 실행 단추 바로 아래 둔다.
-   상태 줄과 나란히 읽히도록 오른쪽으로 붙이고, 개수 칸은 토글 옆에 작게 놓는다. */
+/* 並列計算 — 計算がどれだけ早く終わるかを決める設定なので、実行ボタンのすぐ下に置く。
+   状態行と並べて読めるよう右へ寄せ、個数の欄はトグルの隣に小さく置く。 */
 .parallel-row { display: flex; justify-content: flex-end; margin-top: 6px; }
-/* 줄 하나에 토글·글씨·개수 칸이 나란히 선다. 라벨이 줄어들면 스위치가 글씨 위로
-   올라타므로(제보 2026-08-27) 라벨과 스위치는 줄어들지 않게 못 박고 사이를 벌린다. */
+/* 1 行にトグル・文字・個数の欄が並んで立つ。ラベルが縮むとスイッチが文字の上に
+   乗り上げるので (報告 2026-08-27)、ラベルとスイッチは縮まないよう釘を刺し、間を空ける。 */
 .parallel-pick { flex: 0 0 auto; gap: 8px; }
 .parallel-pick .toggle { flex: 0 0 auto; }
 .parallel-pick > span { white-space: nowrap; }
@@ -869,7 +869,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .parallel-pick select:disabled { opacity: .4; }
 
 @media (max-width: 640px) {
-  /* 좁은 화면에서는 단추가 줄을 타고 넘어가되 글씨가 잘리지 않게 한 줄씩 편다. */
+  /* 狭い画面ではボタンが行をまたいで折り返しつつ、文字が切れないよう 1 つずつ広げて並べる。 */
   .union-board-bar > .roster-import { flex: 1 1 auto; justify-content: center; }
 }
 @keyframes online-pulse {
@@ -878,14 +878,14 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
   100% { box-shadow: 0 0 0 0 rgb(var(--success-rgb) / 0); }
 }
 
-/* 끌어다 놓기 — 누르는 길은 그대로 두고 더한 길이다(손가락에서는 끌기가 안 된다). */
+/* ドラッグ&ドロップ — 押して選ぶ道はそのままに、足した道だ (指ではドラッグできない)。 */
 .roster-cell[draggable="true"] { cursor: grab; }
 /* contrast-ignore: つまんで運んでいる最中の見た目。読ませる文字ではない */
 .roster-cell.is-dragging, .squad-slot.is-dragging { opacity: .45; }
 .squad-slot.is-drop { outline: 2px dashed var(--amber); outline-offset: -2px;
   background: rgb(var(--amber-rgb) / .06); }
 
-/* 타임라인의 「버프 표시」 — 확대·축소 단추와 같은 줄, 같은 생김새로 세운다. */
+/* タイムラインの「バフ表示」 — 拡大・縮小ボタンと同じ行、同じ見た目で立てる。 */
 .timeline-buff-toggle { display: inline-flex; align-items: center; gap: 6px; height: 26px;
   margin-right: 6px; padding: 0 10px; border: 1px solid var(--line);
   background: rgb(var(--surface-rgb) / .55); color: var(--muted); font: 800 11px inherit;
@@ -896,7 +896,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .timeline-buff-toggle.is-on { border-color: var(--amber-text); background: rgb(var(--amber-rgb) / .1); color: var(--amber-text); }
 .timeline-buff-toggle.is-on .tl-buff-mark { background: var(--amber); border-color: var(--amber-text); }
 
-/* 툴팁 안 «받는 사람» 얼굴들. */
+/* ツールチップ内の «受け手» の顔たち。 */
 .tl-tip-faces { display: flex; align-items: center; gap: 6px; margin-top: 6px;
   padding-top: 6px; border-top: 1px solid rgb(var(--line-rgb) / .15); }
 .tl-tip-faces .tl-name { color: var(--muted); }
@@ -905,18 +905,18 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .tl-face-none { display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; border-radius: 4px; border: 1px solid rgb(var(--line-rgb) / .25); }
 
-/* ── 외부고리 ─────────────────────────────────────────────────────────────
-   우리가 운영하지 않는 곳으로 나가는 판. 카드마다 주소(호스트)를 적어 두는 이유는
-   «어디로 가는지»가 누르기 전에 보여야 하기 때문이다. */
+/* ── 外部リンク ──────────────────────────────────────────────────────────
+   我々が運営していない場所へ出ていく盤。カードごとに宛先 (ホスト) を書いておくのは、
+   «どこへ行くのか» が押す前に見えていなければならないからだ。 */
 .links-lede { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .links-lede b { color: var(--ink); }
 
-/* ── 버스트 순서 ──────────────────────────────────────────────────────────
-   한 걸음에 하나씩 고른다. 초상화가 크고 단축키가 그 위에 박혀 있어야 눈이 아니라
-   손이 외운다 — 아홉 사이클이면 스물일곱 번 누르는 화면이다. */
+/* ── バースト順序 ─────────────────────────────────────────────────────────
+   一歩にひとつずつ選ぶ。立ち絵が大きく、ショートカットがその上に刻まれていてこそ、目ではなく
+   手が覚える — 9 サイクルなら 27 回押す画面だ。 */
 .burst-order-card { max-width: 620px; }
-/* 덱 비우기 옆에서 같은 빨간 옷을 입고 있어 눈에 안 띄었다. 파괴 단추가 아니라
-   자주 쓰는 도구이므로 제 색을 주고 줄 맨 앞에 세운다. */
+/* デッキを空にするボタンの隣で同じ赤い服を着ていて目に留まらなかった。破壊ボタンではなく
+   よく使う道具なので、自分の色を与えて行の先頭に立てる。 */
 .burst-order-open { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px;
   border: 1px solid rgb(var(--accent-rgb) / .45); border-radius: 7px; background: rgb(var(--accent-rgb) / .1);
   color: var(--cyan); font: 800 11px inherit; cursor: pointer; }
@@ -924,7 +924,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .burst-order-open:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .burst-order-mark { padding: 1px 5px; border-radius: 4px; background: rgb(var(--accent-rgb) / .18);
   font: 800 9px/1.5 ui-monospace, monospace; letter-spacing: .02em; }
-/* 순서를 걸어 두면 색이 바뀐다 — 열어 보지 않아도 걸린 게 보인다. */
+/* 順序を設定しておくと色が変わる — 開かなくても、設定済みなのが見える。 */
 .burst-order-open.is-on { border-color: rgb(var(--amber-rgb) / .55); background: rgb(var(--amber-rgb) / .12);
   color: var(--amber-text); }
 .burst-order-open.is-on .burst-order-mark { background: rgb(var(--amber-rgb) / .2); }
@@ -944,7 +944,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
   font: 11px/1 ui-monospace, monospace; }
 .burst-order-hint { margin: 0 0 12px; color: var(--muted); font-size: 11px; }
 
-/* 지금 서 있는 걸음. 사이클과 단계가 한눈에 읽혀야 손이 안 멈춘다. */
+/* いま立っている一歩。サイクルと段階がひと目で読めてこそ、手が止まらない。 */
 .burst-now { display: flex; align-items: center; padding: 12px; border: 1px solid var(--line-hot, rgb(var(--accent-rgb) / .38));
   border-radius: 10px; background: rgb(var(--accent-rgb) / .06); }
 .burst-now-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
@@ -978,7 +978,7 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
 .burst-row.is-now { background: rgb(var(--accent-rgb) / .08); }
 .burst-row-no { min-width: 20px; color: var(--muted); font: 700 10.5px/1.5 ui-monospace, monospace; }
 
-/* 사이클마다 빈 칸 셋. 채워지면 초상화가 들어간다 — 어디까지 왔는지가 한눈에 보인다. */
+/* サイクルごとに空きマスが 3 つ。埋まると立ち絵が入る — どこまで来たかがひと目で見える。 */
 .burst-row-slots { display: flex; gap: 6px; }
 .burst-slot { display: flex; align-items: center; gap: 5px; padding: 3px 6px 3px 5px;
   border: 1px dashed rgb(var(--line-rgb) / .28); border-radius: 8px; background: rgb(var(--surface-rgb) / .5);
@@ -995,16 +995,16 @@ button.roster-cell.is-taken:disabled { opacity: .35; cursor: not-allowed; }
   background: rgb(var(--line-rgb) / .06); overflow: hidden;
   color: var(--muted); font-size: 9.5px; font-weight: 700; }
 .burst-slot-face img { width: 100%; height: 100%; object-fit: cover; }
-/* 빈 칸은 비어 있다는 것이 보여야 한다 — 채워진 칸과 같은 크기로 자리를 지킨다. */
+/* 空きマスは空いていることが見えなければならない — 埋まったマスと同じ大きさで席を守る。 */
 .burst-slot:not(.is-filled) .burst-slot-face { border: 1px dashed rgb(var(--line-rgb) / .22); }
 .burst-empty { margin: 0; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 520px) {
-  /* 좁으면 초상화를 줄여 한 줄에 넷은 들어가게 한다 — 스크롤하며 고르면 손이 끊긴다. */
+  /* 狭ければ立ち絵を縮め、1 行に 4 つは入るようにする — スクロールしながら選ぶと手が途切れる。 */
   .burst-pick { width: calc(25% - 6px); padding: 7px 4px; }
   .burst-pick-face { width: 40px; height: 40px; }
   .burst-order-progress { margin-left: 0; }
-  /* 칸 셋이 한 줄에 서야 사이클끼리 견줘진다 — 이름표를 접고 초상화만 남긴다. */
+  /* マス 3 つが 1 行に立ってこそサイクル同士を見比べられる — 名札を畳んで立ち絵だけ残す。 */
   .burst-slot { padding: 3px 4px; }
   .burst-slot-stage { font-size: 9px; }
   .burst-slot-face { width: 24px; height: 24px; }
