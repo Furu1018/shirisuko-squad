@@ -1078,6 +1078,8 @@ button.prep-chip:hover { filter: brightness(.96); }
   font: 800 8.5px/1.3 ui-monospace, monospace; color: var(--accent-deep);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plans-face-cube:hover { text-decoration: underline; }
+/* 出どころが «この編成» ではない実効キューブ (取込・既定)。◦ を付け、色も一段引く */
+.plans-face-cube.is-implied { color: var(--ink-2); }
 .plans-chip { font-size: 11.5px; padding: 2px 7px; border-radius: 999px;
   background: rgb(var(--line-rgb) / .18); white-space: nowrap; }
 .plans-score { font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 116px; text-align: right; }

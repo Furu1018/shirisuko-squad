@@ -1006,6 +1006,79 @@ describe('calculator UI', () => {
     }
   });
 
+  it('キューブを明示していない候補は、既定キューブが «◦付き» で見える (表示と計算を一致させる)', () => {
+    // cube キーが無いと、エンジンはそのキャラの既定キューブで計算する (test-bridge.py で実証)。
+    // それを画面が黙っていたせいで、«リロ速を付けても数値が動かない» (元から同じものが
+    // 効いていた) が「キューブが壊れている」に見えた。
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+
+    // ロスター無し・詰めもせず保存 → 候補は cube を明示しない
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    modal.querySelector<HTMLButtonElement>('[data-board-pick="리타"]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+
+    const badge = root.querySelector<HTMLElement>('[data-plans-group="철갑"] .plans-face-cube')!;
+    expect(badge).not.toBeNull();
+    // 出どころが «この編成» ではない印 (◦) と、title に既定である説明
+    expect(badge.classList.contains('is-implied')).toBe(true);
+    expect(badge.textContent).toContain('◦');
+    expect(badge.title).toContain('既定');
+    expect(badge.title).toContain('재장');   // 리타 の既定キューブ (fixture)
+  });
+
+  it('既定と同じキューブをまとめて付けたら「理論値は変わりません」と言う', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    modal.querySelector<HTMLButtonElement>('[data-board-pick="리타"]')!.click();
+    // 付けるたびに詰める面は描き直される — 欄は毎回取り直す
+    const cubePick = () => modal.querySelector<HTMLSelectElement>('[data-squad-cube-name]')!;
+    const applyCube = (name: string) => {
+      cubePick().value = name;
+      cubePick().dispatchEvent(new Event('change'));
+      modal.querySelector<HTMLButtonElement>('[data-squad-cube-apply]')!.click();
+    };
+    // 리타 の既定 (재장 Lv15) と同じものを付ける → 数値が動かない理由を言う
+    applyCube('재장');
+    expect(root.querySelector('[data-squad-modal-note]')!.textContent)
+      .toContain('理論値は変わりません');
+
+    // 別のキューブなら普通の報告
+    applyCube('체력');
+    expect(root.querySelector('[data-squad-modal-note]')!.textContent)
+      .not.toContain('理論値は変わりません');
+  });
+
+  it('「キューブなし」も明示して付けられる (素の値を確かめる手段)', () => {
+    mountCalculator(root, {
+      catalog, settings, version: 'v1', client: new FakeClient(), storage: localStorage,
+    } as Parameters<typeof mountCalculator>[1]);
+    const modal = root.querySelector<HTMLElement>('[data-squad-modal]')!;
+
+    root.querySelector<HTMLButtonElement>('[data-prep-make="철갑"]')!.click();
+    modal.querySelector<HTMLButtonElement>('[data-board-pick="리타"]')!.click();
+    const cubePick = modal.querySelector<HTMLSelectElement>('[data-squad-cube-name]')!;
+    // 既定の選択は実キューブ (なしを既定にすると、敷きたい人が一手損する)
+    expect(cubePick.value).not.toBe('없음');
+    cubePick.value = '없음';
+    cubePick.dispatchEvent(new Event('change'));
+    expect(modal.querySelector<HTMLSelectElement>('[data-squad-cube-level]')!.disabled).toBe(true);
+    modal.querySelector<HTMLButtonElement>('[data-squad-cube-apply]')!.click();
+    root.querySelector<HTMLButtonElement>('[data-squad-modal-save]')!.click();
+
+    const stored = JSON.parse(localStorage.getItem('nikke-plans-v1')!) as
+      { byElement: Record<string, Array<{ characters?: Record<string, { cube?: { name: string; level: number } }> }>> };
+    expect(stored.byElement['철갑']![0]!.characters!['리타']!.cube).toEqual({ name: '없음', level: 0 });
+    // 明示的な «なし» はバッジを出さない (計算どおり)
+    expect(root.querySelector('[data-plans-group="철갑"] .plans-face-cube')).toBeNull();
+  });
+
   it('「コピー」は写しを新規として開き、そのままでは保存できない', () => {
     // 「ちょっとだけ編成をかえる」の入口。写しをどこか変えて保存すると別候補になる。
     // 何も変えずに保存しようとすると重複で弾かれる — それが «どこか変えて» の合図

@@ -695,3 +695,59 @@ class BrowserBridgeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CubeReachesTheEngineTest(unittest.TestCase):
+    """キューブが計算に効くことを、橋を通した実リクエストで固定する。
+
+    実機監査で「リロ速 Lv15 を付けても理論値が動かない」と観測された。真相は
+    **個別設定に cube キーが無いと、エンジンがそのキャラの既定キューブ (最良 Lv15 相当) で
+    計算する**ため、既定と同じキューブを付けても数値が変わらなかった — エンジンは無罪。
+    この試験は (1) キューブそのものが効くこと (2) «無指定 = 既定キューブ» という
+    暗黙の約束、の両方を見張る。どちらかが崩れたら、画面の出どころ表示 ((既定) の印) が
+    嘘になるので、このテストで気づく。
+    """
+
+    BASE = {
+        "squad": ["리타"],
+        "duration": 10,
+        "enemyDef": 31_784,
+        "enemyCode": "",
+        "corePx": 0,
+        "hasParts": False,
+        "seed": 42,
+    }
+
+    def _total(self, overrides):
+        raw = run_request(json.dumps({
+            **self.BASE,
+            "characters": {"리타": overrides},
+        }, ensure_ascii=False))
+        return json.loads(raw)["squadTotal"]
+
+    def test_cube_changes_the_result(self):
+        none = self._total({"cube": {"name": "없음", "level": 0}})
+        lv15 = self._total({"cube": {"name": "렐릭 베어 큐브", "level": 15}})
+        lv7 = self._total({"cube": {"name": "렐릭 베어 큐브", "level": 7}})
+        self.assertGreater(lv15, none)
+        self.assertGreater(lv15, lv7)
+        self.assertGreater(lv7, none)
+
+    def test_omitted_cube_means_the_character_default_cube(self):
+        # 無指定はキューブ無しでは**ない** — 既定キューブで計算される。
+        # 画面はこれを «(既定)» と表示して約束している
+        omitted = self._total({})
+        none = self._total({"cube": {"name": "없음", "level": 0}})
+        self.assertGreater(omitted, none)
+
+    def test_site_default_cube_matches_the_engine_default(self):
+        # 画面の «(既定)» の中身は settings.json の characters[name].cube。
+        # これがエンジンの既定と食い違うと、表示だけ正しくて数値が別物になる
+        settings = json.loads(
+            (SITE_DIR / "public" / "settings.json").read_text(encoding="utf-8"))
+        site_default = settings["characters"]["리타"]["cube"]
+        omitted = self._total({})
+        explicit = self._total({"cube": {
+            "name": site_default["name"], "level": int(site_default["level"]),
+        }})
+        self.assertEqual(omitted, explicit)

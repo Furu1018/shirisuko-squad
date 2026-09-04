@@ -3486,6 +3486,27 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
     ['最大HP', 'HP'],
     ['防御力', '防御'],
   ];
+  /**
+   * このニケが**実際に計算されるときのキューブ**と、その出どころ。
+   *
+   * cube キーが無いと、エンジンは既定キューブ (多くは最良 Lv15) で計算する —
+   * これを画面が黙っていたせいで、«リロ速を付けても数値が動かない» (元から同じものが
+   * 効いていた) が「キューブが壊れている」に見えた (実機監査 → エンジン直叩きで実証)。
+   * 優先順位は計算側 (charactersWith → エンジン既定) と同じでなければならない。
+   * 既定が本当にエンジンと一致することは scripts/test-bridge.py が見張っている。
+   */
+  const effectiveCube = (
+    name: string, snapshot?: Record<string, CharacterOverrides>,
+  ): { cube: { name: string; level: number } | null; source: 'plan' | 'roster' | 'default' } => {
+    const fromPlan = snapshot?.[name]?.cube;
+    if (fromPlan) return { cube: fromPlan.name === NO_CUBE ? null : fromPlan, source: 'plan' };
+    const fromRoster = roster[name]?.cube;
+    if (fromRoster) return { cube: fromRoster.name === NO_CUBE ? null : fromRoster, source: 'roster' };
+    const fallback = settings.characters[name]?.cube;
+    return { cube: fallback && fallback.name !== NO_CUBE ? fallback : null, source: 'default' };
+  };
+  const CUBE_SOURCE_LABELS = { plan: 'この編成の設定', roster: '取り込んだ装着', default: '既定 (未指定のときエンジンが使う値)' } as const;
+
   const cubeNickname = (cubeName: string | undefined): string => {
     if (!cubeName || cubeName === NO_CUBE) return '';
     const meta = settings.cubes[cubeName];
@@ -3730,13 +3751,19 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             // どのキューブを付けた候補かは、開かないと分からなかった (実運用の指摘)。
             // 候補のスナップショットが持つキューブだけを出す — ロスター任せのニケは
             // 計算時にロスターの値になるので、ここで断定して出すと嘘になりうる
-            const wearing = cubeNickname(plan.characters?.[who]?.cube?.name);
-            if (wearing) {
-              // スマホにホバーは無い — 押せば正式名と Lv が行のノートに出る
+            // **実効**キューブを出す。明示された分だけ出すと、既定キューブで計算して
+            // いるのに «未装着» の顔をする — 表示と計算の食い違いが「キューブが壊れて
+            // いる」に見えた (実機監査 → エンジン直叩きで実証)
+            const worn = effectiveCube(who, plan.characters);
+            if (worn.cube) {
+              const nick = cubeNickname(worn.cube.name);
+              // スマホにホバーは無い — 押せば正式名と Lv と出どころが行のノートに出る
               const badge = el('button', 'plans-face-cube');
               (badge as HTMLButtonElement).type = 'button';
-              badge.textContent = wearing;
-              const full = `${labelForCube(plan.characters![who]!.cube!.name)} Lv${plan.characters![who]!.cube!.level}`;
+              badge.textContent = worn.source === 'plan' ? nick : `${nick}◦`;
+              if (worn.source !== 'plan') badge.classList.add('is-implied');
+              const full = `${labelForCube(worn.cube.name)} Lv${worn.cube.level}`
+                + (worn.source === 'plan' ? '' : ` — ${CUBE_SOURCE_LABELS[worn.source]}`);
               badge.title = full;
               badge.setAttribute('aria-label', `${labelFor(who)} のキューブ: ${full}`);
               badge.addEventListener('click', () => { if (code) say(code, `${labelFor(who)}: ${full}`, true); });
@@ -3991,6 +4018,14 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         const cubePick = el('select') as HTMLSelectElement;
         cubePick.dataset.squadCubeName = '';
         cubePick.setAttribute('aria-label', '全員に付けるキューブ');
+        {
+          // «無し» も選べるようにする — 明示できないと、既定キューブを外して
+          // 素の値を確かめる手段がない
+          const option = document.createElement('option');
+          option.value = NO_CUBE;
+          option.textContent = 'キューブなし';
+          cubePick.append(option);
+        }
         for (const [cubeName, meta] of Object.entries(settings.cubes)) {
           const option = document.createElement('option');
           option.value = cubeName;
@@ -4007,12 +4042,21 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           option.textContent = effect ? `${labelForCube(cubeName)} — ${effect}` : labelForCube(cubeName);
           cubePick.append(option);
         }
-        if (draft.bulkCube && settings.cubes[draft.bulkCube]) cubePick.value = draft.bulkCube;
+        // 既定の選択は**実キューブの先頭** — «なし» を既定にすると、押した人の
+        // 大半 (リロ速を敷きたい人) が一手損する。«なし» は選べれば足りる
+        const firstCube = Object.keys(settings.cubes)[0];
+        if (draft.bulkCube && (draft.bulkCube === NO_CUBE || settings.cubes[draft.bulkCube])) {
+          cubePick.value = draft.bulkCube;
+        } else if (firstCube) {
+          cubePick.value = firstCube;
+        }
         const levelPick = el('select') as HTMLSelectElement;
         levelPick.dataset.squadCubeLevel = '';
         levelPick.setAttribute('aria-label', '付けるキューブのレベル');
         const fillLevels = () => {
           levelPick.replaceChildren();
+          levelPick.disabled = cubePick.value === NO_CUBE;
+          if (levelPick.disabled) return;
           const meta = settings.cubes[cubePick.value];
           const levels = Object.keys(meta?.levels ?? {}).map(Number).sort((a, b) => a - b);
           for (const level of levels) {
@@ -4039,10 +4083,20 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
         applyAll.addEventListener('click', () => {
           if (!draft) return;
           const cubeName = cubePick.value;
-          const level = Number(levelPick.value);
+          const isNone = cubeName === NO_CUBE;
+          const level = isNone ? 0 : Number(levelPick.value);
           draft.bulkCube = cubeName;
           draft.bulkCubeLevel = level;
-          for (const name of draft.squad.filter(Boolean)) {
+          // 付ける前の実効と比べる。既定で同じものが効いていたなら «数値は変わらない» と
+          // 言っておく — これを黙っていたせいで «キューブが壊れている» に見えた
+          const members = draft.squad.filter(Boolean);
+          const snapshotNow = draft.characters;
+          const unchanged = members.every((name) => {
+            const worn = effectiveCube(name, snapshotNow);
+            return isNone ? worn.cube === null
+              : worn.cube?.name === cubeName && worn.cube.level === level;
+          });
+          for (const name of members) {
             // 設定が無いニケは既定 (取り込んだ値が敷いてあればそれ) から起こす。
             // キューブだけの部分的な設定は作れない — 個別設定は1塊で持つ約束
             const base = draft.characters[name] ?? defaultCharacterOverrides(name, settings);
@@ -4050,7 +4104,10 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
             draft.characters[name] = base;
           }
           renderTune();
-          sayModal(`${draft.squad.filter(Boolean).length}人全員に ${labelForCube(cubeName)} Lv${level} を付けました。個別に変えたい人は下で直せます。`, true);
+          const what = isNone ? 'キューブなし' : `${labelForCube(cubeName)} Lv${level}`;
+          sayModal(`${members.length}人全員に ${what} を付けました。`
+            + (unchanged ? ' すでに全員この設定で計算されていたので、理論値は変わりません。'
+              : ' 個別に変えたい人は下で直せます。'), true);
         });
         bulk.append(cubePick, levelPick, applyAll);
         squadModalTune.append(bulk);
@@ -4101,10 +4158,17 @@ export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies)
           tab.append(img);
         }
         tab.append(createText('span', labelFor(name), 'squad-tune-name'));
-        // どのキューブを付けているかをタブで見せる。無ければ «設定あり» の印だけ
-        const nick = cubeNickname(draft.characters[name]?.cube?.name);
-        if (nick) tab.append(createText('b', nick, 'squad-tune-mark'));
-        else if (draft.characters[name]) tab.append(createText('b', '設定あり', 'squad-tune-mark'));
+        // どのキューブで**計算されるか**をタブで見せる (実効 = この編成 ?? 取込 ?? 既定)
+        const worn = effectiveCube(name, draft.characters);
+        if (worn.cube) {
+          const nick = cubeNickname(worn.cube.name);
+          const mark = createText('b', worn.source === 'plan' ? nick : `${nick}◦`, 'squad-tune-mark');
+          mark.title = `${labelForCube(worn.cube.name)} Lv${worn.cube.level}`
+            + (worn.source === 'plan' ? '' : ` — ${CUBE_SOURCE_LABELS[worn.source]}`);
+          tab.append(mark);
+        } else if (draft.characters[name]) {
+          tab.append(createText('b', '設定あり', 'squad-tune-mark'));
+        }
         tabs.append(tab);
       }
       squadModalTune.append(tabs);
